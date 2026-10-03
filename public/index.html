@@ -253,7 +253,7 @@ function render(){
   const de=dueEntries();const urgent=de.filter(e=>e.st==="overdue").length;
   document.getElementById("tabs").innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" aria-selected="${S.tab===k}" data-act="tab" data-k="${k}">${l}${k==="approvals"&&ON.approvals?`<span class="n">${ON.approvals}</span>`:""}${k==="audit"&&S.audit.length?`<span class="n">${S.audit.filter(a=>a.status!=="ready").length}</span>`:""}${k==="overview"&&urgent?`<span class="n">${urgent}</span>`:""}</button>`).join("");
   if(!S.db)return;S.writable=roleWritable(S.tab);
-  const r={overview:vOverview,learners:vLearners,register:vRegister,staff:vStaff,centre:vCentre,documents:vDocuments,audit:vAudit,users:vUsers,activity:vActivity,approvals:vApprovals}[S.tab];
+  const r={overview:vOverview,learners:vLearners,register:vRegister,staff:vStaff,centre:vCentre,documents:vDocuments,audit:vAudit,users:vUsers,activity:vActivity,approvals:vApprovals,exams:vExams}[S.tab];
   const focusId=document.activeElement&&document.activeElement.id;
   main.innerHTML=(ON.me&&ON.me.role==="admin"&&S.tab!=="approvals"&&S.tab!=="activity"?`<div class="banner">You are signed in as Admin – any change you make is sent to the Manager for approval before it appears in the records.</div>`:"")+r(de);
   if(focusId){const el=document.getElementById(focusId);if(el&&el.tagName==="INPUT"){el.focus();const v=el.value;try{el.setSelectionRange(v.length,v.length)}catch(e){}}}
@@ -722,7 +722,7 @@ function userBox(){const ub=document.getElementById("userbox");if(!ub||!ON.me)re
   document.getElementById("b-out").onclick=async()=>{try{await api("POST","/api/logout")}catch(e){}showLogin("You have signed out.")};
   const ex=document.getElementById("b-export");if(ex)ex.onclick=()=>{toast("Preparing the offline copy – this can take a minute…");window.location.href="/api/export.zip"}}
 async function afterSignIn(u){ON.me=u;if(u.must_change){showChangePw(true);return}
-  TABS.length=0;BASE_TABS.forEach(t=>TABS.push(t));TABS.push(["approvals","Approvals"]);TABS.push(["activity","Activity"]);if(u.role==="manager")TABS.push(["users","Users"]);
+  TABS.length=0;BASE_TABS.forEach(t=>TABS.push(t));TABS.push(["approvals","Approvals"]);TABS.push(["activity","Activity"]);if(u.role==="manager"){TABS.push(["exams","Exams"]);TABS.push(["users","Users"])}
   if(!TABS.find(t=>t[0]===S.tab))S.tab="overview";
   main.innerHTML=`<div class="empty"><strong>Loading records…</strong></div>`;
   await loadData();start();userBox();clearInterval(ON.pollT);ON.pollT=setInterval(poll,15000)}
@@ -802,7 +802,7 @@ function confirmBox(msg,ok){const root=document.getElementById("modal-root");roo
 
 /* ---------- Approvals tab ---------- */
 let APPR=null;
-const COL_LABEL={staff:"Staff member",items:"Staff record / centre check",documents:"Document",learners:"Learner",otj:"Off-the-job hours",attendance:"Register",audit:"EQA audit item",config:"Settings"};
+const COL_LABEL={staff:"Staff member",items:"Staff record / centre check",documents:"Document",learners:"Learner",otj:"Off-the-job hours",attendance:"Register",audit:"EQA audit item",config:"Settings",exams:"Exam paper"};
 const SKIP_KEYS=new Set(["updatedAt"]);
 function short(v){if(v===undefined||v===null||v==="")return "—";if(Array.isArray(v)){if(v.length&&v[0]&&v[0].name)return v.map(f=>f.name).join(", ");return v.length+" item"+(v.length===1?"":"s")}
   if(typeof v==="object"){if(v.name&&v.id&&v.type)return v.name;const t=JSON.stringify(v);return t.length>90?t.slice(0,90)+"…":t}const t=String(v);return t.length>140?t.slice(0,140)+"…":t}
@@ -837,6 +837,66 @@ document.addEventListener("click",async e=>{const t=e.target;if(!t.closest)retur
   const r=t.closest("[data-rej]");if(r)return rejectBox(r.dataset.rej);
   const w=t.closest("[data-wd]");if(w){try{await api("POST","/api/changes/"+w.dataset.wd+"/withdraw");toast("Request withdrawn");APPR=null;ON.approvals=Math.max(0,ON.approvals-1);render()}catch(err){toast("Couldn't withdraw.")}return}
 },true);
+
+/* ---------- Exams tab (Manager only): MLP Centre CD Pack and other exam papers ---------- */
+const EX_TYPES={pdf:"application/pdf",doc:"application/msword",docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",xls:"application/vnd.ms-excel",
+  xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",ppt:"application/vnd.ms-powerpoint",pptx:"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",txt:"text/plain",csv:"text/csv"};
+const EX_OPEN=new Set();
+function exList(){return Object.entries((ON.data&&ON.data.collections.exams)||{}).map(([id,d])=>({id,...d}))}
+function exSize(n){return n>=1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB"}
+function vExams(){
+  if(!ON.me||ON.me.role!=="manager")return `<div class="panel"><div class="empty"><strong>Manager only</strong>This tab is only available to the Manager.</div></div>`;
+  const L=exList();const tree={};
+  for(const x of L){const parts=(x.path||x.title).split("/");const top=parts.length>2?parts[1]:(parts.length>1?parts[0]:"Other");const sub=parts.length>3?parts.slice(2,-1).join(" › "):"";
+    ((tree[top]=tree[top]||{})[sub]=tree[top][sub]||[]).push(x)}
+  const tops=Object.keys(tree).sort();
+  const row=x=>{const ext=(x.title.split(".").pop()||"").toUpperCase();return `<tr data-exrow="${esc((x.title+" "+(x.path||"")).toLowerCase())}"><td><a href="/_blob/${esc(x.fileId)}" target="_blank" rel="noopener">${esc(x.title.replace(/\.[^.]+$/,""))}</a></td><td><span class="pill p-ok" style="font-size:11px">${esc(ext)}</span></td><td class="mono">${exSize(x.size||0)}</td><td style="text-align:right"><button class="btn sm danger" data-exdel="${esc(x.id)}" aria-label="Remove ${esc(x.title)}">Remove</button></td></tr>`};
+  const body=tops.map(t=>{const subs=Object.keys(tree[t]).sort();const n=subs.reduce((a,k)=>a+tree[t][k].length,0);
+    return `<details class="panel" style="margin-bottom:10px;padding:0" data-extop="${esc(t)}" ${EX_OPEN.has(t)?"open":""}><summary style="padding:12px 16px;cursor:pointer;font-weight:600">${esc(t)} <span class="muted" style="font-weight:400">· ${n} file${n===1?"":"s"}</span></summary>
+      <div class="tbl-wrap" style="padding:0 8px 10px"><table><thead><tr><th>Paper</th><th>Type</th><th>Size</th><th></th></tr></thead><tbody>
+      ${subs.map(k=>(k?`<tr data-exhead><td colspan="4" style="background:var(--sunk);font-size:13px;font-weight:600">${esc(k)}</td></tr>`:"")+tree[t][k].sort((a,b)=>a.title.localeCompare(b.title)).map(row).join("")).join("")}
+      </tbody></table></div></details>`}).join("");
+  return `<div class="section-head"><div><h2>Exams</h2><p>MLP Centre CD Pack – assessments, model answers, overlays and centre documents. <strong>Manager only</strong>: the Admin can't see this tab or open these files, and they aren't included in offline copies.</p></div>
+    <div class="bar"><button class="btn" id="ex-add">Add files</button><button class="btn primary" id="ex-folder">Import a folder</button></div></div>
+    <input type="file" id="ex-in-folder" webkitdirectory multiple hidden><input type="file" id="ex-in-files" multiple hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt,.csv">
+    <div id="ex-prog" class="banner" hidden></div>
+    ${L.length?`<div style="margin:0 0 12px"><input id="ex-q" type="search" placeholder="Search ${L.length} papers…" aria-label="Search exam papers" style="width:100%;max-width:420px;border:1px solid var(--line);border-radius:6px;padding:9px 10px;background:var(--surface);color:var(--ink)"></div>${body}`
+      :`<div class="panel"><div class="empty"><strong>No exam papers yet</strong>Click <em>Import a folder</em> and choose the <em>MLP Centre CD Pack - February 2024</em> folder. Every PDF, Word, Excel and PowerPoint file in it is uploaded and kept in its folder groups.</div></div>`}`}
+async function exHash(s){const b=await crypto.subtle.digest("SHA-1",new TextEncoder().encode(s));return "ex-"+[...new Uint8Array(b)].slice(0,12).map(x=>x.toString(16).padStart(2,"0")).join("")}
+async function exUpload(files){
+  const have=new Set(exList().map(x=>x.path));
+  const list=[...files].filter(f=>{const ext=(f.name.split(".").pop()||"").toLowerCase();return EX_TYPES[ext]&&!/^(thumbs\.db|\.ds_store)$/i.test(f.name)&&!f.name.startsWith("~$")});
+  const todo=list.filter(f=>!have.has(f.webkitRelativePath||f.name));
+  const skipped=[...files].length-list.length, dup=list.length-todo.length;
+  if(!todo.length){toast(dup?"Those files are already in Exams.":"No PDF, Word, Excel or PowerPoint files in that selection.");return}
+  const prog=document.getElementById("ex-prog");let done=0,failed=[];
+  const show=()=>{const p=document.getElementById("ex-prog");if(p){p.hidden=false;p.textContent=`Uploading ${done+failed.length} of ${todo.length}… keep this page open.`}};show();
+  const q=[...todo];
+  async function worker(){while(q.length){const f=q.shift();const ext=f.name.split(".").pop().toLowerCase();const path=f.webkitRelativePath||f.name;
+      try{if(f.size>20*1024*1024)throw {code:"too_large"};
+        const r=await api("POST","/api/files",f,{"X-File-Type":EX_TYPES[ext],"X-File-Name":encodeURIComponent(f.name),"X-Restricted":"1","Content-Type":"application/octet-stream"});
+        const id=await exHash(path);const doc={title:f.name,path,fileId:r.id,type:EX_TYPES[ext],size:f.size,addedAt:new Date().toISOString(),addedBy:ON.me.name};
+        await api("PUT","/api/doc/exams/"+encodeURIComponent(id),doc);col("exams")[id]=doc;done++}
+      catch(e){failed.push(f.name+(e&&e.code==="too_large"?" (over 20 MB)":""))}
+      show()}}
+  await Promise.all([worker(),worker(),worker()]);
+  notify();render();
+  setTimeout(()=>{const p=document.getElementById("ex-prog");if(!p)return;p.hidden=false;
+    p.textContent=`Uploaded ${done} file${done===1?"":"s"}.`+(dup?` ${dup} already there.`:"")+(skipped?` ${skipped} skipped (not a document).`:"")+(failed.length?` Couldn't upload: ${failed.slice(0,5).join(", ")}${failed.length>5?"…":""}`:"")},50)}
+document.addEventListener("click",async e=>{const t=e.target;if(!t.closest)return;
+  if(t.closest("#ex-folder")){document.getElementById("ex-in-folder").click();return}
+  if(t.closest("#ex-add")){document.getElementById("ex-in-files").click();return}
+  const d=t.closest("[data-exdel]");if(d){const id=d.dataset.exdel;const x=col("exams")[id];if(!x)return;
+    const root=document.getElementById("modal-root");root.innerHTML=`<div class="scrim"><div class="modal" role="dialog" aria-modal="true" style="padding:20px"><p>Remove “${esc(x.title)}” from Exams? The file is deleted from the website (your original in Google Drive is not touched).</p><div class="bar"><button class="btn danger" id="exd-ok">Remove</button><button class="btn" id="exd-x">Cancel</button></div></div></div>`;
+    document.getElementById("exd-x").onclick=()=>root.innerHTML="";
+    document.getElementById("exd-ok").onclick=async()=>{root.innerHTML="";try{await api("DELETE","/api/doc/exams/"+encodeURIComponent(id));await api("DELETE","/api/files/"+x.fileId).catch(()=>{});delete col("exams")[id];notify();render();toast("Removed")}catch(err){toast("Couldn't remove it.")}};return}
+},true);
+document.addEventListener("change",e=>{const t=e.target;if(t.id==="ex-in-folder"||t.id==="ex-in-files"){const f=t.files;if(f&&f.length)exUpload(f);t.value=""}});
+document.addEventListener("input",e=>{if(e.target.id!=="ex-q")return;const q=e.target.value.trim().toLowerCase();
+  document.querySelectorAll("[data-extop]").forEach(det=>{let any=0;det.querySelectorAll("[data-exrow]").forEach(r=>{const m=!q||r.dataset.exrow.includes(q);r.hidden=!m;if(m)any++});
+    det.querySelectorAll("[data-exhead]").forEach(h=>h.hidden=!!q);det.hidden=!any;if(q&&any)det.open=true})});
+document.addEventListener("toggle",e=>{const d=e.target;if(d.dataset&&d.dataset.extop){if(d.open)EX_OPEN.add(d.dataset.extop);else EX_OPEN.delete(d.dataset.extop)}},true);
 
 boot();
 })();

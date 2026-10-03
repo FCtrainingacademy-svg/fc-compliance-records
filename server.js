@@ -20,9 +20,14 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process
 // Manager: changes everything directly, manages users, approves Admin requests.
 // Admin: views everything; every change is sent to the Manager for approval.
 const ROLES = ['manager', 'admin'];
-const COLLECTIONS = new Set(['staff', 'items', 'documents', 'learners', 'otj', 'attendance', 'audit', 'config']);
+const COLLECTIONS = new Set(['staff', 'items', 'documents', 'learners', 'otj', 'attendance', 'audit', 'config', 'exams']);
+// Collections only the Manager can see or change (exam papers, model answers).
+const MANAGER_ONLY = new Set(['exams']);
+const isMgr = u => u && u.role === 'manager';
 const MAX_FILE = 20 * 1024 * 1024;
-const FILE_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'text/plain', 'text/csv', 'text/markdown', 'application/json']);
+const OFFICE_TYPES = ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
+const FILE_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'text/plain', 'text/csv', 'text/markdown', 'application/json', ...OFFICE_TYPES]);
 
 async function migrate() {
   await pool.query(`
@@ -39,6 +44,7 @@ async function migrate() {
     CREATE TABLE IF NOT EXISTS changes (id BIGSERIAL PRIMARY KEY, at TIMESTAMPTZ NOT NULL DEFAULT now(), by_email TEXT, by_name TEXT,
       method TEXT NOT NULL, col TEXT NOT NULL, doc_id TEXT NOT NULL, body JSONB, before JSONB, status TEXT NOT NULL DEFAULT 'pending',
       decided_by TEXT, decided_at TIMESTAMPTZ, note TEXT);
+    ALTER TABLE files ADD COLUMN IF NOT EXISTS restricted BOOLEAN NOT NULL DEFAULT FALSE;
     UPDATE users SET role='manager' WHERE role NOT IN ('manager','admin');
     INSERT INTO meta (k, v) VALUES ('rev', '1') ON CONFLICT (k) DO NOTHING;
   `);
@@ -178,7 +184,7 @@ app.get('/api/rev', auth, async (req, res) => {
 });
 app.get('/api/data', auth, notPending, async (req, res) => {
   const rev = await getRev(); const r = await pool.query(`SELECT col, id, data FROM docs`);
-  const collections = {}; for (const row of r.rows) (collections[row.col] = collections[row.col] || {})[row.id] = row.data;
+  const collections = {}; for (const row of r.rows) { if (MANAGER_ONLY.has(row.col) && !isMgr(req.user)) continue; (collections[row.col] = collections[row.col] || {})[row.id] = row.data; }
   res.json({ rev, collections });
 });
 function checkPath(req, res) {
@@ -206,6 +212,7 @@ async function applyChange(method, col, id, body, byEmail) {
 }
 async function handleWrite(req, res, method) {
   const col = checkPath(req, res); if (!col) return;
+  if (MANAGER_ONLY.has(col) && !isMgr(req.user)) return res.status(403).json({ error: 'Only the Manager can change this.' });
   const id = req.params.id; const body = method === 'DELETE' ? null : req.body;
   const prev = await pool.query(`SELECT data FROM docs WHERE col=$1 AND id=$2`, [col, id]);
   const before = prev.rows[0] ? prev.rows[0].data : null;
@@ -260,9 +267,10 @@ app.post('/api/files', auth, notPending, express.raw({ type: () => true, limit: 
   const id = String(req.get('x-file-id') || '');
   const fid = /^[0-9a-f]{32}$/.test(id) && (req.user.role === 'manager') ? id : crypto.randomBytes(16).toString('hex');
   const name = decodeURIComponent(String(req.get('x-file-name') || '')).slice(0, 200);
-  await pool.query(`INSERT INTO files (id, name, type, size, data, created_by) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING`,
-    [fid, name, type, req.body.length, req.body, req.user.email]);
-  await log(req.user, 'uploaded file', 'files', fid, name);
+  const restricted = isMgr(req.user) && req.get('x-restricted') === '1';
+  await pool.query(`INSERT INTO files (id, name, type, size, data, created_by, restricted) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING`,
+    [fid, name, type, req.body.length, req.body, req.user.email, restricted]);
+  await log(req.user, 'uploaded file', restricted ? 'exams' : 'files', fid, name);
   res.json({ id: fid, url: '/_blob/' + fid, sizeBytes: req.body.length, contentType: type });
 });
 app.delete('/api/files/:id', auth, notPending, needRole('manager'), async (req, res) => {
@@ -271,23 +279,24 @@ app.delete('/api/files/:id', auth, notPending, needRole('manager'), async (req, 
   res.json({ deleted: !!r.rowCount });
 });
 app.get('/_blob/:id', auth, async (req, res) => {
-  const r = await pool.query(`SELECT name, type, data FROM files WHERE id=$1`, [req.params.id]);
-  if (!r.rows[0]) return res.status(404).send('Not found');
-  const f = r.rows[0];
-  res.set({ 'Content-Type': f.type, 'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(f.name || req.params.id)}`, 'Cache-Control': 'private, max-age=3600' });
+  const r = await pool.query(`SELECT name, type, data, restricted FROM files WHERE id=$1`, [req.params.id]);
+  if (!r.rows[0] || (r.rows[0].restricted && !isMgr(req.user))) return res.status(404).send('Not found');
+  const f = r.rows[0]; const inline = !OFFICE_TYPES.includes(f.type);
+  res.set({ 'Content-Type': f.type, 'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(f.name || req.params.id)}`, 'Cache-Control': 'private, max-age=3600' });
   res.send(f.data);
 });
 
 // ---------- activity ----------
 app.get('/api/activity', auth, notPending, needRole('manager', 'admin'), async (req, res) => {
-  const r = await pool.query(`SELECT at, user_name, user_email, action, col, doc_id, detail FROM activity ORDER BY id DESC LIMIT 300`); res.json({ activity: r.rows });
+  const r = await pool.query(`SELECT at, user_name, user_email, action, col, doc_id, detail FROM activity ${isMgr(req.user) ? '' : "WHERE col IS DISTINCT FROM 'exams'"} ORDER BY id DESC LIMIT 300`); res.json({ activity: r.rows });
 });
 
 // ---------- export (offline copy) and import ----------
 app.get('/api/export.zip', auth, notPending, needRole('manager', 'admin'), async (req, res) => {
-  const docs = await pool.query(`SELECT col, id, data FROM docs`);
-  const files = await pool.query(`SELECT id, type FROM files`);
-  const ext = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'text/plain': 'txt', 'text/csv': 'csv', 'text/markdown': 'md', 'application/json': 'json' };
+  // Exam papers stay online only (the offline app has no Exams tab).
+  const docs = await pool.query(`SELECT col, id, data FROM docs WHERE col <> ALL($1)`, [[...MANAGER_ONLY]]);
+  const files = await pool.query(`SELECT id, type FROM files WHERE NOT restricted`);
+  const ext = { 'application/msword': 'doc', 'application/vnd.ms-excel': 'xls', 'application/vnd.ms-powerpoint': 'ppt', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx', 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'text/plain': 'txt', 'text/csv': 'csv', 'text/markdown': 'md', 'application/json': 'json' };
   const collections = {}; for (const row of docs.rows) (collections[row.col] = collections[row.col] || {})[row.id] = row.data;
   const fmap = {}; for (const f of files.rows) fmap[f.id] = { path: `files/${f.id}.${ext[f.type] || 'bin'}`, type: f.type };
   const day = new Date().toISOString().slice(0, 10);
