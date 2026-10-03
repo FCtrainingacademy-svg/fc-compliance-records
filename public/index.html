@@ -696,7 +696,7 @@ function showLogin(msg){ON.me=null;S.db=null;
     try{const r=await api("POST","/api/login",{email:document.getElementById("l-e").value,password:document.getElementById("l-p").value});await afterSignIn(r.user)}
     catch(err){er.hidden=false;er.textContent=err.userMsg||(err.code&&err.code.length>20?err.code:"Email or password is not right.")}};
   setTimeout(()=>{const x=document.getElementById("l-e");x&&x.focus()},0)}
-function showSetup(){gate(`<h2 style="margin-top:0">Set up the Admin account</h2><p class="muted">First time only. Enter the setup code from the Render dashboard (Environment › SETUP_CODE), then your details.</p>
+function showSetup(){gate(`<h2 style="margin-top:0">Set up the Admin account</h2><p class="muted">First time only. Enter the setup code shown in the Render dashboard (fc-compliance-records › Logs, the line starting “FIRST-TIME SETUP CODE”), then your details.</p>
   <form id="sf">${fld("s-c","Setup code","password",'required autocomplete="off"')}${fld("s-n","Your name","text","required")}${fld("s-e","Email","email",'required autocomplete="username"')}${fld("s-p","Password (10+ characters, letters and numbers)","password",'required autocomplete="new-password"')}
   <div class="err" id="s-err" hidden></div><button class="btn primary" style="width:100%">Create Admin account</button></form>`);
   document.getElementById("sf").onsubmit=async e=>{e.preventDefault();const er=document.getElementById("s-err");er.hidden=true;

@@ -12,9 +12,9 @@ const path = require('path');
 const fs = require('fs');
 
 const PORT = process.env.PORT || 10000;
-const SECRET = process.env.SESSION_SECRET;
-const SETUP_CODE = process.env.SETUP_CODE || '';
-if (!SECRET || SECRET.length < 32) { console.error('SESSION_SECRET (32+ chars) is required'); process.exit(1); }
+let SECRET = process.env.SESSION_SECRET || '';
+let SETUP_CODE = process.env.SETUP_CODE || '';
+if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is not set. In Render: Environment > add DATABASE_URL = the Internal Database URL of fc-compliance-db.'); process.exit(1); }
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.PGSSL === 'off' ? false : { rejectUnauthorized: false } });
 
 const ROLES = ['admin', 'manager', 'assessor'];
@@ -38,6 +38,17 @@ async function migrate() {
     CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
     INSERT INTO meta (k, v) VALUES ('rev', '1') ON CONFLICT (k) DO NOTHING;
   `);
+  // Secrets: use env vars if given, otherwise generate once and keep them in the database.
+  if (!SECRET || SECRET.length < 32) {
+    await pool.query(`INSERT INTO meta (k, v) VALUES ('session_secret', $1) ON CONFLICT (k) DO NOTHING`, [crypto.randomBytes(48).toString('hex')]);
+    SECRET = (await pool.query(`SELECT v FROM meta WHERE k='session_secret'`)).rows[0].v;
+  }
+  const users = (await pool.query(`SELECT count(*)::int n FROM users`)).rows[0].n;
+  if (!SETUP_CODE && users === 0) {
+    await pool.query(`INSERT INTO meta (k, v) VALUES ('setup_code', $1) ON CONFLICT (k) DO NOTHING`, [crypto.randomBytes(5).toString('hex').toUpperCase()]);
+    SETUP_CODE = (await pool.query(`SELECT v FROM meta WHERE k='setup_code'`)).rows[0].v;
+    console.log('=== FIRST-TIME SETUP CODE: ' + SETUP_CODE + ' (enter it on the website to create the Admin account) ===');
+  }
 }
 async function bumpRev(c) { const r = await (c || pool).query(`UPDATE meta SET v = (v::bigint + 1)::text WHERE k='rev' RETURNING v`); return Number(r.rows[0].v); }
 async function getRev() { const r = await pool.query(`SELECT v FROM meta WHERE k='rev'`); return Number(r.rows[0].v); }
