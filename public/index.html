@@ -250,11 +250,11 @@ function dueEntries(){
 const main=document.getElementById("main");
 function render(){
   const de=dueEntries();const urgent=de.filter(e=>e.st==="overdue").length;
-  document.getElementById("tabs").innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" aria-selected="${S.tab===k}" data-act="tab" data-k="${k}">${l}${k==="audit"&&S.audit.length?`<span class="n">${S.audit.filter(a=>a.status!=="ready").length}</span>`:""}${k==="overview"&&urgent?`<span class="n">${urgent}</span>`:""}</button>`).join("");
+  document.getElementById("tabs").innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" aria-selected="${S.tab===k}" data-act="tab" data-k="${k}">${l}${k==="approvals"&&ON.approvals?`<span class="n">${ON.approvals}</span>`:""}${k==="audit"&&S.audit.length?`<span class="n">${S.audit.filter(a=>a.status!=="ready").length}</span>`:""}${k==="overview"&&urgent?`<span class="n">${urgent}</span>`:""}</button>`).join("");
   if(!S.db)return;S.writable=roleWritable(S.tab);
-  const r={overview:vOverview,learners:vLearners,register:vRegister,staff:vStaff,centre:vCentre,documents:vDocuments,audit:vAudit,users:vUsers,activity:vActivity}[S.tab];
+  const r={overview:vOverview,learners:vLearners,register:vRegister,staff:vStaff,centre:vCentre,documents:vDocuments,audit:vAudit,users:vUsers,activity:vActivity,approvals:vApprovals}[S.tab];
   const focusId=document.activeElement&&document.activeElement.id;
-  main.innerHTML=(S.writable?"":`<div class="banner">As an Assessor you can view this section but not change it. You can edit Learners and the Register.</div>`)+r(de);
+  main.innerHTML=(ON.me&&ON.me.role==="admin"&&S.tab!=="approvals"&&S.tab!=="activity"?`<div class="banner">You are signed in as Admin – any change you make is sent to the Manager for approval before it appears in the records.</div>`:"")+r(de);
   if(focusId){const el=document.getElementById(focusId);if(el&&el.tagName==="INPUT"){el.focus();const v=el.value;try{el.setSelectionRange(v.length,v.length)}catch(e){}}}
 }
 
@@ -393,7 +393,7 @@ function openForm({title,sub,fields,data={},onSave,onDelete,deleteLabel,files,fi
     const filesBlock=files?`<div class="field"><label for="f-__files">${esc(filesLabel||"Files")}</label><div id="flist">${fileList.length?`<div class="files">${fileList.map((f,i)=>`<span class="file"><a href="/_blob/${esc(f.id)}" target="_blank" rel="noopener">${esc(f.name)}</a><button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">✕</button></span>`).join("")}</div>`:""}</div>${S.assets?`<input type="file" id="f-__files" ${files==="one"?"":"multiple"} accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.csv,.md,.json"><span class="hint">PDF, image or text files, up to 20 MB each. Save Word or Excel files as PDF first.</span>`:`<span class="hint">File uploads are only available to editors.</span>`}</div>`:"";
     root.innerHTML=`<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><header><h2 id="mt">${esc(title)}</h2>${sub?`<p>${esc(sub)}</p>`:""}</header>
     <form novalidate>${fields.map(fieldHTML).join("")}${filesBlock}<div class="err" id="ferr" hidden></div>
-    <div class="actions">${onDelete?`<button type="button" class="btn danger left" data-del>${esc(deleteLabel||"Delete")}</button>`:""}<button type="button" class="btn" data-cancel>Cancel</button>${S.writable?`<button class="btn primary" type="submit">Save</button>`:""}</div></form></div></div>`;
+    <div class="actions">${onDelete?`<button type="button" class="btn danger left" data-del>${esc(deleteLabel||"Delete")}</button>`:""}<button type="button" class="btn" data-cancel>Cancel</button>${S.writable?`<button class="btn primary" type="submit">${ON.me&&ON.me.role==="admin"?"Send for approval":"Save"}</button>`:""}</div></form></div></div>`;
   };
   draw();
   const close=()=>{root.innerHTML="";document.removeEventListener("keydown",onKey)};
@@ -608,7 +608,7 @@ function exportMenu(){const root=document.getElementById("modal-root");
 /* ---------- events ---------- */
 document.addEventListener("click",async e=>{
   const b=e.target.closest("[data-act]");if(!b||b.closest("#modal-root"))return;const a=b.dataset.act,id=b.dataset.id;
-  if(a==="tab"){S.tab=b.dataset.k;S.view=null;if(S.tab==="users")USERS=null;if(S.tab==="activity")ACT=null;render();window.scrollTo(0,0);return}
+  if(a==="tab"){S.tab=b.dataset.k;S.view=null;if(S.tab==="users")USERS=null;if(S.tab==="activity")ACT=null;if(S.tab==="approvals")APPR=null;render();window.scrollTo(0,0);return}
   if(a==="afilter"){S.afilter=S.afilter===b.dataset.k?"open":b.dataset.k;render();return}
   if(a==="filter"){S.filter=S.filter===b.dataset.k?"attention":b.dataset.k;render();return}
   if(a==="back"){S.view=null;render();return}
@@ -651,8 +651,8 @@ document.addEventListener("submit",e=>{const f=e.target;if(f.dataset.submit!=="o
   const lid=S.view.id;setOtj(lid,[...otjEntries(lid),{d,h,a}]).then(()=>toast(`${h} h logged`))});
 
 /* ---------- online storage with logins (server API) ---------- */
-const ON={data:null,rev:0,listeners:[],pending:0,me:null,pollT:null};
-const ROLE_LABEL={admin:"Admin",manager:"Manager",assessor:"Assessor"};
+const ON={data:null,rev:0,listeners:[],pending:0,me:null,pollT:null,approvals:0};
+const ROLE_LABEL={manager:"Manager",admin:"Admin"};
 function clone(v){return v===undefined?undefined:JSON.parse(JSON.stringify(v))}
 async function api(method,url,body,extra){
   const opt={method,credentials:"same-origin",headers:{}};
@@ -667,7 +667,7 @@ function merge(t,p){for(const k of Object.keys(p)){const v=p[k];
   if(v&&typeof v==="object"&&!Array.isArray(v)&&v.__delete__){delete t[k];continue}
   if(v&&typeof v==="object"&&!Array.isArray(v)&&t[k]&&typeof t[k]==="object"&&!Array.isArray(t[k]))merge(t[k],v);else t[k]=clone(v)}return t}
 let notifyT=null;function notify(){clearTimeout(notifyT);notifyT=setTimeout(()=>ON.listeners.forEach(f=>f()),0)}
-async function write(fn,undo){ON.pending++;try{const r=await fn();if(r&&r.rev)ON.rev=Math.max(ON.rev,r.rev)}catch(e){if(undo)undo();notify();
+async function write(fn,undo){ON.pending++;try{const r=await fn();if(r&&r.rev)ON.rev=Math.max(ON.rev,r.rev);if(r&&r.pending){if(undo)undo();notify();ON.approvals++;APPR=null;sentToast()}}catch(e){if(undo)undo();notify();
     if(e&&e.status===403)toast(e.userMsg||"Your role can only view this.");throw e}finally{ON.pending--}}
 function docRef(c,id){const p="/api/doc/"+encodeURIComponent(c)+"/"+encodeURIComponent(id);return{
   async set(d){const prev=clone(col(c)[id]);col(c)[id]=clone(d);notify();await write(()=>api("PUT",p,d),()=>{if(prev===undefined)delete col(c)[id];else col(c)[id]=prev})},
@@ -685,20 +685,21 @@ const onlineAssets={
 const onlineDl={async save({filename,data}){const b=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}};
 
 async function loadData(){const d=await api("GET","/api/data");ON.data={collections:d.collections||{}};ON.rev=d.rev;notify()}
-async function poll(){if(!ON.me||document.hidden)return;try{const r=await api("GET","/api/rev");if(r.rev>ON.rev&&!ON.pending&&!document.querySelector("#modal-root .modal")){await loadData()}}catch(e){}}
+let sentT=null;function sentToast(){clearTimeout(sentT);sentT=setTimeout(()=>toast("Sent to the Manager for approval"),150)}
+async function poll(){if(!ON.me||document.hidden)return;try{const r=await api("GET","/api/rev");if(r.pendingApprovals!==ON.approvals){ON.approvals=r.pendingApprovals;APPR=null;if(S.db)schedRender()}if(r.rev>ON.rev&&!ON.pending&&!document.querySelector("#modal-root .modal")){await loadData()}}catch(e){}}
 function gate(html){main.innerHTML=`<div class="panel" style="max-width:460px;margin:32px auto;padding:24px">${html}</div>`;document.getElementById("tabs").innerHTML="";const ub=document.getElementById("userbox");if(ub)ub.innerHTML=""}
 function fld(id,label,type,extra){return `<div class="field" style="margin-bottom:10px"><label for="${id}">${label}</label><input id="${id}" type="${type||"text"}" ${extra||""} style="width:100%;border:1px solid var(--line);border-radius:6px;padding:9px 10px;background:var(--surface);color:var(--ink)"></div>`}
 function showLogin(msg){ON.me=null;S.db=null;
   gate(`<h2 style="margin-top:0">Sign in</h2>${msg?`<p class="muted">${esc(msg)}</p>`:""}<form id="lf">${fld("l-e","Email","email",'autocomplete="username" required')}${fld("l-p","Password","password",'autocomplete="current-password" required')}
   <div class="err" id="l-err" hidden></div><button class="btn primary" style="width:100%;margin-top:6px">Sign in</button></form>
-  <p class="muted" style="font-size:13px;margin-top:14px">Forgotten your password? Ask the Admin to reset it.</p>`);
+  <p class="muted" style="font-size:13px;margin-top:14px">Forgotten your password? Ask the Manager to reset it.</p>`);
   document.getElementById("lf").onsubmit=async e=>{e.preventDefault();const er=document.getElementById("l-err");er.hidden=true;
     try{const r=await api("POST","/api/login",{email:document.getElementById("l-e").value,password:document.getElementById("l-p").value});await afterSignIn(r.user)}
     catch(err){er.hidden=false;er.textContent=err.userMsg||(err.code&&err.code.length>20?err.code:"Email or password is not right.")}};
   setTimeout(()=>{const x=document.getElementById("l-e");x&&x.focus()},0)}
-function showSetup(){gate(`<h2 style="margin-top:0">Set up the Admin account</h2><p class="muted">First time only. Enter the setup code shown in the Render dashboard (fc-compliance-records › Logs, the line starting “FIRST-TIME SETUP CODE”), then your details.</p>
+function showSetup(){gate(`<h2 style="margin-top:0">Set up the Manager account</h2><p class="muted">First time only. Enter the setup code shown in the Render dashboard (fc-compliance-records › Logs, the line starting “FIRST-TIME SETUP CODE”), then your details. This account becomes the Manager.</p>
   <form id="sf">${fld("s-c","Setup code","password",'required autocomplete="off"')}${fld("s-n","Your name","text","required")}${fld("s-e","Email","email",'required autocomplete="username"')}${fld("s-p","Password (10+ characters, letters and numbers)","password",'required autocomplete="new-password"')}
-  <div class="err" id="s-err" hidden></div><button class="btn primary" style="width:100%">Create Admin account</button></form>`);
+  <div class="err" id="s-err" hidden></div><button class="btn primary" style="width:100%">Create Manager account</button></form>`);
   document.getElementById("sf").onsubmit=async e=>{e.preventDefault();const er=document.getElementById("s-err");er.hidden=true;
     try{await api("POST","/api/setup",{code:document.getElementById("s-c").value,name:document.getElementById("s-n").value,email:document.getElementById("s-e").value,password:document.getElementById("s-p").value});
       const m=await api("GET","/api/me");await afterSignIn(m.user)}catch(err){er.hidden=false;er.textContent=err.code||"Setup failed."}}}
@@ -714,13 +715,13 @@ function showChangePw(forced){
     catch(err){er.hidden=false;er.textContent=err.code||"Couldn't change the password."}}}
 function userBox(){const ub=document.getElementById("userbox");if(!ub||!ON.me)return;
   ub.innerHTML=`<span class="muted" style="font-size:13px">${esc(ON.me.name)} · <strong>${ROLE_LABEL[ON.me.role]}</strong></span>
-  ${ON.me.role!=="assessor"?`<button class="btn sm" id="b-export" title="Download everything as an offline copy">Offline copy</button>`:""}
+  <button class="btn sm" id="b-export" title="Download everything as an offline copy">Offline copy</button>
   <button class="btn sm" id="b-pw">Password</button><button class="btn sm" id="b-out">Sign out</button>`;
   document.getElementById("b-pw").onclick=()=>showChangePw(false);
   document.getElementById("b-out").onclick=async()=>{try{await api("POST","/api/logout")}catch(e){}showLogin("You have signed out.")};
   const ex=document.getElementById("b-export");if(ex)ex.onclick=()=>{toast("Preparing the offline copy – this can take a minute…");window.location.href="/api/export.zip"}}
 async function afterSignIn(u){ON.me=u;if(u.must_change){showChangePw(true);return}
-  TABS.length=0;BASE_TABS.forEach(t=>TABS.push(t));if(u.role==="admin"||u.role==="manager")TABS.push(["activity","Activity"]);if(u.role==="admin")TABS.push(["users","Users"]);
+  TABS.length=0;BASE_TABS.forEach(t=>TABS.push(t));TABS.push(["approvals","Approvals"]);TABS.push(["activity","Activity"]);if(u.role==="manager")TABS.push(["users","Users"]);
   if(!TABS.find(t=>t[0]===S.tab))S.tab="overview";
   main.innerHTML=`<div class="empty"><strong>Loading records…</strong></div>`;
   await loadData();start();userBox();clearInterval(ON.pollT);ON.pollT=setInterval(poll,15000)}
@@ -746,13 +747,13 @@ function start(){
 let renderT=null;function schedRender(){clearTimeout(renderT);renderT=setTimeout(()=>{if(S.db)render()},0)}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)poll()});
 
-/* role-based editing: assessors edit learners and the register only */
-function roleWritable(tab){if(!ON.me)return false;if(ON.me.role==="admin"||ON.me.role==="manager")return true;return tab==="learners"||tab==="register"}
+/* both roles can edit; Admin edits become approval requests */
+function roleWritable(tab){return !!ON.me}
 
 /* ---------- Users tab (admin) ---------- */
 let USERS=null;
 function vUsers(){if(USERS===null){api("GET","/api/users").then(r=>{USERS=r.users;render()}).catch(()=>{USERS=[];render()});return `<div class="empty">Loading users…</div>`}
-  return `<div class="section-head"><div><h2>Users</h2><p>Who can sign in. <strong>Admin</strong>: everything, including users. <strong>Manager</strong>: everything except users. <strong>Assessor</strong>: learners, register, off-the-job hours and evidence; can view everything else.</p></div><div class="bar"><button class="btn" id="u-import">Import from offline folder</button><button class="btn primary" id="u-add">Add user</button></div></div>
+  return `<div class="section-head"><div><h2>Users</h2><p>Who can sign in. <strong>Manager</strong>: changes everything straight away, manages users and approves requests. <strong>Admin</strong>: sees everything; every change they make is sent to the Manager for approval.</p></div><div class="bar"><button class="btn" id="u-import">Import from offline folder</button><button class="btn primary" id="u-add">Add user</button></div></div>
   <div class="panel"><div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead><tbody>
   ${USERS.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td><select class="st" data-urole="${u.id}" aria-label="Role for ${esc(u.name)}">${Object.entries(ROLE_LABEL).map(([k,v])=>`<option value="${k}" ${u.role===k?"selected":""}>${v}</option>`).join("")}</select></td>
   <td class="mono">${u.last_login?fmt(u.last_login.slice(0,10)):"Never"}</td><td>${u.active?(u.must_change?pill("soon","Temporary password"):pill("ok","Active")):pill("missing","Disabled")}</td>
@@ -763,7 +764,7 @@ function pwNotice(name,pw){const root=document.getElementById("modal-root");root
   <p>Give this to ${esc(name)} in person or by phone – not by email. They'll be asked to choose their own password when they first sign in.</p><p class="mono" style="font-size:20px;padding:10px;background:var(--sunk);border-radius:6px;user-select:all">${esc(pw)}</p>
   <div class="bar"><button class="btn primary" id="pn-ok">Done</button></div></div></div>`;document.getElementById("pn-ok").onclick=()=>root.innerHTML=""}
 document.addEventListener("click",async e=>{const t=e.target;if(!t.closest)return;
-  if(t.closest("#u-add")){openForm({title:"Add user",data:{role:"assessor"},fields:[{k:"name",label:"Full name",req:true},{k:"email",label:"Email",type:"email",req:true},{k:"role",label:"Role",type:"select",options:[["assessor","Assessor"],["manager","Manager"],["admin","Admin"]]}],
+  if(t.closest("#u-add")){openForm({title:"Add user",data:{role:"admin"},fields:[{k:"name",label:"Full name",req:true},{k:"email",label:"Email",type:"email",req:true},{k:"role",label:"Role",type:"select",options:[["admin","Admin"],["manager","Manager"]]}],
     onSave:async o=>{const pw=tempPw();await api("POST","/api/users",{...o,password:pw});USERS=null;render();setTimeout(()=>pwNotice(o.name,pw),50)}});return}
   const r=t.closest("[data-ureset]");if(r){const u=USERS.find(x=>String(x.id)===r.dataset.ureset);const pw=tempPw();try{await api("PATCH","/api/users/"+u.id,{password:pw});USERS=null;render();pwNotice(u.name,pw)}catch(err){toast(err.code||"Couldn't reset.")}return}
   const a=t.closest("[data-uact]");if(a){try{await api("PATCH","/api/users/"+a.dataset.uact,{active:a.dataset.on==="1"});USERS=null;render()}catch(err){toast(err.code||"Couldn't change that user.")}return}
@@ -797,6 +798,44 @@ async function importOffline(){
       await loadData();toast(`Imported ${n} records and ${done} files`)}catch(e){toast("Import failed: "+(e.code||"error"))}})}
 function confirmBox(msg,ok){const root=document.getElementById("modal-root");root.innerHTML=`<div class="scrim"><div class="modal" role="dialog" aria-modal="true" style="padding:20px"><p>${esc(msg)}</p><div class="bar"><button class="btn primary" id="cb-ok">Import</button><button class="btn" id="cb-x">Cancel</button></div></div></div>`;
   document.getElementById("cb-x").onclick=()=>root.innerHTML="";document.getElementById("cb-ok").onclick=()=>{root.innerHTML="";ok()}}
+
+/* ---------- Approvals tab ---------- */
+let APPR=null;
+const COL_LABEL={staff:"Staff member",items:"Staff record / centre check",documents:"Document",learners:"Learner",otj:"Off-the-job hours",attendance:"Register",audit:"EQA audit item",config:"Settings"};
+const SKIP_KEYS=new Set(["updatedAt"]);
+function short(v){if(v===undefined||v===null||v==="")return "—";if(Array.isArray(v)){if(v.length&&v[0]&&v[0].name)return v.map(f=>f.name).join(", ");return v.length+" item"+(v.length===1?"":"s")}
+  if(typeof v==="object"){if(v.name&&v.id&&v.type)return v.name;const t=JSON.stringify(v);return t.length>90?t.slice(0,90)+"…":t}const t=String(v);return t.length>140?t.slice(0,140)+"…":t}
+function flat(o,pre,out){for(const k of Object.keys(o||{})){if(SKIP_KEYS.has(k))continue;const v=o[k];const key=pre?pre+" › "+k:k;
+  if(v&&typeof v==="object"&&!Array.isArray(v)&&!(v.name&&v.id&&v.type)&&!v.__delete__&&pre.split(" › ").length<2)flat(v,key,out);else out[key]=v&&v.__delete__?undefined:v}return out}
+function diffRows(ch){if(ch.method==="DELETE")return `<p style="margin:6px 0"><strong>Delete this record.</strong></p>`;
+  const before=flat(ch.before||{},"",{});const body=flat(ch.body||{},"",{});
+  const keys=ch.method==="PUT"?[...new Set([...Object.keys(before),...Object.keys(body)])]:Object.keys(body);
+  const rows=keys.filter(k=>JSON.stringify(before[k])!==JSON.stringify(ch.method==="PUT"?body[k]:body[k])).slice(0,25);
+  if(!rows.length)return `<p class="muted" style="margin:6px 0">No visible changes.</p>`;
+  return `<div class="tbl-wrap"><table><thead><tr><th>Field</th><th>Now</th><th>Change to</th></tr></thead><tbody>${rows.map(k=>`<tr><td>${esc(k)}</td><td class="muted">${esc(short(before[k]))}</td><td><strong>${esc(short(body[k]))}</strong></td></tr>`).join("")}</tbody></table></div>`}
+function vApprovals(){if(APPR===null){api("GET","/api/changes").then(r=>{APPR=r.changes;render()}).catch(()=>{APPR=[];render()});return `<div class="empty">Loading requests…</div>`}
+  const mgr=ON.me.role==="manager";const pend=APPR.filter(c=>c.status==="pending");const done=APPR.filter(c=>c.status!=="pending").slice(0,40);
+  const card=c=>{const verb=c.method==="DELETE"?"delete":c.before?"change":"add";const title=(c.body&&(c.body.title||c.body.name||c.body.item))||(c.before&&(c.before.title||c.before.name||c.before.item))||c.doc_id;
+    const when=new Date(c.at).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"});
+    const st=c.status==="pending"?pill("soon","Waiting for approval"):c.status==="approved"?pill("ok","Approved"):pill("overdue",c.note==="Withdrawn by requester"?"Withdrawn":"Rejected");
+    return `<div class="panel" style="padding:14px 16px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start">
+      <div><div class="t" style="font-weight:600">${esc(c.by_name)} wants to ${verb}: ${esc(COL_LABEL[c.col]||c.col)} – “${esc(title)}”</div><div class="muted" style="font-size:13px">${esc(when)}${c.decided_by&&c.status!=="pending"?` · ${c.status==="approved"?"Approved":"Decided"} by ${esc(c.decided_by)}`:""}${c.note&&c.note!=="Withdrawn by requester"?` · “${esc(c.note)}”`:""}</div></div>
+      <div class="bar">${st}${c.status==="pending"&&mgr?`<button class="btn sm primary" data-appr="${c.id}">Approve</button><button class="btn sm danger" data-rej="${c.id}">Reject</button>`:""}${c.status==="pending"&&!mgr&&c.by_email===ON.me.email?`<button class="btn sm" data-wd="${c.id}">Withdraw</button>`:""}</div></div>
+      ${c.status==="pending"?diffRows(c):""}</div>`};
+  return `<div class="section-head"><div><h2>Approvals</h2><p>${mgr?"Changes the Admin has asked to make. Nothing changes in the records until you approve.":"Changes you have sent to the Manager. They appear in the records once approved."}</p></div><button class="btn" id="ap-ref">Refresh</button></div>
+  ${pend.length?pend.map(card).join(""):`<div class="panel"><div class="empty"><strong>Nothing waiting</strong>${mgr?"No requests need your approval.":"You have no requests waiting."}</div></div>`}
+  ${done.length?`<h3 style="margin:20px 0 8px;font-size:15px">Recently decided</h3>${done.map(card).join("")}`:""}`}
+function rejectBox(id){const root=document.getElementById("modal-root");root.innerHTML=`<div class="scrim"><div class="modal" role="dialog" aria-modal="true" style="padding:20px"><h2 style="margin-top:0">Reject this request</h2>
+  <div class="field"><label for="rj-n">Reason (optional – the Admin will see it)</label><textarea id="rj-n" style="width:100%;min-height:70px;border:1px solid var(--line);border-radius:6px;padding:8px;background:var(--surface);color:var(--ink)"></textarea></div>
+  <div class="bar" style="margin-top:10px"><button class="btn danger" id="rj-ok">Reject</button><button class="btn" id="rj-x">Cancel</button></div></div></div>`;
+  document.getElementById("rj-x").onclick=()=>root.innerHTML="";
+  document.getElementById("rj-ok").onclick=async()=>{const note=document.getElementById("rj-n").value;root.innerHTML="";try{await api("POST","/api/changes/"+id+"/reject",{note});toast("Request rejected");APPR=null;ON.approvals=Math.max(0,ON.approvals-1);render()}catch(e){toast(e.userMsg||"Couldn't reject.");APPR=null;render()}}}
+document.addEventListener("click",async e=>{const t=e.target;if(!t.closest)return;
+  if(t.closest("#ap-ref")){APPR=null;render();return}
+  const a=t.closest("[data-appr]");if(a){a.disabled=true;try{await api("POST","/api/changes/"+a.dataset.appr+"/approve",{});toast("Approved – records updated");APPR=null;ON.approvals=Math.max(0,ON.approvals-1);await loadData()}catch(err){toast(err.userMsg||"Couldn't approve.");APPR=null;render()}return}
+  const r=t.closest("[data-rej]");if(r)return rejectBox(r.dataset.rej);
+  const w=t.closest("[data-wd]");if(w){try{await api("POST","/api/changes/"+w.dataset.wd+"/withdraw");toast("Request withdrawn");APPR=null;ON.approvals=Math.max(0,ON.approvals-1);render()}catch(err){toast("Couldn't withdraw.")}return}
+},true);
 
 boot();
 })();

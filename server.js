@@ -17,9 +17,9 @@ let SETUP_CODE = process.env.SETUP_CODE || '';
 if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is not set. In Render: Environment > add DATABASE_URL = the Internal Database URL of fc-compliance-db.'); process.exit(1); }
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.PGSSL === 'off' ? false : { rejectUnauthorized: false } });
 
-const ROLES = ['admin', 'manager', 'assessor'];
-// Collections each role may change. Admin and manager may change everything.
-const ASSESSOR_WRITE = new Set(['learners', 'otj', 'attendance']);
+// Manager: changes everything directly, manages users, approves Admin requests.
+// Admin: views everything; every change is sent to the Manager for approval.
+const ROLES = ['manager', 'admin'];
 const COLLECTIONS = new Set(['staff', 'items', 'documents', 'learners', 'otj', 'attendance', 'audit', 'config']);
 const MAX_FILE = 20 * 1024 * 1024;
 const FILE_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'text/plain', 'text/csv', 'text/markdown', 'application/json']);
@@ -36,6 +36,10 @@ async function migrate() {
     CREATE TABLE IF NOT EXISTS activity (id BIGSERIAL PRIMARY KEY, at TIMESTAMPTZ NOT NULL DEFAULT now(), user_email TEXT, user_name TEXT,
       action TEXT NOT NULL, col TEXT, doc_id TEXT, detail TEXT);
     CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS changes (id BIGSERIAL PRIMARY KEY, at TIMESTAMPTZ NOT NULL DEFAULT now(), by_email TEXT, by_name TEXT,
+      method TEXT NOT NULL, col TEXT NOT NULL, doc_id TEXT NOT NULL, body JSONB, before JSONB, status TEXT NOT NULL DEFAULT 'pending',
+      decided_by TEXT, decided_at TIMESTAMPTZ, note TEXT);
+    UPDATE users SET role='manager' WHERE role NOT IN ('manager','admin');
     INSERT INTO meta (k, v) VALUES ('rev', '1') ON CONFLICT (k) DO NOTHING;
   `);
   // Secrets: use env vars if given, otherwise generate once and keep them in the database.
@@ -47,7 +51,7 @@ async function migrate() {
   if (!SETUP_CODE && users === 0) {
     await pool.query(`INSERT INTO meta (k, v) VALUES ('setup_code', $1) ON CONFLICT (k) DO NOTHING`, [crypto.randomBytes(5).toString('hex').toUpperCase()]);
     SETUP_CODE = (await pool.query(`SELECT v FROM meta WHERE k='setup_code'`)).rows[0].v;
-    console.log('=== FIRST-TIME SETUP CODE: ' + SETUP_CODE + ' (enter it on the website to create the Admin account) ===');
+    console.log('=== FIRST-TIME SETUP CODE: ' + SETUP_CODE + ' (enter it on the website to create the Manager account) ===');
   }
 }
 async function bumpRev(c) { const r = await (c || pool).query(`UPDATE meta SET v = (v::bigint + 1)::text WHERE k='rev' RETURNING v`); return Number(r.rows[0].v); }
@@ -95,7 +99,6 @@ async function auth(req, res, next) {
 }
 function needRole(...roles) { return (req, res, next) => roles.includes(req.user.role) ? next() : res.status(403).json({ error: 'forbidden' }); }
 function notPending(req, res, next) { if (req.user.must_change) return res.status(403).json({ error: 'change_password' }); next(); }
-function canWrite(u, col) { return u.role === 'admin' || u.role === 'manager' || (u.role === 'assessor' && ASSESSOR_WRITE.has(col)); }
 function pwOk(p) { return typeof p === 'string' && p.length >= 10 && /[A-Za-z]/.test(p) && /[0-9]/.test(p); }
 
 const attempts = new Map(); // simple login throttle per IP+email
@@ -124,9 +127,9 @@ app.post('/api/setup', express.json(), async (req, res) => {
     return res.status(403).json({ error: 'Setup code is not right.' });
   const { email, name, password } = req.body;
   if (!email || !name || !pwOk(password)) return res.status(400).json({ error: 'Enter a name, email and a password of at least 10 characters with letters and numbers.' });
-  const ins = await pool.query(`INSERT INTO users (email, name, role, pass_hash, must_change) VALUES ($1,$2,'admin',$3,false) RETURNING *`,
+  const ins = await pool.query(`INSERT INTO users (email, name, role, pass_hash, must_change) VALUES ($1,$2,'manager',$3,false) RETURNING *`,
     [String(email).trim().toLowerCase(), String(name).trim(), await bcrypt.hash(password, 12)]);
-  issue(res, ins.rows[0]); await log(ins.rows[0], 'created the first admin account');
+  issue(res, ins.rows[0]); await log(ins.rows[0], 'created the first Manager account');
   res.json({ ok: true });
 });
 
@@ -141,10 +144,10 @@ app.post('/api/password', auth, express.json(), async (req, res) => {
 });
 
 // ---------- users (admin) ----------
-app.get('/api/users', auth, notPending, needRole('admin'), async (req, res) => {
+app.get('/api/users', auth, notPending, needRole('manager'), async (req, res) => {
   const r = await pool.query(`SELECT id, email, name, role, active, must_change, created_at, last_login FROM users ORDER BY role, name`); res.json({ users: r.rows });
 });
-app.post('/api/users', auth, notPending, needRole('admin'), express.json(), async (req, res) => {
+app.post('/api/users', auth, notPending, needRole('manager'), express.json(), async (req, res) => {
   const { email, name, role, password } = req.body;
   if (!email || !name || !ROLES.includes(role)) return res.status(400).json({ error: 'Enter a name, email and role.' });
   if (!pwOk(password)) return res.status(400).json({ error: 'Temporary password: at least 10 characters, with letters and numbers.' });
@@ -154,14 +157,14 @@ app.post('/api/users', auth, notPending, needRole('admin'), express.json(), asyn
     await log(req.user, 'added user', 'users', String(r.rows[0].id), `${name} (${role})`); res.json({ ok: true });
   } catch (e) { res.status(400).json({ error: e.code === '23505' ? 'That email already has an account.' : 'Could not add the user.' }); }
 });
-app.patch('/api/users/:id', auth, notPending, needRole('admin'), express.json(), async (req, res) => {
+app.patch('/api/users/:id', auth, notPending, needRole('manager'), express.json(), async (req, res) => {
   const id = Number(req.params.id); const b = req.body; const sets = []; const vals = []; let n = 1;
   if (b.role !== undefined) { if (!ROLES.includes(b.role)) return res.status(400).json({ error: 'Bad role' }); sets.push(`role=$${n++}`); vals.push(b.role); }
   if (b.name !== undefined) { sets.push(`name=$${n++}`); vals.push(String(b.name).trim()); }
   if (b.active !== undefined) { sets.push(`active=$${n++}`); vals.push(!!b.active); sets.push(`token_version=token_version+1`); }
   if (b.password !== undefined) { if (!pwOk(b.password)) return res.status(400).json({ error: 'Temporary password: at least 10 characters, with letters and numbers.' });
     sets.push(`pass_hash=$${n++}`); vals.push(await bcrypt.hash(b.password, 12)); sets.push(`must_change=true`, `token_version=token_version+1`); }
-  if (id === req.user.id && (b.active === false || (b.role && b.role !== 'admin'))) return res.status(400).json({ error: "You can't remove your own admin access." });
+  if (id === req.user.id && (b.active === false || (b.role && b.role !== 'manager'))) return res.status(400).json({ error: "You can't remove your own Manager access." });
   if (!sets.length) return res.json({ ok: true });
   vals.push(id); const r = await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id=$${n} RETURNING name`, vals);
   if (!r.rows[0]) return res.status(404).json({ error: 'Not found' });
@@ -169,42 +172,84 @@ app.patch('/api/users/:id', auth, notPending, needRole('admin'), express.json(),
 });
 
 // ---------- records ----------
-app.get('/api/rev', auth, async (req, res) => res.json({ rev: await getRev() }));
+app.get('/api/rev', auth, async (req, res) => {
+  const p = await pool.query(`SELECT count(*)::int n FROM changes WHERE status='pending'`);
+  res.json({ rev: await getRev(), pendingApprovals: p.rows[0].n });
+});
 app.get('/api/data', auth, notPending, async (req, res) => {
   const rev = await getRev(); const r = await pool.query(`SELECT col, id, data FROM docs`);
   const collections = {}; for (const row of r.rows) (collections[row.col] = collections[row.col] || {})[row.id] = row.data;
   res.json({ rev, collections });
 });
-function checkCol(req, res) {
+function checkPath(req, res) {
   const col = req.params.col; if (!COLLECTIONS.has(col) || !/^[A-Za-z0-9_.:@+~-]{1,200}$/.test(req.params.id)) { res.status(400).json({ error: 'bad path' }); return null; }
-  if (!canWrite(req.user, col)) { res.status(403).json({ error: 'Your role can only view this.' }); return null; }
   return col;
 }
-app.put('/api/doc/:col/:id', auth, notPending, express.json({ limit: '2mb' }), async (req, res) => {
-  const col = checkCol(req, res); if (!col) return;
-  const prev = await pool.query(`SELECT 1 FROM docs WHERE col=$1 AND id=$2`, [col, req.params.id]);
-  await pool.query(`INSERT INTO docs (col, id, data, updated_at, updated_by) VALUES ($1,$2,$3,now(),$4)
-    ON CONFLICT (col, id) DO UPDATE SET data=EXCLUDED.data, updated_at=now(), updated_by=EXCLUDED.updated_by`, [col, req.params.id, req.body, req.user.email]);
-  const rev = await bumpRev(); await log(req.user, prev.rowCount ? 'updated' : 'added', col, req.params.id, titleOf(req.body)); res.json({ rev });
-});
-app.patch('/api/doc/:col/:id', auth, notPending, express.json({ limit: '2mb' }), async (req, res) => {
-  const col = checkCol(req, res); if (!col) return;
+// Apply a change to the records (used for Manager edits and for approved Admin requests).
+async function applyChange(method, col, id, body, byEmail) {
   const c = await pool.connect();
   try {
     await c.query('BEGIN');
-    const r = await c.query(`SELECT data FROM docs WHERE col=$1 AND id=$2 FOR UPDATE`, [col, req.params.id]);
-    const data = merge(r.rows[0] ? r.rows[0].data : {}, req.body);
-    await c.query(`INSERT INTO docs (col, id, data, updated_at, updated_by) VALUES ($1,$2,$3,now(),$4)
-      ON CONFLICT (col, id) DO UPDATE SET data=EXCLUDED.data, updated_at=now(), updated_by=EXCLUDED.updated_by`, [col, req.params.id, data, req.user.email]);
-    const rev = await bumpRev(c); await c.query('COMMIT');
-    await log(req.user, 'updated', col, req.params.id, titleOf(data)); res.json({ rev });
-  } catch (e) { await c.query('ROLLBACK').catch(() => {}); res.status(500).json({ error: 'save failed' }); } finally { c.release(); }
+    if (method === 'DELETE') {
+      await c.query(`DELETE FROM docs WHERE col=$1 AND id=$2`, [col, id]);
+    } else {
+      let data = body;
+      if (method === 'PATCH') {
+        const r = await c.query(`SELECT data FROM docs WHERE col=$1 AND id=$2 FOR UPDATE`, [col, id]);
+        data = merge(r.rows[0] ? r.rows[0].data : {}, body);
+      }
+      await c.query(`INSERT INTO docs (col, id, data, updated_at, updated_by) VALUES ($1,$2,$3,now(),$4)
+        ON CONFLICT (col, id) DO UPDATE SET data=EXCLUDED.data, updated_at=now(), updated_by=EXCLUDED.updated_by`, [col, id, data, byEmail]);
+    }
+    const rev = await bumpRev(c); await c.query('COMMIT'); return rev;
+  } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
+}
+async function handleWrite(req, res, method) {
+  const col = checkPath(req, res); if (!col) return;
+  const id = req.params.id; const body = method === 'DELETE' ? null : req.body;
+  const prev = await pool.query(`SELECT data FROM docs WHERE col=$1 AND id=$2`, [col, id]);
+  const before = prev.rows[0] ? prev.rows[0].data : null;
+  const title = titleOf(body) || titleOf(before);
+  if (req.user.role === 'admin') {
+    const r = await pool.query(`INSERT INTO changes (by_email, by_name, method, col, doc_id, body, before) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+      [req.user.email, req.user.name, method, col, id, body, before]);
+    const rev = await bumpRev(); await log(req.user, 'sent for approval: ' + (method === 'DELETE' ? 'delete' : before ? 'update' : 'add'), col, id, title);
+    return res.json({ pending: true, change: r.rows[0].id, rev });
+  }
+  try {
+    const rev = await applyChange(method, col, id, body, req.user.email);
+    await log(req.user, method === 'DELETE' ? 'deleted' : before ? 'updated' : 'added', col, id, title); res.json({ rev });
+  } catch (e) { res.status(500).json({ error: 'save failed' }); }
+}
+app.put('/api/doc/:col/:id', auth, notPending, express.json({ limit: '2mb' }), (req, res) => handleWrite(req, res, 'PUT'));
+app.patch('/api/doc/:col/:id', auth, notPending, express.json({ limit: '2mb' }), (req, res) => handleWrite(req, res, 'PATCH'));
+app.delete('/api/doc/:col/:id', auth, notPending, (req, res) => handleWrite(req, res, 'DELETE'));
+
+// ---------- approvals ----------
+app.get('/api/changes', auth, notPending, async (req, res) => {
+  const status = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : null;
+  const r = await pool.query(`SELECT c.*, (SELECT data FROM docs d WHERE d.col=c.col AND d.id=c.doc_id) AS current FROM changes c
+    ${status ? 'WHERE status=$1' : ''} ORDER BY (status='pending') DESC, id DESC LIMIT 200`, status ? [status] : []);
+  res.json({ changes: r.rows });
 });
-app.delete('/api/doc/:col/:id', auth, notPending, async (req, res) => {
-  const col = checkCol(req, res); if (!col) return;
-  if (req.user.role === 'assessor' && col === 'learners') return res.status(403).json({ error: 'Only an admin or manager can delete a learner.' });
-  const r = await pool.query(`DELETE FROM docs WHERE col=$1 AND id=$2 RETURNING data`, [col, req.params.id]);
-  const rev = await bumpRev(); await log(req.user, 'deleted', col, req.params.id, r.rows[0] && titleOf(r.rows[0].data)); res.json({ rev });
+app.post('/api/changes/:id/approve', auth, notPending, needRole('manager'), express.json(), async (req, res) => {
+  const r = await pool.query(`UPDATE changes SET status='approved', decided_by=$1, decided_at=now(), note=$2 WHERE id=$3 AND status='pending' RETURNING *`,
+    [req.user.name, req.body && req.body.note ? String(req.body.note).slice(0, 500) : null, req.params.id]);
+  const ch = r.rows[0]; if (!ch) return res.status(409).json({ error: 'This request has already been dealt with.' });
+  try { await applyChange(ch.method, ch.col, ch.doc_id, ch.body, ch.by_email); }
+  catch (e) { await pool.query(`UPDATE changes SET status='pending', decided_by=NULL, decided_at=NULL WHERE id=$1`, [ch.id]); return res.status(500).json({ error: 'Could not apply the change.' }); }
+  await log(req.user, `approved ${ch.by_name}'s change`, ch.col, ch.doc_id, titleOf(ch.body) || titleOf(ch.before)); res.json({ ok: true, rev: await getRev() });
+});
+app.post('/api/changes/:id/reject', auth, notPending, needRole('manager'), express.json(), async (req, res) => {
+  const r = await pool.query(`UPDATE changes SET status='rejected', decided_by=$1, decided_at=now(), note=$2 WHERE id=$3 AND status='pending' RETURNING *`,
+    [req.user.name, req.body && req.body.note ? String(req.body.note).slice(0, 500) : null, req.params.id]);
+  const ch = r.rows[0]; if (!ch) return res.status(409).json({ error: 'This request has already been dealt with.' });
+  const rev = await bumpRev(); await log(req.user, `rejected ${ch.by_name}'s change`, ch.col, ch.doc_id, titleOf(ch.body) || titleOf(ch.before)); res.json({ ok: true, rev });
+});
+app.post('/api/changes/:id/withdraw', auth, notPending, async (req, res) => {
+  const r = await pool.query(`UPDATE changes SET status='rejected', decided_by=$1, decided_at=now(), note='Withdrawn by requester' WHERE id=$2 AND status='pending' AND by_email=$3 RETURNING id`,
+    [req.user.name, req.params.id, req.user.email]);
+  if (!r.rowCount) return res.status(409).json({ error: 'Not found' }); await bumpRev(); res.json({ ok: true });
 });
 
 // ---------- files ----------
@@ -213,14 +258,14 @@ app.post('/api/files', auth, notPending, express.raw({ type: () => true, limit: 
   if (!FILE_TYPES.has(type)) return res.status(400).json({ error: 'unsupported_type' });
   if (!req.body || !req.body.length) return res.status(400).json({ error: 'empty' });
   const id = String(req.get('x-file-id') || '');
-  const fid = /^[0-9a-f]{32}$/.test(id) && (req.user.role === 'admin') ? id : crypto.randomBytes(16).toString('hex');
+  const fid = /^[0-9a-f]{32}$/.test(id) && (req.user.role === 'manager') ? id : crypto.randomBytes(16).toString('hex');
   const name = decodeURIComponent(String(req.get('x-file-name') || '')).slice(0, 200);
   await pool.query(`INSERT INTO files (id, name, type, size, data, created_by) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING`,
     [fid, name, type, req.body.length, req.body, req.user.email]);
   await log(req.user, 'uploaded file', 'files', fid, name);
   res.json({ id: fid, url: '/_blob/' + fid, sizeBytes: req.body.length, contentType: type });
 });
-app.delete('/api/files/:id', auth, notPending, needRole('admin', 'manager'), async (req, res) => {
+app.delete('/api/files/:id', auth, notPending, needRole('manager'), async (req, res) => {
   const r = await pool.query(`DELETE FROM files WHERE id=$1 RETURNING name`, [req.params.id]);
   if (r.rowCount) await log(req.user, 'deleted file', 'files', req.params.id, r.rows[0].name);
   res.json({ deleted: !!r.rowCount });
@@ -234,12 +279,12 @@ app.get('/_blob/:id', auth, async (req, res) => {
 });
 
 // ---------- activity ----------
-app.get('/api/activity', auth, notPending, needRole('admin', 'manager'), async (req, res) => {
+app.get('/api/activity', auth, notPending, needRole('manager', 'admin'), async (req, res) => {
   const r = await pool.query(`SELECT at, user_name, user_email, action, col, doc_id, detail FROM activity ORDER BY id DESC LIMIT 300`); res.json({ activity: r.rows });
 });
 
 // ---------- export (offline copy) and import ----------
-app.get('/api/export.zip', auth, notPending, needRole('admin', 'manager'), async (req, res) => {
+app.get('/api/export.zip', auth, notPending, needRole('manager', 'admin'), async (req, res) => {
   const docs = await pool.query(`SELECT col, id, data FROM docs`);
   const files = await pool.query(`SELECT id, type FROM files`);
   const ext = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'text/plain': 'txt', 'text/csv': 'csv', 'text/markdown': 'md', 'application/json': 'json' };
@@ -261,7 +306,7 @@ app.get('/api/export.zip', auth, notPending, needRole('admin', 'manager'), async
   await log(req.user, 'downloaded an offline copy');
   z.finalize();
 });
-app.post('/api/import', auth, notPending, needRole('admin'), express.json({ limit: '20mb' }), async (req, res) => {
+app.post('/api/import', auth, notPending, needRole('manager'), express.json({ limit: '20mb' }), async (req, res) => {
   const cols = req.body && req.body.collections; if (!cols || typeof cols !== 'object') return res.status(400).json({ error: 'No records in that file.' });
   const c = await pool.connect(); let n = 0;
   try {
@@ -277,7 +322,7 @@ app.post('/api/import', auth, notPending, needRole('admin'), express.json({ limi
   } catch (e) { await c.query('ROLLBACK').catch(() => {}); return res.status(500).json({ error: 'Import failed.' }); } finally { c.release(); }
   await log(req.user, 'imported records', null, null, `${n} records`); res.json({ ok: true, records: n });
 });
-app.get('/api/files/missing', auth, notPending, needRole('admin'), async (req, res) => {
+app.get('/api/files/missing', auth, notPending, needRole('manager'), async (req, res) => {
   const ids = String(req.query.ids || '').split(',').filter(x => /^[0-9a-f]{32}$/.test(x));
   if (!ids.length) return res.json({ missing: [] });
   const r = await pool.query(`SELECT id FROM files WHERE id = ANY($1)`, [ids]); const have = new Set(r.rows.map(x => x.id));
