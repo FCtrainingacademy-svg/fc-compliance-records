@@ -1,0 +1,44 @@
+FC COMPLIANCE & LEARNER RECORDS – OFFLINE VERSION
+FC Training Academy (LCL centre LC 447)
+
+WHAT THIS IS
+The same Compliance & Learner Records system, with the same tabs, but it runs from this folder
+on your computer. You don't need Claude, a website or an internet connection to use it.
+
+HOW TO OPEN IT
+1. Open "FC Compliance.html" in Google Chrome (or Microsoft Edge).
+   On a Mac: right-click it > Open With > Google Chrome.
+   Safari won't work, because it doesn't let web pages save into a folder.
+2. The first time, click "Choose folder…" and pick THIS folder ("FC Compliance Offline").
+   Chrome asks once to let the page view and save files here. Click "Edit files" / "Allow".
+3. After that, open the file and click "Continue". Your records load straight away.
+
+TIP: drag "FC Compliance.html" onto Chrome in your Dock, or bookmark it in Chrome
+(press Cmd+D), so it opens with one click.
+
+WHERE YOUR RECORDS ARE SAVED
+- data/data.json – all records (staff, learners, centre checks, documents, attendance,
+  off-the-job hours, EQA audit checklist). It saves automatically within a second of each change.
+  The "Saved" line under the title shows the save status.
+- data/backups/ – one automatic backup copy per day you use it.
+- files/ – every PDF, photo or certificate you upload.
+Don't rename or move files inside "files" and "data". The app finds them by name.
+
+BACKUP AND OTHER COMPUTERS
+This folder is in your Google Drive, so Google Drive backs it up whenever you're online.
+To use it offline, right-click the "FC Compliance Offline" folder in Finder >
+"Available offline" (Google Drive for desktop).
+Only have the app open on one computer at a time. If two people edit at once, the last
+save wins.
+
+RESTORING A BACKUP
+Close the app. Copy the backup you want from data/backups/ into data/,
+then rename it to data.json (replacing the old one). Open the app again.
+
+NOTES
+- Reminders: "Add reminders to calendar" saves a calendar file. Open it to add every renewal
+  date to your Mac or phone calendar.
+- "Export CSV" saves spreadsheet copies for Excel.
+- The "Folder" button lets you switch to a different records folder.
+- The online version on claude.ai is separate. Changes made here don't appear there,
+  and changes made there don't appear here.

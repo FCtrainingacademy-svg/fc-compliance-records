@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FC Compliance (Offline)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: operator console. Sticky header + tab bar, one working column, summary tiles before detail lists. */
+:root{
+  --bg:#F2F4F6; --surface:#FFFFFF; --sunk:#E9EDF1; --ink:#15222C; --muted:#5A6A77; --line:#D6DDE3;
+  --accent:#0E5A86; --accent-ink:#FFFFFF; --flame:#D9951A;
+  --red:#B42318; --red-bg:#FDECEA; --amber:#9A5B05; --amber-bg:#FDF2DC; --green:#11704A; --green-bg:#E3F4EA; --grey-bg:#ECEFF2;
+  --f-display:"Archivo",system-ui,sans-serif; --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E151B; --surface:#16212A; --sunk:#111A21; --ink:#E5ECF1; --muted:#93A3B0; --line:#26343F;
+  --accent:#5BA8DA; --accent-ink:#0B1218; --flame:#F0B44A;
+  --red:#FF8A7E; --red-bg:#3A1A18; --amber:#F3BC5C; --amber-bg:#3A2A10; --green:#6FD3A0; --green-bg:#12301F; --grey-bg:#1E2A33; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E151B; --surface:#16212A; --sunk:#111A21; --ink:#E5ECF1; --muted:#93A3B0; --line:#26343F;
+  --accent:#5BA8DA; --accent-ink:#0B1218; --flame:#F0B44A;
+  --red:#FF8A7E; --red-bg:#3A1A18; --amber:#F3BC5C; --amber-bg:#3A2A10; --green:#6FD3A0; --green-bg:#12301F; --grey-bg:#1E2A33; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink)}
+body{font:15px/1.5 var(--f-body)}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.wrap{max-width:1100px;margin:0 auto;padding-inline:16px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:12px;padding-block:12px;flex-wrap:wrap}
+.mark{width:34px;height:34px;border-radius:8px;background:var(--ink);display:grid;place-items:center;flex:none}
+.mark svg{display:block}
+.brand h1{font-size:18px;line-height:1.1}
+.brand .sub{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.brand .grow{flex:1;min-width:120px}
+.lcl{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted)}
+.lcl img{display:block;width:150px;height:auto}
+@media (max-width:640px){.lcl{order:3}}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{border:0;background:none;padding:10px 12px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--flame)}
+.tab .n{font-family:var(--f-mono);font-size:11px;background:var(--red-bg);color:var(--red);border-radius:10px;padding:1px 6px;margin-left:4px}
+main{padding-block:20px 60px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:7px 12px;cursor:pointer;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px;line-height:1.2}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--red)}
+.btn.sm{padding:4px 8px;font-size:13px}
+.btn:focus-visible,.tab:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.chipbtn:focus-visible,.rowlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.section-head h2{font-size:22px}
+.section-head p{margin:2px 0 0;color:var(--muted);max-width:62ch}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:22px}
+@media (max-width:700px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;text-align:left;cursor:pointer;border-top:4px solid var(--c,var(--line))}
+.tile .num{font-family:var(--f-display);font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.tile .lbl{font-size:13px;color:var(--muted);margin-top:4px}
+.tile[aria-pressed="true"]{outline:2px solid var(--c);outline-offset:-1px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.list{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:11px 14px;border-top:1px solid var(--line);align-items:center}
+.row:first-child{border-top:0}
+.row .t{font-weight:600}
+.row .s{font-size:13px;color:var(--muted)}
+.row .right{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.rowlink{all:unset;cursor:pointer;display:block;min-width:0}
+.rowlink:hover .t{text-decoration:underline}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.p-overdue{background:var(--red-bg);color:var(--red)}
+.p-soon{background:var(--amber-bg);color:var(--amber)}
+.p-ok{background:var(--green-bg);color:var(--green)}
+.p-missing{background:var(--grey-bg);color:var(--muted)}
+.empty{padding:28px 18px;text-align:center;color:var(--muted)}
+.empty strong{display:block;color:var(--ink);font-family:var(--f-display);font-size:16px;margin-bottom:4px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card:hover{border-color:var(--muted)}
+.card h3{font-size:16px}
+.meter{height:6px;background:var(--sunk);border-radius:6px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:6px}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px 18px;margin:0}
+.kv div{min-width:0}
+.kv dt{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.kv dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.stat3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:560px){.stat3{grid-template-columns:1fr}}
+.stat{background:var(--sunk);border-radius:var(--r);padding:12px}
+.stat .big{font-family:var(--f-display);font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .lbl{font-size:13px;color:var(--muted)}
+.back{margin-bottom:12px}
+.detail{display:flex;flex-direction:column;gap:16px}
+.detail .panel{padding:16px}
+.panel h3{font-size:16px;margin-bottom:10px}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:5px 10px;font-weight:600;font-size:13px;cursor:pointer;border-left:1px solid var(--line)}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed="true"].P{background:var(--green-bg);color:var(--green)}
+.seg button[aria-pressed="true"].L{background:var(--amber-bg);color:var(--amber)}
+.seg button[aria-pressed="true"].A{background:var(--red-bg);color:var(--red)}
+.seg button[aria-pressed="true"].AA{background:var(--grey-bg);color:var(--ink)}
+select.st{border:1px solid var(--line);border-radius:6px;padding:4px 6px;background:var(--surface);font-size:13px}
+.files{display:flex;flex-wrap:wrap;gap:6px}
+.file{display:inline-flex;align-items:center;gap:6px;font-size:13px;background:var(--sunk);border-radius:6px;padding:3px 8px;max-width:100%}
+.file a{color:var(--accent);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.file button{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 2px}
+.filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.filter input,.filter select{border:1px solid var(--line);border-radius:6px;padding:7px 10px;background:var(--surface);min-width:0}
+.filter input{flex:1 1 200px}
+.chipbtn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 11px;font-size:13px;cursor:pointer}
+.chipbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.banner{background:var(--amber-bg);color:var(--amber);border-radius:var(--r);padding:10px 14px;margin-bottom:16px;font-weight:600}
+.banner.info{background:var(--grey-bg);color:var(--ink);font-weight:400}
+/* modal */
+.scrim{position:fixed;inset:0;background:rgb(10 16 22 / .55);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) 12px 24px;overflow-y:auto}
+.modal{background:var(--surface);border-radius:12px;width:100%;max-width:560px;border:1px solid var(--line);box-shadow:0 20px 50px rgb(0 0 0 / .25)}
+.modal header{padding:16px 18px 6px}
+.modal header h2{font-size:19px}
+.modal header p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.modal form{padding:8px 18px 18px;display:flex;flex-direction:column;gap:12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:13px;font-weight:600}
+.field .hint{font-size:12px;color:var(--muted)}
+.field input[type=text],.field input[type=date],.field input[type=number],.field input[type=email],.field select,.field textarea{border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--surface);width:100%}
+.field textarea{min-height:70px;resize:vertical}
+.check{flex-direction:row;align-items:center;gap:8px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:480px){.frow{grid-template-columns:1fr}}
+.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px}
+.actions .left{margin-right:auto}
+.err{color:var(--red);font-size:13px;font-weight:600}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-weight:600;z-index:80;max-width:calc(100% - 32px)}
+.unitrow{display:flex;gap:6px;align-items:center}
+.unitrow input{flex:1;min-width:0;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--surface)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:10px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><svg width="18" height="22" viewBox="0 0 18 22"><path d="M9 1c1 4 6 6.5 6 12a6 6 0 0 1-12 0c0-3 1.6-4.6 3-6 .2 2 1 3 2.2 3.4C8 7.6 8 4 9 1z" fill="#F0B44A"/><path d="M9 11c.6 2 3 3 3 5.4a3 3 0 0 1-6 0c0-1.6 1-2.4 1.8-3.2.3 1 .8 1.5 1.2 1.6-.2-1.4-.4-2.4 0-3.8z" fill="#5BA8DA"/></svg></div>
+      <div class="grow"><div class="sub">FC Training Academy · offline</div><h1>Compliance &amp; Learner Records</h1><div class="muted" id="savestate" style="font-size:12px" aria-live="polite"></div></div>
+      <div class="lcl" title="FC Training Academy is an LCL Awards Approved Centre, centre number LC 447"><img src="lcl-approved-centre.png" alt="LCL Awards Approved Centre" width="150" height="86"><span class="mono">Centre LC 447</span></div>
+      <div class="bar">
+        <button class="btn" data-act="export-ics" id="b-ics">Add reminders to calendar</button>
+        <button class="btn" data-act="export-menu" id="b-csv">Export CSV</button>
+        <button class="btn" id="b-folder" title="Open a different records folder">Folder</button>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" id="tabs"></nav>
+  </div>
+</header>
+<main class="wrap" id="main"><div class="empty"><strong>Opening your records…</strong></div></main>
+<div id="modal-root"></div>
+
+<script>
+(() => {
+"use strict";
+/* ---------- constants ---------- */
+const STAFF_CATS=["Gas Safe registration","ACS certificate","Assessor qualification","IQA qualification","Teaching qualification","DBS check","CPD record","Appraisal","Standardisation","Right to work","First aid","Other"];
+const CENTRE_CATS=["Awarding body (LCL)","Insurance","Equipment calibration","Gas safety (training rigs)","Electrical / PAT","Fire safety","Health & safety","Data protection","Other"];
+const DOC_CATS=["Quality manual","Policy","Procedure","Form / template","Register / record","Audit & IQA","Risk assessment","Insurance & certificates","Normative document","Awarding body","Apprenticeship standard","Evidence","Other","Archived (old version)"];
+const ARCH="Archived (old version)";
+const VERDICT={"major update":["p-overdue","Needs rewriting"],"minor update":["p-soon","Needs small fixes"],"obsolete":["p-missing","Old version"],"unreadable":["p-missing","Check by eye"],"external – check edition":["p-soon","Check edition"],"draft":["p-soon","Draft – needs sign-off"],"draft ready":["p-ok","Updated draft ready"]};
+const ROLES=["Gas trainer / assessor","Internal quality assurer (IQA)","Centre manager","Admin / support","Other"];
+const PROGRAMMES=["L3 Gas Engineering Operative apprenticeship","MLP (Managed Learning Programme)","ACS assessment","F-Gas","Short course","Other"];
+const LSTATUS=["Active","Break in learning","Completed","Withdrawn"];
+const USTAT={ns:"Not started",ip:"In progress",sub:"Evidence submitted",so:"Signed off"};
+const ATT={P:"Present",L:"Late",A:"Absent",AA:"Authorised absence"};
+const TEMPLATES={
+  "Gas trainer / assessor":[
+    ["Gas Safe registration","Gas Safe registration",12],["ACS core (CCN1)","ACS certificate",60],["ACS appliance categories","ACS certificate",60],
+    ["Assessor qualification (e.g. TAQA / CAVA)","Assessor qualification",0],["Teaching qualification (e.g. AET)","Teaching qualification",0],
+    ["DBS check","DBS check",36],["CPD record review","CPD record",12],["Annual appraisal","Appraisal",12],["Standardisation meeting","Standardisation",3],["Right to work check","Right to work",0]],
+  "Internal quality assurer (IQA)":[
+    ["IQA qualification","IQA qualification",0],["Gas Safe registration","Gas Safe registration",12],["ACS core (CCN1)","ACS certificate",60],
+    ["DBS check","DBS check",36],["CPD record review","CPD record",12],["Annual appraisal","Appraisal",12],["Standardisation meeting","Standardisation",3],["Right to work check","Right to work",0]],
+  "Centre manager":[["DBS check","DBS check",36],["CPD record review","CPD record",12],["Annual appraisal","Appraisal",12],["Right to work check","Right to work",0]],
+  "Admin / support":[["DBS check","DBS check",36],["Annual appraisal","Appraisal",12],["Right to work check","Right to work",0]],
+  "Other":[["Annual appraisal","Appraisal",12],["Right to work check","Right to work",0]]
+};
+const MIME={pdf:"application/pdf",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp",gif:"image/gif",txt:"text/plain",csv:"text/csv",md:"text/markdown",json:"application/json",mp4:"video/mp4",webm:"video/webm"};
+
+/* ---------- state ---------- */
+const S={staff:[],items:[],docs:[],learners:[],audit:[],afilter:"open",otj:{},att:{},units:[],ready:{},db:null,assets:null,dl:null,writable:true,
+  tab:"overview",view:null,filter:"attention",q:"",regDate:todayISO(),regProg:"all",lq:"",lstat:"Active",dq:"",dcat:"all"};
+const TABS=[["overview","Overview"],["learners","Learners"],["register","Register"],["staff","Staff"],["centre","Centre checks"],["documents","Documents"],["audit","EQA audit"]];
+
+/* ---------- utils ---------- */
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function todayISO(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function parse(iso){if(!iso)return null;const [y,m,d]=iso.split("-").map(Number);return Date.UTC(y,m-1,d)}
+function daysUntil(iso){const t=parse(iso);if(t==null)return null;return Math.round((t-parse(todayISO()))/864e5)}
+function addMonths(iso,n){if(!iso||!n)return "";const [y,m,d]=iso.split("-").map(Number);const dt=new Date(Date.UTC(y,m-1+Number(n),1));const last=new Date(Date.UTC(dt.getUTCFullYear(),dt.getUTCMonth()+1,0)).getUTCDate();dt.setUTCDate(Math.min(d,last));return dt.toISOString().slice(0,10)}
+function addDays(iso,n){const t=parse(iso)+n*864e5;return new Date(t).toISOString().slice(0,10)}
+function fmt(iso){if(!iso)return "—";const t=parse(iso);return new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"})}
+function rel(days){if(days==null)return "";if(days===0)return "today";if(days<0)return Math.abs(days)+(days===-1?" day":" days")+" overdue";if(days<60)return "in "+days+(days===1?" day":" days");const m=Math.round(days/30.4);return "in "+m+" months"}
+function status(due,remind){const d=daysUntil(due);if(d==null)return "missing";if(d<0)return "overdue";if(d<=(Number(remind)||60))return "soon";return "ok"}
+const SLABEL={overdue:"Overdue",soon:"Due soon",ok:"In date",missing:"Date needed"};
+function pill(st,label){return `<span class="pill p-${st}">${esc(label||SLABEL[st])}</span>`}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function toast(msg){const t=document.createElement("div");t.className="toast";t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+function staffName(id){const s=S.staff.find(x=>x.id===id);return s?s.name:"Unknown staff"}
+function fileLinks(files,removable,ctx){if(!files||!files.length)return "";return `<div class="files">${files.map((f,i)=>`<span class="file"><a href="/_blob/${esc(f.id)}" target="_blank" rel="noopener">${esc(f.name)}</a>${removable&&S.writable?`<button type="button" aria-label="Remove ${esc(f.name)}" data-act="rmfile" data-ctx="${esc(ctx)}" data-i="${i}">✕</button>`:""}</span>`).join("")}</div>`}
+
+/* ---------- derived ---------- */
+function itemDue(it){if(it.oneOff)return null;return it.due||addMonths(it.issued,it.cycleMonths)||null}
+function itemStatus(it){if(it.oneOff)return it.issued?"ok":"missing";return status(itemDue(it),it.remindDays)}
+function otjEntries(lid){return (S.otj[lid]&&S.otj[lid].entries)||[]}
+function otjLogged(lid){return otjEntries(lid).reduce((a,e)=>a+(Number(e.h)||0),0)}
+function otjExpected(l){const p=Number(l.otjPlanned)||0;if(!p||!l.start||!l.plannedEnd)return null;const tot=parse(l.plannedEnd)-parse(l.start);if(tot<=0)return null;const el=Math.min(Math.max(parse(todayISO())-parse(l.start),0),tot);return Math.round(p*el/tot)}
+function attendance(lid){let pres=0,tot=0,late=0;for(const m in S.att){const r=S.att[m].r&&S.att[m].r[lid];if(!r)continue;for(const d in r){const c=r[d];if(c==="AA")continue;tot++;if(c==="P"||c==="L")pres++;if(c==="L")late++}}return{pres,tot,late,pct:tot?Math.round(pres/tot*100):null}}
+function unitProgress(l){const u=S.units;if(!u.length)return 0;let pts=0;for(const x of u){const s=(l.units&&l.units[x.key]&&l.units[x.key].s)||"ns";pts+=s==="so"?1:s==="sub"?.66:s==="ip"?.33:0}return Math.round(pts/u.length*100)}
+function signedOff(l){return S.units.filter(x=>l.units&&l.units[x.key]&&l.units[x.key].s==="so").length}
+
+function dueEntries(){
+  const out=[];
+  for(const it of S.items){const st=itemStatus(it);if(it.oneOff&&st==="ok")continue;
+    out.push({kind:"item",id:it.id,title:it.title,who:it.staffId?staffName(it.staffId):"Centre",cat:it.category,due:itemDue(it),st,days:daysUntil(itemDue(it)),area:it.staffId?"staff":"centre",oneOff:it.oneOff})}
+  for(const d of S.docs){if(d.category===ARCH)continue;const st=!d.file?"missing":status(d.review,d.remindDays||30);
+    out.push({kind:"doc",id:d.id,title:d.title,who:d.category,due:d.review,st,days:daysUntil(d.review),area:"documents",noFile:!d.file})}
+  for(const l of S.learners){if(l.status&&l.status!=="Active")continue;
+    if(l.nextReview||true)out.push({kind:"lreview",id:l.id,title:"Progress review",who:l.name,due:l.nextReview||null,st:status(l.nextReview,14),days:daysUntil(l.nextReview),area:"learners"});
+    if(l.plannedEnd)out.push({kind:"lend",id:l.id,title:"Planned end date",who:l.name,due:l.plannedEnd,st:status(l.plannedEnd,60),days:daysUntil(l.plannedEnd),area:"learners"});
+    const exp=otjExpected(l);if(exp&&otjLogged(l.id)<exp*0.9)out.push({kind:"lotj",id:l.id,title:`Off-the-job hours behind (${otjLogged(l.id)} of ${exp} expected)`,who:l.name,due:null,st:"soon",days:null,area:"learners",flag:true});
+  }
+  const rank={overdue:0,soon:1,missing:2,ok:3};
+  return out.sort((a,b)=>rank[a.st]-rank[b.st]||((a.days??9e9)-(b.days??9e9)));
+}
+
+/* ---------- rendering ---------- */
+const main=document.getElementById("main");
+function render(){
+  const de=dueEntries();const urgent=de.filter(e=>e.st==="overdue").length;
+  document.getElementById("tabs").innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" aria-selected="${S.tab===k}" data-act="tab" data-k="${k}">${l}${k==="audit"&&S.audit.length?`<span class="n">${S.audit.filter(a=>a.status!=="ready").length}</span>`:""}${k==="overview"&&urgent?`<span class="n">${urgent}</span>`:""}</button>`).join("");
+  if(!S.db)return;
+  const r={overview:vOverview,learners:vLearners,register:vRegister,staff:vStaff,centre:vCentre,documents:vDocuments,audit:vAudit}[S.tab];
+  const focusId=document.activeElement&&document.activeElement.id;
+  main.innerHTML=(S.writable?"":`<div class="banner">You can view these records but not change them.</div>`)+r(de);
+  if(focusId){const el=document.getElementById(focusId);if(el&&el.tagName==="INPUT"){el.focus();const v=el.value;try{el.setSelectionRange(v.length,v.length)}catch(e){}}}
+}
+
+function dueRow(e){
+  const act=e.kind==="item"?"edit-item":e.kind==="doc"?"edit-doc":"open-learner";
+  const when=e.flag?"":e.oneOff?"No date recorded":e.due?`${fmt(e.due)} · ${rel(e.days)}`:(e.kind==="doc"&&e.noFile?"File not uploaded":"No date set");
+  const label=e.kind==="doc"&&e.noFile?"Not uploaded":e.flag?"Behind":null;
+  const renew=e.kind==="item"&&!e.oneOff&&S.writable?`<button class="btn sm" data-act="renew" data-id="${e.id}">Renewed</button>`:"";
+  return `<div class="row"><button class="rowlink" data-act="${act}" data-id="${e.id}"><div class="t">${esc(e.title)}</div><div class="s">${esc(e.who)} · <span class="mono">${esc(when)}</span></div></button><div class="right">${pill(e.st,label)}${renew}</div></div>`
+}
+
+function vOverview(de){
+  const c={overdue:0,soon:0,missing:0,ok:0};de.forEach(e=>c[e.st]++);
+  const f=S.filter;
+  const list=de.filter(e=>f==="attention"?e.st!=="ok":e.st===f);
+  const tiles=[["overdue","Overdue","var(--red)"],["soon","Due within reminder window","var(--amber)"],["missing","Missing date or file","var(--muted)"],["ok","In date","var(--green)"]];
+  const active=S.learners.filter(l=>(l.status||"Active")==="Active");
+  const nothing=!S.staff.length&&!S.items.length&&!S.docs.length&&!S.learners.length;
+  return `<div class="section-head"><div><h2>What needs attention</h2><p>Everything with a renewal, review or end date across staff, centre checks, QMS documents and learners. Today is <span class="mono">${fmt(todayISO())}</span>.</p></div></div>
+  <div class="tiles">${tiles.map(([k,l,col])=>`<button class="tile" style="--c:${col}" aria-pressed="${f===k}" data-act="filter" data-k="${k}"><div class="num">${c[k]}</div><div class="lbl">${l}</div></button>`).join("")}</div>
+  <div class="filter"><button class="chipbtn" aria-pressed="${f==="attention"}" data-act="filter" data-k="attention">All needing action (${c.overdue+c.soon+c.missing})</button><span class="muted" style="align-self:center;font-size:13px">${active.length} active learner${active.length===1?"":"s"} · ${S.staff.filter(s=>s.active!==false).length} staff · ${S.docs.filter(d=>d.file).length}/${S.docs.length} documents uploaded</span></div>
+  <div class="panel list">${nothing?`<div class="empty"><strong>No records yet</strong>Start by adding your staff, then your learners. Centre checks and the QMS document list are set up for you to fill in.</div>`:list.length?list.map(dueRow).join(""):`<div class="empty"><strong>Nothing in this group</strong>Pick another tile above.</div>`}</div>`
+}
+
+/* learners */
+function vLearners(){
+  if(S.view&&S.view.type==="learner"){const l=S.learners.find(x=>x.id===S.view.id);if(l)return vLearner(l);S.view=null}
+  const q=S.lq.toLowerCase();
+  const ls=S.learners.filter(l=>(S.lstat==="all"||(l.status||"Active")===S.lstat)&&(!q||[l.name,l.employer,l.uln,l.cohort].join(" ").toLowerCase().includes(q))).sort((a,b)=>a.name.localeCompare(b.name));
+  return `<div class="section-head"><div><h2>Learners</h2><p>Course progress, portfolio evidence, attendance and off-the-job hours for each learner.</p></div>
+  <div class="bar"><button class="btn" data-act="edit-units">Course units (${S.units.length})</button>${S.writable?`<button class="btn primary" data-act="add-learner">Add learner</button>`:""}</div></div>
+  <div class="filter"><input id="lq" type="search" placeholder="Search name, employer, ULN or cohort" value="${esc(S.lq)}" data-input="lq" aria-label="Search learners">
+  <select id="lstat" data-change="lstat" aria-label="Status filter"><option value="all">All statuses</option>${LSTATUS.map(s=>`<option ${S.lstat===s?"selected":""}>${s}</option>`).join("")}</select></div>
+  ${ls.length?`<div class="grid2">${ls.map(learnerCard).join("")}</div>`:`<div class="panel"><div class="empty"><strong>${S.learners.length?"No learners match":"No learners yet"}</strong>${S.learners.length?"Change the search or status filter.":"Add your first apprentice to start tracking units, portfolio evidence, attendance and off-the-job hours."}</div></div>`}`
+}
+function learnerCard(l){
+  const p=unitProgress(l),a=attendance(l.id),exp=otjExpected(l),log=otjLogged(l.id);
+  const rs=status(l.nextReview,14);
+  return `<button class="card" data-act="open-learner" data-id="${l.id}"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><h3>${esc(l.name)}</h3>${(l.status||"Active")!=="Active"?`<span class="pill p-missing">${esc(l.status)}</span>`:pill(rs,rs==="missing"?"Review not set":rs==="ok"?"Review booked":rs==="soon"?"Review due":"Review overdue")}</div>
+  <div class="s muted" style="font-size:13px">${esc(l.programme||"")}${l.employer?" · "+esc(l.employer):""}</div>
+  <div><div style="display:flex;justify-content:space-between;font-size:13px"><span>Units ${signedOff(l)}/${S.units.length} signed off</span><span class="mono">${p}%</span></div><div class="meter"><i style="width:${p}%"></i></div></div>
+  <div style="display:flex;gap:14px;font-size:13px;flex-wrap:wrap" class="muted"><span>Attendance <b class="mono" style="color:var(--ink)">${a.pct==null?"—":a.pct+"%"}</b></span><span>OTJ <b class="mono" style="color:var(--ink)">${log}${exp!=null?" / "+exp:""} h</b></span></div></button>`
+}
+function vLearner(l){
+  const a=attendance(l.id),exp=otjExpected(l),log=otjLogged(l.id),p=unitProgress(l);
+  const ents=otjEntries(l.id).map((e,i)=>({...e,i})).sort((x,y)=>(y.d||"").localeCompare(x.d||""));
+  const att=[];for(const m in S.att){const r=S.att[m].r&&S.att[m].r[l.id];if(r)for(const d in r)att.push([m+"-"+d,r[d]])}att.sort((x,y)=>y[0].localeCompare(x[0]));
+  return `<div class="detail"><div><button class="btn sm back" data-act="back">← All learners</button></div>
+  <div class="section-head"><div><h2>${esc(l.name)}</h2><p>${esc(l.programme||"")}${l.cohort?" · Cohort "+esc(l.cohort):""}</p></div>${S.writable?`<div class="bar"><button class="btn" data-act="edit-learner" data-id="${l.id}">Edit details</button></div>`:""}</div>
+  <div class="stat3"><div class="stat"><div class="big">${p}%</div><div class="lbl">Course progress · ${signedOff(l)} of ${S.units.length} units signed off</div></div>
+  <div class="stat"><div class="big">${a.pct==null?"—":a.pct+"%"}</div><div class="lbl">Attendance · ${a.pres}/${a.tot} sessions${a.late?`, ${a.late} late`:""}</div></div>
+  <div class="stat"><div class="big">${log} h</div><div class="lbl">Off-the-job logged${exp!=null?` · ${exp} h expected by today of ${esc(l.otjPlanned)} h`:l.otjPlanned?` of ${esc(l.otjPlanned)} h planned`:" · set planned hours in details"}</div></div></div>
+  <div class="panel"><dl class="kv">
+    ${[["ULN",l.uln],["Status",l.status||"Active"],["Start",fmt(l.start)],["Planned end",fmt(l.plannedEnd)],["Next progress review",fmt(l.nextReview)],["EPA gateway",fmt(l.gateway)],["Employer",l.employer],["Employer contact",l.employerContact],["Tutor / assessor",l.tutorId?staffName(l.tutorId):""],["Email",l.email],["Phone",l.phone]].map(([k,v])=>`<div><dt>${k}</dt><dd class="${/Start|end|review|gateway/i.test(k)?"mono":""}">${esc(v||"—")}</dd></div>`).join("")}
+  </dl>${l.notes?`<p style="margin:12px 0 0;white-space:pre-wrap">${esc(l.notes)}</p>`:""}</div>
+  <div class="panel"><h3>Units &amp; portfolio evidence</h3>
+  ${S.units.length?`<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Status</th><th>Signed off</th><th>Evidence</th></tr></thead><tbody>
+  ${S.units.map(u=>{const x=(l.units&&l.units[u.key])||{};const s=x.s||"ns";return `<tr><td style="min-width:200px">${esc(u.title)}</td>
+  <td>${S.writable?`<select class="st" id="us-${u.key}" data-change="ustat" data-k="${u.key}" aria-label="Status for ${esc(u.title)}">${Object.entries(USTAT).map(([k,v])=>`<option value="${k}" ${s===k?"selected":""}>${v}</option>`).join("")}</select>`:esc(USTAT[s])}</td>
+  <td class="mono" style="white-space:nowrap">${x.date?fmt(x.date):"—"}</td>
+  <td style="min-width:180px">${fileLinks(x.files,true,"unit:"+l.id+":"+u.key)}${S.writable&&S.assets?`<label class="btn sm" style="margin-top:4px"><input type="file" hidden multiple data-change="ufile" data-k="${u.key}">Upload</label>`:""}</td></tr>`}).join("")}
+  </tbody></table></div>`:`<div class="empty">No course units set up. Use <b>Course units</b> on the Learners page.</div>`}</div>
+  <div class="panel"><h3>Off-the-job training log</h3>
+  ${S.writable?`<form class="bar" data-submit="otj" style="margin-bottom:10px"><input type="date" id="otj-d" value="${todayISO()}" required aria-label="Date" style="border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--surface)"><input type="number" id="otj-h" min="0.25" step="0.25" placeholder="Hours" required aria-label="Hours" style="width:90px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--surface)"><input type="text" id="otj-a" placeholder="Activity, e.g. pipework practical in centre" required aria-label="Activity" style="flex:1 1 220px;min-width:0;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--surface)"><button class="btn primary sm">Log hours</button></form>`:""}
+  ${ents.length?`<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Hours</th><th>Activity</th><th></th></tr></thead><tbody>${ents.slice(0,60).map(e=>`<tr><td class="mono">${fmt(e.d)}</td><td class="mono">${esc(e.h)}</td><td>${esc(e.a)}</td><td>${S.writable?`<button class="btn sm danger" data-act="rm-otj" data-i="${e.i}" aria-label="Remove entry">Remove</button>`:""}</td></tr>`).join("")}</tbody></table></div>${ents.length>60?`<p class="muted" style="font-size:13px">Showing latest 60 of ${ents.length}. Export CSV for the full log.</p>`:""}`:`<div class="empty">No off-the-job hours logged yet.</div>`}</div>
+  <div class="panel"><h3>Attendance history</h3>${att.length?`<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Mark</th></tr></thead><tbody>${att.slice(0,40).map(([d,c])=>`<tr><td class="mono">${fmt(d)}</td><td>${esc(ATT[c]||c)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No attendance marked yet. Use the <b>Register</b> tab on training days.</div>`}</div>
+  </div>`
+}
+
+/* register */
+function vRegister(){
+  const d=S.regDate,m=d.slice(0,7),day=d.slice(8);
+  const rec=(S.att[m]&&S.att[m].r)||{};
+  const ls=S.learners.filter(l=>(l.status||"Active")==="Active"&&(S.regProg==="all"||l.programme===S.regProg||l.cohort===S.regProg)).sort((a,b)=>a.name.localeCompare(b.name));
+  const cohorts=[...new Set(S.learners.map(l=>l.cohort).filter(Boolean))];
+  const marked=ls.filter(l=>rec[l.id]&&rec[l.id][day]).length;
+  return `<div class="section-head"><div><h2>Attendance register</h2><p>Mark each active learner for a training day. Marks save as you tap.</p></div></div>
+  <div class="filter"><input type="date" id="regdate" value="${esc(d)}" data-change="regdate" aria-label="Register date" style="flex:0 0 auto">
+  <select id="regprog" data-change="regprog" aria-label="Group"><option value="all">All active learners</option>${cohorts.map(c=>`<option value="${esc(c)}" ${S.regProg===c?"selected":""}>Cohort ${esc(c)}</option>`).join("")}${PROGRAMMES.map(p=>`<option ${S.regProg===p?"selected":""}>${p}</option>`).join("")}</select>
+  ${S.writable&&ls.length?`<button class="btn" data-act="all-present">Mark unmarked as present</button>`:""}</div>
+  <div class="legend"><span>P Present</span><span>L Late</span><span>A Absent</span><span>AA Authorised absence (not counted)</span><span class="mono">${marked}/${ls.length} marked</span></div>
+  <div class="panel list">${ls.length?ls.map(l=>{const c=rec[l.id]&&rec[l.id][day];return `<div class="row"><div style="min-width:0"><div class="t">${esc(l.name)}</div><div class="s">${esc(l.cohort?"Cohort "+l.cohort:l.programme||"")}</div></div><div class="seg" role="group" aria-label="Mark ${esc(l.name)}">${Object.keys(ATT).map(k=>`<button class="${k}" aria-pressed="${c===k}" title="${ATT[k]}" ${S.writable?"":"disabled"} data-act="mark" data-id="${l.id}" data-k="${k}">${k}</button>`).join("")}</div></div>`}).join(""):`<div class="empty"><strong>No active learners${S.regProg!=="all"?" in this group":""}</strong>Add learners on the Learners tab.</div>`}</div>`
+}
+
+/* staff */
+function vStaff(){
+  if(S.view&&S.view.type==="staff"){const s=S.staff.find(x=>x.id===S.view.id);if(s)return vStaffOne(s);S.view=null}
+  const st=[...S.staff].sort((a,b)=>(a.active===false)-(b.active===false)||a.name.localeCompare(b.name));
+  return `<div class="section-head"><div><h2>Staff records</h2><p>Qualifications, Gas Safe and ACS dates, DBS, CPD, appraisals and standardisation for each member of staff.</p></div>${S.writable?`<button class="btn primary" data-act="add-staff">Add staff member</button>`:""}</div>
+  ${st.length?`<div class="grid2">${st.map(s=>{const its=S.items.filter(i=>i.staffId===s.id);const c={overdue:0,soon:0,missing:0,ok:0};its.forEach(i=>c[itemStatus(i)]++);const worst=c.overdue?"overdue":c.soon?"soon":c.missing?"missing":"ok";
+  return `<button class="card" data-act="open-staff" data-id="${s.id}"><div style="display:flex;justify-content:space-between;gap:8px"><h3>${esc(s.name)}</h3>${s.active===false?`<span class="pill p-missing">Left</span>`:pill(worst,worst==="ok"?"All in date":worst==="missing"?`${c.missing} to complete`:worst==="soon"?`${c.soon} due soon`:`${c.overdue} overdue`)}</div><div class="muted" style="font-size:13px">${esc(s.role||"")}${s.start?" · since "+fmt(s.start):""}</div><div class="muted" style="font-size:13px">${its.length} record${its.length===1?"":"s"} · ${c.ok} in date</div></button>`}).join("")}</div>`
+  :`<div class="panel"><div class="empty"><strong>No staff yet</strong>Add each trainer, assessor, IQA and admin. Picking their role adds the standard checks (Gas Safe, ACS, DBS, CPD and so on) ready for dates.</div></div>`}`
+}
+function vStaffOne(s){
+  const its=S.items.filter(i=>i.staffId===s.id).sort((a,b)=>({overdue:0,soon:1,missing:2,ok:3}[itemStatus(a)]-{overdue:0,soon:1,missing:2,ok:3}[itemStatus(b)]));
+  return `<div class="detail"><div><button class="btn sm back" data-act="back">← All staff</button></div>
+  <div class="section-head"><div><h2>${esc(s.name)}</h2><p>${esc(s.role||"")}${s.active===false?" · Left":""}</p></div>${S.writable?`<div class="bar"><button class="btn" data-act="edit-staff" data-id="${s.id}">Edit details</button><button class="btn primary" data-act="add-item" data-staff="${s.id}">Add record</button></div>`:""}</div>
+  <div class="panel"><dl class="kv">${[["Start date",fmt(s.start)],["Email",s.email],["Phone",s.phone],["Gas Safe ID",s.gasSafe]].map(([k,v])=>`<div><dt>${k}</dt><dd>${esc(v||"—")}</dd></div>`).join("")}</dl>${s.notes?`<p style="margin:12px 0 0;white-space:pre-wrap">${esc(s.notes)}</p>`:""}</div>
+  <div class="panel list" style="padding:0">${its.length?its.map(itemRow).join(""):`<div class="empty">No records yet. Use <b>Add record</b>.</div>`}</div></div>`
+}
+function itemRow(it){const st=itemStatus(it),due=itemDue(it);
+  return `<div class="row"><button class="rowlink" data-act="edit-item" data-id="${it.id}"><div class="t">${esc(it.title)}</div><div class="s"><span class="mono">${it.oneOff?(it.issued?"Checked "+fmt(it.issued):"No date recorded"):due?"Due "+fmt(due)+" · "+rel(daysUntil(due)):"No date set"}</span>${it.ref?" · "+esc(it.ref):""}${it.files&&it.files.length?` · ${it.files.length} file${it.files.length>1?"s":""}`:""}</div></button><div class="right">${pill(st,it.oneOff&&st==="ok"?"Recorded":null)}${!it.oneOff&&S.writable?`<button class="btn sm" data-act="renew" data-id="${it.id}">Renewed</button>`:""}</div></div>`}
+
+/* centre */
+function vCentre(){
+  const its=S.items.filter(i=>!i.staffId);const by={};its.forEach(i=>(by[i.category||"Other"]=by[i.category||"Other"]||[]).push(i));
+  return `<div class="section-head"><div><h2>Centre checks</h2><p>Approval, insurance, equipment calibration, gas and electrical safety, fire and data protection renewals for the centre.</p></div>${S.writable?`<button class="btn primary" data-act="add-item">Add check</button>`:""}</div>
+  ${its.length?CENTRE_CATS.filter(c=>by[c]).concat(Object.keys(by).filter(c=>!CENTRE_CATS.includes(c))).map(c=>`<h3 style="font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 8px">${esc(c)}</h3><div class="panel list">${by[c].map(itemRow).join("")}</div>`).join("")
+  :`<div class="panel"><div class="empty"><strong>No centre checks yet</strong>Add checks such as insurance, analyser calibration and fire risk assessment.</div></div>`}`
+}
+
+/* documents */
+function vDocuments(){
+  const q=S.dq.toLowerCase();
+  const ds=S.docs.filter(d=>(S.dcat==="all"?d.category!==ARCH:d.category===S.dcat)&&(!q||[d.title,d.category,d.owner,d.version].join(" ").toLowerCase().includes(q))).sort((a,b)=>(a.category||"").localeCompare(b.category||"")||a.title.localeCompare(b.title));
+  const nArch=S.docs.filter(d=>d.category===ARCH).length;
+  return `<div class="section-head"><div><h2>QMS &amp; normative documents</h2><p>Upload policies, procedures and normative documents with their version and review date. Uploads accept PDF, images and text files; save Word or Excel files as PDF first.</p></div>${S.writable?`<div class="bar">${S.assets?`<label class="btn" id="bulk-label"><input type="file" id="bulk-in" hidden multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.csv,.md,.json" data-change="bulk">Upload several files</label>`:""}<button class="btn primary" data-act="add-doc">Add document</button></div>`:""}</div>
+  <div class="filter"><input id="dq" type="search" placeholder="Search documents" value="${esc(S.dq)}" data-input="dq" aria-label="Search documents"><select id="dcat" data-change="dcat" aria-label="Category"><option value="all">All current documents</option>${DOC_CATS.map(c=>`<option value="${esc(c)}" ${S.dcat===c?"selected":""}>${c}${c===ARCH?` (${nArch})`:""}</option>`).join("")}</select></div>
+  <div class="panel">${ds.length?`<div class="tbl-wrap"><table><thead><tr><th>Document</th><th>Category</th><th>Version</th><th>Next review</th><th>Status</th><th>File</th></tr></thead><tbody>${ds.map(d=>{const st=!d.file?"missing":status(d.review,d.remindDays||30);return `<tr><td style="min-width:220px"><button class="rowlink" data-act="edit-doc" data-id="${d.id}"><span class="t" style="font-weight:600">${esc(d.title)}</span></button>${d.verdict&&VERDICT[d.verdict]&&d.category!==ARCH?`<div style="margin-top:3px"><span class="pill ${VERDICT[d.verdict][0]}" style="font-size:11px">${VERDICT[d.verdict][1]}</span></div>`:""}${d.owner?`<div class="muted" style="font-size:13px">Owner: ${esc(d.owner)}</div>`:""}</td><td style="white-space:nowrap">${esc(d.category)}</td><td class="mono">${esc(d.version||"—")}</td><td class="mono" style="white-space:nowrap">${fmt(d.review)}</td><td>${pill(st,!d.file?"Not uploaded":null)}</td><td style="min-width:140px">${d.file?fileLinks([d.file],false):""}${d.link?`<div style="font-size:13px"><a href="${esc(/^https:\/\//.test(d.link)?d.link:"#")}" target="_blank" rel="noopener" style="color:var(--accent)">${d.file?"Official source":"Get it from source"} ↗</a>${d.source?`<div class="muted">${esc(d.source)}</div>`:""}</div>`:d.file?"":"—"}</td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty"><strong>${S.docs.length?"No documents match":"No documents yet"}</strong>${S.docs.length?"Change the search or category.":"Add your quality manual, policies and procedures."}</div>`}</div>`
+}
+
+/* ---------- forms ---------- */
+function openForm({title,sub,fields,data={},onSave,onDelete,deleteLabel,files,filesLabel}){
+  const root=document.getElementById("modal-root");
+  let fileList=files?[...(data.files||[])]:null;const removed=[];
+  const fieldHTML=f=>{const v=data[f.k]??f.def??"";const id="f-"+f.k;
+    if(f.type==="row")return `<div class="frow">${f.fields.map(fieldHTML).join("")}</div>`;
+    if(f.type==="check")return `<div class="field check"><input type="checkbox" id="${id}" name="${f.k}" ${v?"checked":""}><label for="${id}">${esc(f.label)}</label></div>`;
+    let ctl;
+    if(f.type==="select")ctl=`<select id="${id}" name="${f.k}">${f.empty!=null?`<option value="">${esc(f.empty)}</option>`:""}${f.options.map(o=>{const [ov,ol]=Array.isArray(o)?o:[o,o];return `<option value="${esc(ov)}" ${String(v)===String(ov)?"selected":""}>${esc(ol)}</option>`}).join("")}</select>`;
+    else if(f.type==="textarea")ctl=`<textarea id="${id}" name="${f.k}">${esc(v)}</textarea>`;
+    else if(f.type==="file")ctl=`<input type="file" id="${id}" name="${f.k}" ${f.multiple?"multiple":""} accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.csv,.md,.json">`;
+    else ctl=`<input type="${f.type||"text"}" id="${id}" name="${f.k}" value="${esc(v)}" ${f.req?"required":""} ${f.step?`step="${f.step}"`:""} ${f.min!=null?`min="${f.min}"`:""} ${f.ph?`placeholder="${esc(f.ph)}"`:""}>`;
+    return `<div class="field"><label for="${id}">${esc(f.label)}${f.req?" *":""}</label>${ctl}${f.hint?`<span class="hint">${esc(f.hint)}</span>`:""}</div>`};
+  const draw=()=>{
+    const filesBlock=files?`<div class="field"><label for="f-__files">${esc(filesLabel||"Files")}</label><div id="flist">${fileList.length?`<div class="files">${fileList.map((f,i)=>`<span class="file"><a href="/_blob/${esc(f.id)}" target="_blank" rel="noopener">${esc(f.name)}</a><button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">✕</button></span>`).join("")}</div>`:""}</div>${S.assets?`<input type="file" id="f-__files" ${files==="one"?"":"multiple"} accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.csv,.md,.json"><span class="hint">PDF, image or text files, up to 20 MB each. Save Word or Excel files as PDF first.</span>`:`<span class="hint">File uploads are only available to editors.</span>`}</div>`:"";
+    root.innerHTML=`<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><header><h2 id="mt">${esc(title)}</h2>${sub?`<p>${esc(sub)}</p>`:""}</header>
+    <form novalidate>${fields.map(fieldHTML).join("")}${filesBlock}<div class="err" id="ferr" hidden></div>
+    <div class="actions">${onDelete?`<button type="button" class="btn danger left" data-del>${esc(deleteLabel||"Delete")}</button>`:""}<button type="button" class="btn" data-cancel>Cancel</button>${S.writable?`<button class="btn primary" type="submit">Save</button>`:""}</div></form></div></div>`;
+  };
+  draw();
+  const close=()=>{root.innerHTML="";document.removeEventListener("keydown",onKey)};
+  const onKey=e=>{if(e.key==="Escape")close()};document.addEventListener("keydown",onKey);
+  const form=root.querySelector("form");
+  const first=form.querySelector("input,select,textarea");if(first)first.focus();
+  let confirmDel=false;
+  root.querySelector("[data-scrim]").addEventListener("click",async e=>{
+    if(e.target.matches("[data-scrim]")||e.target.closest("[data-cancel]"))return close();
+    const rm=e.target.closest("[data-rm]");if(rm){const [f]=fileList.splice(Number(rm.dataset.rm),1);removed.push(f);document.getElementById("flist").innerHTML=fileList.length?`<div class="files">${fileList.map((f,i)=>`<span class="file"><a href="/_blob/${esc(f.id)}" target="_blank" rel="noopener">${esc(f.name)}</a><button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">✕</button></span>`).join("")}</div>`:"";return}
+    const del=e.target.closest("[data-del]");if(del){if(!confirmDel){confirmDel=true;del.textContent="Tap again to confirm";return}del.disabled=true;try{await onDelete(data);close();toast("Deleted")}catch(err){showErr(err)}}
+  });
+  const showErr=err=>{const el=document.getElementById("ferr");el.hidden=false;el.textContent=err&&err.userMsg?err.userMsg:"Couldn't save: "+((err&&(err.message||err.code))||"unknown error")+". Try again."};
+  form.addEventListener("submit",async e=>{e.preventDefault();
+    const out={};const walk=fs=>fs.forEach(f=>{if(f.type==="row")return walk(f.fields);const el=form.elements[f.k];if(!el)return;out[f.k]=f.type==="check"?el.checked:f.type==="number"?(el.value===""?"":Number(el.value)):el.value.trim()});walk(fields);
+    const miss=[];const req=fs=>fs.forEach(f=>{if(f.type==="row")return req(f.fields);if(f.req&&!out[f.k])miss.push(f.label)});req(fields);
+    if(miss.length){const el=document.getElementById("ferr");el.hidden=false;el.textContent="Fill in: "+miss.join(", ");return}
+    const btn=form.querySelector("[type=submit]");btn.disabled=true;btn.textContent="Saving…";
+    try{
+      if(files){const inp=document.getElementById("f-__files");if(inp&&inp.files.length){btn.textContent="Uploading…";const up=await uploadFiles(inp.files);if(files==="one"){if(fileList[0])removed.push(fileList[0]);fileList=[up[up.length-1]]}else fileList.push(...up)}out.files=fileList}
+      await onSave(out,data);
+      for(const f of removed){if(!fileList.find(x=>x.id===f.id))S.assets&&S.assets.delete(f.id).catch(()=>{})}
+      close();toast("Saved");
+    }catch(err){btn.disabled=false;btn.textContent="Save";showErr(err)}
+  });
+}
+async function uploadFiles(fileListIn){
+  if(!S.assets)throw {userMsg:"You don't have permission to upload files here."};
+  const out=[];
+  for(const f of fileListIn){const ext=(f.name.split(".").pop()||"").toLowerCase();const type=MIME[ext];
+    if(!type)throw {userMsg:`"${f.name}" can't be stored. ${/docx?|xlsx?|pptx?|odt/.test(ext)?"Save it as PDF (File → Save As → PDF) and upload the PDF.":"Use PDF, an image or a text file."}`};
+    if(f.size>20*1024*1024)throw {userMsg:`"${f.name}" is over 20 MB. Compress it or split it.`};
+    let r;try{r=await S.assets.upload(f,{type})}catch(e){if(e&&e.code==="store_unavailable"){await new Promise(z=>setTimeout(z,1200));r=await S.assets.upload(f,{type})}else throw {userMsg:e&&e.code==="quota_or_state"?"Storage is full. Remove old files you no longer need.":`Upload of "${f.name}" failed (${e&&e.code||"error"}).`}}
+    out.push({id:r.id,name:f.name,size:r.sizeBytes,type})}
+  return out;
+}
+
+
+/* ---------- EQA audit pack ---------- */
+const AST={ready:["ok","Ready"],draft:["missing","Draft – sign off"],action:["soon","Needs action"],missing:["overdue","Missing"]};
+function vAudit(){
+  const rows=[...S.audit].sort((a,b)=>(a.n||0)-(b.n||0));
+  const c={ready:0,draft:0,action:0,missing:0};rows.forEach(r=>c[r.status]=(c[r.status]||0)+1);
+  const eqa=S.items.find(i=>i.id==="centre15");const next=eqa?itemDue(eqa):null;
+  const f=S.afilter;const shown=rows.filter(r=>f==="all"||(f==="open"?r.status!=="ready":r.status===f));
+  const secs=[];shown.forEach(r=>{let g=secs.find(x=>x.k===r.sec);if(!g){g={k:r.sec,rows:[]};secs.push(g)}g.rows.push(r)});
+  const cfg=S.auditCfg||{};
+  return `<div class="section-head"><div><h2>EQA audit pack</h2><p>Everything LCL asks for at the annual audit, where it is, and what still needs doing. Next annual audit expected ${next?`around <span class="mono">${fmt(next)}</span> (${rel(daysUntil(next))})`:"in about 12 months"} – LCL wants the documents two weeks before.</p>
+  <p class="muted" style="font-size:13px">The same pack is in Google Drive › Anis › LCL › <strong>QMS – EQA Audit Pack 2027</strong>, one numbered folder per section.${cfg.checklist?` <a href="/_blob/${esc(cfg.checklist)}" target="_blank" rel="noopener" style="color:var(--accent)">Open the printable checklist ↗</a>`:""}</p></div></div>
+  <div class="tiles">${[["missing","Missing","var(--red)"],["action","Needs action","var(--amber)"],["draft","Draft – sign off","var(--muted)"],["ready","Ready","var(--green)"]].map(([k,l,col])=>`<button class="tile" style="--c:${col}" aria-pressed="${f===k}" data-act="afilter" data-k="${k}"><div class="num">${c[k]||0}</div><div class="lbl">${l}</div></button>`).join("")}</div>
+  <div class="filter"><button class="chipbtn" aria-pressed="${f==="open"}" data-act="afilter" data-k="open">Still to do (${rows.length-(c.ready||0)})</button><button class="chipbtn" aria-pressed="${f==="all"}" data-act="afilter" data-k="all">All ${rows.length} items</button></div>
+  ${secs.length?secs.map(g=>`<h3 style="margin:18px 0 6px;font-size:15px">${esc(g.k)}</h3><div class="panel list">${g.rows.map(auditRow).join("")}</div>`).join(""):`<div class="panel"><div class="empty"><strong>${rows.length?"Nothing in this group":"No audit checklist yet"}</strong>${rows.length?"Pick another tile above.":""}</div></div>`}`
+}
+function auditRow(r){const [cls,lab]=AST[r.status]||AST.action;
+  return `<div class="row" style="align-items:flex-start;flex-wrap:wrap"><div style="min-width:0;flex:1 1 320px"><div class="t"><span class="mono muted">${esc(r.n)}.</span> ${esc(r.item)}</div>
+  ${r.action?`<div class="s" style="white-space:normal;margin-top:2px">${esc(r.action)}</div>`:""}
+  <div class="s" style="white-space:normal;margin-top:2px">Owner: ${esc(r.owner||"—")} · Folder: <span class="mono" style="font-size:12px">${esc(r.folder||"")}</span></div>
+  ${fileLinks(r.files,false)}</div>
+  <div class="right" style="flex-direction:column;align-items:flex-end;gap:6px">${S.writable?`<select class="st" id="as-${esc(r.id)}" data-change="astat" data-id="${esc(r.id)}" aria-label="Status for ${esc(r.item)}">${Object.entries(AST).map(([k,[,l]])=>`<option value="${k}" ${r.status===k?"selected":""}>${l}</option>`).join("")}</select>${S.assets?`<label class="btn sm"><input type="file" hidden multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.csv,.md,.json" data-change="afile" data-id="${esc(r.id)}">Add file</label>`:""}`:pill(cls,lab)}</div></div>`}
+
+/* ---------- item / staff / learner / doc forms ---------- */
+function itemForm(it,staffId){
+  const isStaff=it?!!it.staffId:!!staffId;
+  openForm({title:it?"Edit record":(isStaff?"Add staff record":"Add centre check"),sub:isStaff?staffName(it?it.staffId:staffId):"Centre",
+    data:it||{remindDays:60,cycleMonths:12},files:true,filesLabel:"Certificates / evidence",
+    fields:[{k:"title",label:"Name",req:true,ph:isStaff?"e.g. ACS CCN1":"e.g. Flue gas analyser calibration"},
+      {k:"category",label:"Type",type:"select",options:isStaff?STAFF_CATS:CENTRE_CATS},
+      {type:"row",fields:[{k:"issued",label:"Issued / last done",type:"date"},{k:"cycleMonths",label:"Renews every (months)",type:"number",min:0,hint:"Blank or 0 if you set the due date yourself"}]},
+      {type:"row",fields:[{k:"due",label:"Expiry / next due",type:"date",hint:"Leave blank to calculate from the issue date"},{k:"remindDays",label:"Remind me (days before)",type:"number",min:0}]},
+      {k:"oneOff",label:"One-off check with no expiry (e.g. right to work, qualification held)",type:"check"},
+      {k:"ref",label:"Reference / certificate number"},{k:"notes",label:"Notes",type:"textarea"}],
+    onSave:async(o)=>{const id=it?it.id:uid();const body={...(it||{}),...o,staffId:it?it.staffId||null:(staffId||null),updatedAt:new Date().toISOString()};delete body.id;
+      if(!body.oneOff&&!o.due&&o.issued&&o.cycleMonths)body.due=addMonths(o.issued,o.cycleMonths);
+      await S.db.collection("items").doc(id).set(body)},
+    onDelete:it?async()=>{await S.db.collection("items").doc(it.id).delete();(it.files||[]).forEach(f=>S.assets&&S.assets.delete(f.id).catch(()=>{}))}:null});
+}
+async function renew(id){const it=S.items.find(x=>x.id===id);if(!it)return;const t=todayISO();
+  const cyc=Number(it.cycleMonths)||(it.issued&&it.due?Math.round((parse(it.due)-parse(it.issued))/(864e5*30.44)):12);
+  try{await S.db.collection("items").doc(id).update({issued:t,due:addMonths(t,cyc),cycleMonths:cyc,updatedAt:new Date().toISOString()});toast(`Renewed. Next due ${fmt(addMonths(t,cyc))}. Edit to add the new certificate.`)}catch(e){toast("Couldn't update. Try again.")}}
+
+function staffForm(s){
+  openForm({title:s?"Edit staff member":"Add staff member",data:s||{role:ROLES[0],active:true,template:true},
+    fields:[{k:"name",label:"Full name",req:true},{k:"role",label:"Role",type:"select",options:ROLES},
+      {type:"row",fields:[{k:"start",label:"Start date",type:"date"},{k:"gasSafe",label:"Gas Safe ID"}]},
+      {type:"row",fields:[{k:"email",label:"Email",type:"email"},{k:"phone",label:"Phone"}]},
+      ...(s?[{k:"active",label:"Currently employed",type:"check"}]:[{k:"template",label:"Add the standard checks for this role (dates to fill in)",type:"check"}]),
+      {k:"notes",label:"Notes",type:"textarea"}],
+    onSave:async(o)=>{const id=s?s.id:uid();const tpl=o.template;delete o.template;
+      await S.db.collection("staff").doc(id).set({...(s||{}),...o,active:s?o.active:true,updatedAt:new Date().toISOString()});
+      if(!s&&tpl){for(const [title,category,cyc] of (TEMPLATES[o.role]||[])){await S.db.collection("items").doc(uid()).set({title,category,staffId:id,cycleMonths:cyc||"",oneOff:!cyc,remindDays:cyc===3?14:60,files:[],updatedAt:new Date().toISOString()})}}
+      if(!s){S.view={type:"staff",id};S.tab="staff"}},
+    onDelete:s?async()=>{for(const it of S.items.filter(i=>i.staffId===s.id)){await S.db.collection("items").doc(it.id).delete();(it.files||[]).forEach(f=>S.assets&&S.assets.delete(f.id).catch(()=>{}))}await S.db.collection("staff").doc(s.id).delete();S.view=null}:null,
+    deleteLabel:"Delete staff member and records"});
+}
+function learnerForm(l){
+  const tutors=S.staff.filter(s=>s.active!==false).map(s=>[s.id,s.name]);
+  openForm({title:l?"Edit learner":"Add learner",data:l||{programme:PROGRAMMES[0],status:"Active",start:todayISO()},
+    fields:[{k:"name",label:"Full name",req:true},{type:"row",fields:[{k:"uln",label:"ULN"},{k:"cohort",label:"Cohort / group",ph:"e.g. Sept 26"}]},
+      {k:"programme",label:"Programme",type:"select",options:PROGRAMMES},
+      {type:"row",fields:[{k:"start",label:"Start date",type:"date"},{k:"plannedEnd",label:"Planned end date",type:"date"}]},
+      {type:"row",fields:[{k:"nextReview",label:"Next progress review",type:"date"},{k:"gateway",label:"EPA gateway date",type:"date"}]},
+      {type:"row",fields:[{k:"otjPlanned",label:"Planned off-the-job hours",type:"number",min:0,hint:"From the training plan / commitment statement"},{k:"status",label:"Status",type:"select",options:LSTATUS}]},
+      {k:"tutorId",label:"Tutor / assessor",type:"select",options:tutors,empty:"Not assigned"},
+      {type:"row",fields:[{k:"employer",label:"Employer"},{k:"employerContact",label:"Employer contact"}]},
+      {type:"row",fields:[{k:"email",label:"Learner email",type:"email"},{k:"phone",label:"Learner phone"}]},
+      {k:"notes",label:"Notes",type:"textarea"}],
+    onSave:async(o)=>{const id=l?l.id:uid();await S.db.collection("learners").doc(id).set({...(l||{units:{}}),...o,updatedAt:new Date().toISOString()});if(!l){S.view={type:"learner",id};S.tab="learners"}},
+    onDelete:l?async()=>{const lu=l.units||{};for(const k in lu)(lu[k].files||[]).forEach(f=>S.assets&&S.assets.delete(f.id).catch(()=>{}));await S.db.collection("learners").doc(l.id).delete();await S.db.collection("otj").doc(l.id).delete();S.view=null}:null,
+    deleteLabel:"Delete learner"});
+}
+function docForm(d){
+  openForm({title:d?"Edit document":"Add document",data:d?{...d,files:d.file?[d.file]:[]}:{category:"Policy",remindDays:30},files:"one",filesLabel:"File",
+    fields:[{k:"title",label:"Title",req:true},{type:"row",fields:[{k:"category",label:"Category",type:"select",options:DOC_CATS},{k:"version",label:"Version / edition",ph:"e.g. v3.1"}]},
+      {type:"row",fields:[{k:"approved",label:"Approved / issued",type:"date"},{k:"review",label:"Next review",type:"date"}]},
+      {type:"row",fields:[{k:"owner",label:"Owner"},{k:"remindDays",label:"Remind me (days before)",type:"number",min:0}]},
+      {k:"link",label:"Official source link",ph:"https://…",hint:"Where to download or buy the current edition"},{k:"source",label:"Source note",ph:"e.g. Free from HSE / Buy from BSI"},
+      {k:"notes",label:"Notes",type:"textarea"}],
+    onSave:async(o)=>{const id=d?d.id:uid();const file=(o.files&&o.files[0])||null;delete o.files;
+      if(!o.review&&o.approved)o.review=addMonths(o.approved,12);
+      const body={...(d||{}),...o,file,updatedAt:new Date().toISOString()};delete body.id;await S.db.collection("documents").doc(id).set(body)},
+    onDelete:d?async()=>{await S.db.collection("documents").doc(d.id).delete();if(d.file&&S.assets)S.assets.delete(d.file.id).catch(()=>{})}:null});
+}
+function unitsEditor(){
+  const root=document.getElementById("modal-root");let list=S.units.map(u=>({...u}));
+  const draw=()=>{root.innerHTML=`<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><header><h2 id="mt">Course units</h2><p>The units every learner is tracked against. Match these to your scheme of work. Renaming a unit keeps each learner's progress.</p></header><form>
+  ${list.map((u,i)=>`<div class="unitrow"><span class="mono muted" style="width:26px">${i+1}</span><input id="u-${u.key}" value="${esc(u.title)}" data-i="${i}" aria-label="Unit ${i+1}" ${S.writable?"":"readonly"}>${S.writable?`<button type="button" class="btn sm" data-up="${i}" aria-label="Move up" ${i?"":"disabled"}>↑</button><button type="button" class="btn sm danger" data-x="${i}" aria-label="Remove unit">✕</button>`:""}</div>`).join("")}
+  ${S.writable?`<button type="button" class="btn sm" data-add style="align-self:flex-start">Add unit</button>`:""}<div class="err" id="ferr" hidden></div>
+  <div class="actions"><button type="button" class="btn" data-cancel>Cancel</button>${S.writable?`<button class="btn primary">Save units</button>`:""}</div></form></div></div>`};
+  draw();
+  const sync=()=>root.querySelectorAll("input[data-i]").forEach(inp=>list[inp.dataset.i].title=inp.value);
+  root.addEventListener("click",function h(e){
+    if(e.target.matches("[data-scrim]")||e.target.closest("[data-cancel]")){root.removeEventListener("click",h);root.innerHTML="";return}
+    if(e.target.closest("[data-add]")){sync();list.push({key:"u"+uid(),title:""});draw();root.querySelector("input[data-i]:last-of-type")&&[...root.querySelectorAll("input[data-i]")].pop().focus();return}
+    const x=e.target.closest("[data-x]");if(x){sync();list.splice(Number(x.dataset.x),1);draw();return}
+    const up=e.target.closest("[data-up]");if(up){sync();const i=Number(up.dataset.up);[list[i-1],list[i]]=[list[i],list[i-1]];draw()}
+  });
+  root.addEventListener("submit",async function s(e){e.preventDefault();sync();list=list.filter(u=>u.title.trim()).map(u=>({key:u.key,title:u.title.trim()}));
+    try{await S.db.doc("config/units").set({units:list});root.removeEventListener("submit",s);root.innerHTML="";toast("Units saved")}catch(err){const el=document.getElementById("ferr");el.hidden=false;el.textContent="Couldn't save units. Try again."}});
+}
+
+/* ---------- bulk document upload ---------- */
+function normTitle(s){return String(s||"").toLowerCase().replace(/^qms__/,"").replace(/\.[a-z0-9]+$/,"").replace(/[^a-z0-9]+/g," ").trim()}
+async function bulkUpload(files){
+  const bar=document.createElement("div");bar.className="toast";bar.setAttribute("role","status");document.body.appendChild(bar);
+  let done=0,failed=[];
+  for(const f of files){
+    bar.textContent=`Uploading ${done+1} of ${files.length}: ${f.name}`;
+    try{
+      const [up]=await uploadFiles([f]);
+      const title=f.name.replace(/^QMS__/,"").replace(/\.[^.]+$/,"").trim();
+      const nt=normTitle(f.name);
+      const match=S.docs.find(d=>!d.file&&normTitle(d.title)===nt);
+      if(match){await S.db.collection("documents").doc(match.id).update({file:up,updatedAt:new Date().toISOString()})}
+      else{await S.db.collection("documents").doc(uid()).set({title,category:"Other",version:"",remindDays:30,file:up,review:addMonths(todayISO(),12),notes:"Bulk uploaded",updatedAt:new Date().toISOString()})}
+      done++;
+    }catch(e){failed.push(f.name+(e&&e.userMsg?" ("+e.userMsg+")":""))}
+  }
+  bar.remove();
+  toast(failed.length?`${done} uploaded, ${failed.length} failed: ${failed.slice(0,3).join("; ")}`:`${done} files uploaded`);
+}
+
+/* ---------- attendance / otj writes ---------- */
+const queues={};
+function enqueue(key,fn){const p=(queues[key]||Promise.resolve()).then(fn).catch(e=>{toast("Couldn't save that change. Try again.");});queues[key]=p;return p}
+function mark(lid,code){const d=S.regDate,m=d.slice(0,7),day=d.slice(8);
+  const cur=S.att[m]?JSON.parse(JSON.stringify(S.att[m])):{r:{}};cur.r=cur.r||{};cur.r[lid]=cur.r[lid]||{};
+  if(cur.r[lid][day]===code)delete cur.r[lid][day];else cur.r[lid][day]=code;
+  S.att[m]=cur;render();enqueue("att"+m,()=>S.db.collection("attendance").doc(m).set(S.att[m]))}
+function allPresent(){const d=S.regDate,m=d.slice(0,7),day=d.slice(8);const cur=S.att[m]?JSON.parse(JSON.stringify(S.att[m])):{r:{}};cur.r=cur.r||{};
+  S.learners.filter(l=>(l.status||"Active")==="Active"&&(S.regProg==="all"||l.programme===S.regProg||l.cohort===S.regProg)).forEach(l=>{cur.r[l.id]=cur.r[l.id]||{};if(!cur.r[l.id][day])cur.r[l.id][day]="P"});
+  S.att[m]=cur;render();enqueue("att"+m,()=>S.db.collection("attendance").doc(m).set(S.att[m]))}
+function setOtj(lid,entries){S.otj[lid]={entries};render();return enqueue("otj"+lid,()=>S.db.collection("otj").doc(lid).set({entries}))}
+
+/* ---------- exports ---------- */
+function icsEsc(s){return String(s||"").replace(/\\/g,"\\\\").replace(/[,;]/g,m=>"\\"+m).replace(/\n/g,"\\n")}
+function icsDate(iso){return iso.replace(/-/g,"")}
+function buildICS(){
+  const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//FC Training Academy//Compliance//EN","CALSCALE:GREGORIAN","X-WR-CALNAME:FC Training compliance"];
+  const stamp=new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z";
+  const ev=(uidv,date,summary,desc)=>{L.push("BEGIN:VEVENT","UID:"+uidv+"@fc-compliance","DTSTAMP:"+stamp,"DTSTART;VALUE=DATE:"+icsDate(date),"DTEND;VALUE=DATE:"+icsDate(addDays(date,1)),"SUMMARY:"+icsEsc(summary),"DESCRIPTION:"+icsEsc(desc),"TRANSP:TRANSPARENT","BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc(summary),"TRIGGER:PT9H","END:VALARM","END:VEVENT")};
+  let n=0;
+  for(const it of S.items){const due=itemDue(it);if(!due)continue;const who=it.staffId?staffName(it.staffId):"Centre";const rd=Number(it.remindDays)||60;
+    ev(it.id+"-due",due,`DUE: ${it.title} (${who})`,`${it.category||""} expires/due ${fmt(due)}. Update the record in FC Training Compliance once renewed.`);n++;
+    if(daysUntil(addDays(due,-rd))>=0)ev(it.id+"-rem",addDays(due,-rd),`Renew soon: ${it.title} (${who})`,`Due ${fmt(due)} (${rd} days).`)}
+  for(const d of S.docs){if(!d.review)continue;ev(d.id+"-rev",d.review,`Review document: ${d.title}`,`${d.category} ${d.version||""} review due.`);n++}
+  for(const l of S.learners){if((l.status||"Active")!=="Active")continue;
+    if(l.nextReview){ev(l.id+"-rev",l.nextReview,`Progress review: ${l.name}`,`${l.programme||""}`);n++}
+    if(l.gateway){ev(l.id+"-gw",l.gateway,`EPA gateway: ${l.name}`,`${l.programme||""}`);n++}
+    if(l.plannedEnd){ev(l.id+"-end",l.plannedEnd,`Planned end: ${l.name}`,`${l.programme||""}`);n++}}
+  L.push("END:VCALENDAR");return {text:L.join("\r\n"),n}
+}
+function csvCell(v){v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function csv(rows){return rows.map(r=>r.map(csvCell).join(",")).join("\r\n")}
+function complianceCSV(){const rows=[["Area","Who / what","Record","Type","Issued","Due / review","Status","Reference","Files"]];
+  for(const it of S.items)rows.push([it.staffId?"Staff":"Centre",it.staffId?staffName(it.staffId):"Centre",it.title,it.category,it.issued||"",it.oneOff?"No expiry":itemDue(it)||"",SLABEL[itemStatus(it)],it.ref||"",(it.files||[]).map(f=>f.name).join("; ")]);
+  for(const d of S.docs)rows.push(["Document",d.owner||"",d.title,d.category,d.approved||"",d.review||"",d.file?SLABEL[status(d.review,d.remindDays||30)]:"Not uploaded",d.version||"",d.file?d.file.name:""]);
+  return csv(rows)}
+function learnersCSV(){const rows=[["Name","ULN","Programme","Cohort","Status","Employer","Start","Planned end","Next review","EPA gateway","Progress %","Units signed off","Attendance %","OTJ logged (h)","OTJ expected to date (h)","OTJ planned (h)",...S.units.map(u=>u.title)]];
+  for(const l of S.learners){const a=attendance(l.id);rows.push([l.name,l.uln||"",l.programme||"",l.cohort||"",l.status||"Active",l.employer||"",l.start||"",l.plannedEnd||"",l.nextReview||"",l.gateway||"",unitProgress(l),signedOff(l)+"/"+S.units.length,a.pct??"",otjLogged(l.id),otjExpected(l)??"",l.otjPlanned||"",...S.units.map(u=>USTAT[(l.units&&l.units[u.key]&&l.units[u.key].s)||"ns"])])}
+  return csv(rows)}
+function otjCSV(){const rows=[["Learner","Date","Hours","Activity"]];for(const l of S.learners)for(const e of otjEntries(l.id))rows.push([l.name,e.d,e.h,e.a]);return csv(rows)}
+async function save(filename,data){if(!S.dl){toast("Downloads aren't available in this view.");return}
+  try{await S.dl.save({filename,data});}catch(e){toast(e&&e.code==="declined"?"Download cancelled.":e&&e.code==="rejected_extension"?"This file type can't be downloaded here.":"Download didn't start. Try again.")}}
+function exportMenu(){const root=document.getElementById("modal-root");
+  root.innerHTML=`<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><header><h2 id="mt">Export CSV</h2><p>Opens in Excel. Useful as an audit pack for LCL visits.</p></header><form>
+  <button type="button" class="btn" data-x="c">Compliance register (staff, centre, documents)</button><button type="button" class="btn" data-x="l">Learner tracker (progress, attendance, off-the-job)</button><button type="button" class="btn" data-x="o">Off-the-job hours log (every entry)</button>
+  <div class="actions"><button type="button" class="btn" data-cancel>Close</button></div></form></div></div>`;
+  root.querySelector("[data-scrim]").addEventListener("click",e=>{if(e.target.matches("[data-scrim]")||e.target.closest("[data-cancel]")){root.innerHTML="";return}
+    const x=e.target.closest("[data-x]");if(!x)return;const t=todayISO();root.innerHTML="";
+    if(x.dataset.x==="c")save(`FC-compliance-register-${t}.csv`,complianceCSV());if(x.dataset.x==="l")save(`FC-learner-tracker-${t}.csv`,learnersCSV());if(x.dataset.x==="o")save(`FC-otj-log-${t}.csv`,otjCSV())})}
+
+/* ---------- events ---------- */
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-act]");if(!b||b.closest("#modal-root"))return;const a=b.dataset.act,id=b.dataset.id;
+  if(a==="tab"){S.tab=b.dataset.k;S.view=null;render();window.scrollTo(0,0);return}
+  if(a==="afilter"){S.afilter=S.afilter===b.dataset.k?"open":b.dataset.k;render();return}
+  if(a==="filter"){S.filter=S.filter===b.dataset.k?"attention":b.dataset.k;render();return}
+  if(a==="back"){S.view=null;render();return}
+  if(a==="open-learner"){S.tab="learners";S.view={type:"learner",id};render();window.scrollTo(0,0);return}
+  if(a==="open-staff"){S.view={type:"staff",id};render();window.scrollTo(0,0);return}
+  if(a==="add-learner")return learnerForm();
+  if(a==="edit-learner")return learnerForm(S.learners.find(x=>x.id===id));
+  if(a==="add-staff")return staffForm();
+  if(a==="edit-staff")return staffForm(S.staff.find(x=>x.id===id));
+  if(a==="add-item")return itemForm(null,b.dataset.staff||null);
+  if(a==="edit-item")return itemForm(S.items.find(x=>x.id===id));
+  if(a==="add-doc")return docForm();
+  if(a==="edit-doc")return docForm(S.docs.find(x=>x.id===id));
+  if(a==="edit-units")return unitsEditor();
+  if(a==="renew")return renew(id);
+  if(a==="mark")return mark(id,b.dataset.k);
+  if(a==="all-present")return allPresent();
+  if(a==="export-menu")return exportMenu();
+  if(a==="export-ics"){const {text,n}=buildICS();if(!n){toast("Add some dates first, then export.");return}return save("FC-compliance-reminders.ics",text)}
+  if(a==="rm-otj"){const lid=S.view.id;const en=[...otjEntries(lid)];en.splice(Number(b.dataset.i),1);return setOtj(lid,en)}
+  if(a==="rmfile"){const [k,lid,uk]=b.dataset.ctx.split(":");if(k!=="unit")return;const l=S.learners.find(x=>x.id===lid);const files=[...((l.units[uk]&&l.units[uk].files)||[])];const [f]=files.splice(Number(b.dataset.i),1);
+    try{await S.db.collection("learners").doc(lid).update({units:{[uk]:{files}}});if(f&&S.assets)S.assets.delete(f.id).catch(()=>{})}catch(err){toast("Couldn't remove the file.")}}
+});
+document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.input;if(!k)return;S[k]=e.target.value;render()});
+document.addEventListener("change",async e=>{const t=e.target,k=t.dataset&&t.dataset.change;if(!k)return;
+  if(k==="lstat"||k==="dcat"||k==="regprog"){S[k==="regprog"?"regProg":k]=t.value;render();return}
+  if(k==="regdate"){if(t.value){S.regDate=t.value;render()}return}
+  if(k==="astat"){try{await S.db.collection("audit").doc(t.dataset.id).update({status:t.value,updatedAt:new Date().toISOString()});toast("Saved")}catch(err){toast("Couldn't save. Try again.")}return}
+  if(k==="afile"){const r=S.audit.find(x=>x.id===t.dataset.id);toast("Uploading…");
+    try{const up=await uploadFiles(t.files);await S.db.collection("audit").doc(r.id).update({files:[...(r.files||[]),...up],updatedAt:new Date().toISOString()});toast("File added")}catch(err){toast(err.userMsg||"Upload failed. Try again.")}t.value="";return}
+  if(k==="bulk"){const files=[...t.files];t.value="";if(!files.length)return;await bulkUpload(files);return}
+  if(k==="ustat"){const lid=S.view.id,uk=t.dataset.k;const patch={s:t.value};if(t.value==="so")patch.date=todayISO();
+    try{await S.db.collection("learners").doc(lid).update({units:{[uk]:patch}})}catch(err){toast("Couldn't save. Try again.")}return}
+  if(k==="ufile"){const lid=S.view.id,uk=t.dataset.k;const l=S.learners.find(x=>x.id===lid);toast("Uploading…");
+    try{const up=await uploadFiles(t.files);const files=[...((l.units&&l.units[uk]&&l.units[uk].files)||[]),...up];const cur=(l.units&&l.units[uk]&&l.units[uk].s)||"ns";
+      await S.db.collection("learners").doc(lid).update({units:{[uk]:{files,s:cur==="ns"||cur==="ip"?"sub":cur}}});toast("Evidence uploaded")}catch(err){toast(err.userMsg||"Upload failed. Try again.")}t.value="";return}
+});
+document.addEventListener("submit",e=>{const f=e.target;if(f.dataset.submit!=="otj")return;e.preventDefault();
+  const d=f.querySelector("#otj-d").value,h=Number(f.querySelector("#otj-h").value),a=f.querySelector("#otj-a").value.trim();if(!d||!h||!a){toast("Add a date, hours and activity.");return}
+  const lid=S.view.id;setOtj(lid,[...otjEntries(lid),{d,h,a}]).then(()=>toast(`${h} h logged`))});
+
+/* ---------- offline storage: records and files saved in a folder on this computer ---------- */
+const OFF={dir:null,data:null,listeners:[],saveT:null,saving:false,dirty:false,folderName:""};
+function clone(v){return v===undefined?undefined:JSON.parse(JSON.stringify(v))}
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open("fc-offline",1);r.onupgradeneeded=()=>r.result.createObjectStore("h");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function idbGet(k){try{const d=await idb();return await new Promise(res=>{const q=d.transaction("h").objectStore("h").get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(null)})}catch(e){return null}}
+async function idbSet(k,v){try{const d=await idb();await new Promise(res=>{const t=d.transaction("h","readwrite");t.objectStore("h").put(v,k);t.oncomplete=res;t.onerror=res})}catch(e){}}
+function col(c){const C=OFF.data.collections;return C[c]||(C[c]={})}
+function merge(t,p){for(const k of Object.keys(p)){const v=p[k];
+  if(v&&typeof v==="object"&&!Array.isArray(v)&&v.__delete__){delete t[k];continue}
+  if(v&&typeof v==="object"&&!Array.isArray(v)&&t[k]&&typeof t[k]==="object"&&!Array.isArray(t[k]))merge(t[k],v);else t[k]=clone(v)}return t}
+let notifyT=null;
+function changed(){OFF.dirty=true;clearTimeout(notifyT);notifyT=setTimeout(()=>OFF.listeners.forEach(f=>f()),0);clearTimeout(OFF.saveT);OFF.saveT=setTimeout(saveData,500);setSaveState("Saving…")}
+function docRef(c,id){return{
+  async set(d){col(c)[id]=clone(d);changed()},
+  async update(p){const o=col(c);if(!o[id])o[id]={};merge(o[id],p);changed()},
+  async delete(){delete col(c)[id];changed()},
+  onSnapshot(cb){const f=()=>{const v=col(c)[id];cb({exists:!!v,data:()=>clone(v)})};OFF.listeners.push(f);f();return()=>{}}}}
+const offlineDb={
+  collection(c){return{doc(id){return docRef(c,id)},onSnapshot(cb){const f=()=>{const o=col(c);cb({docs:Object.keys(o).map(id=>({id,data:()=>clone(o[id])}))})};OFF.listeners.push(f);f();return()=>{}}}},
+  doc(path){const [c,id]=path.split("/");return docRef(c,id)}};
+function rid(){const a=new Uint8Array(16);crypto.getRandomValues(a);return [...a].map(b=>b.toString(16).padStart(2,"0")).join("")}
+const EXT={"application/pdf":"pdf","image/png":"png","image/jpeg":"jpg","image/webp":"webp","image/gif":"gif","text/plain":"txt","text/csv":"csv","text/markdown":"md","application/json":"json","video/mp4":"mp4","video/webm":"webm"};
+const offlineAssets={
+  async upload(blob,opt){const type=(opt&&opt.type)||blob.type||"application/octet-stream";const id=rid();
+    const ext=EXT[type]||((blob.name||"").split(".").pop()||"bin").toLowerCase();const fname=id+"."+ext;
+    const fd=await OFF.dir.getDirectoryHandle("files",{create:true});const fh=await fd.getFileHandle(fname,{create:true});
+    const w=await fh.createWritable();await w.write(blob);await w.close();
+    OFF.data.files[id]={path:"files/"+fname,type};changed();
+    return {id,url:"/_blob/"+id,sizeBytes:blob.size,contentType:type}},
+  async delete(ref){const id=String(ref).replace(/^.*\/_blob\//,"");const f=OFF.data.files[id];if(!f)return{deleted:false};
+    try{const fd=await OFF.dir.getDirectoryHandle("files");await fd.removeEntry(f.path.split("/").pop())}catch(e){}
+    delete OFF.data.files[id];changed();return{deleted:true}}};
+const offlineDl={async save({filename,data}){const b=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}};
+async function getFile(id){const f=OFF.data.files[id];if(!f)throw new Error("missing");let h=OFF.dir;const parts=f.path.split("/");
+  for(const p of parts.slice(0,-1))h=await h.getDirectoryHandle(p);return (await h.getFileHandle(parts[parts.length-1])).getFile()}
+document.addEventListener("click",async e=>{const a=e.target.closest&&e.target.closest('a[href^="/_blob/"]');if(!a)return;e.preventDefault();
+  const id=a.getAttribute("href").slice(7);
+  try{const file=await getFile(id);const u=URL.createObjectURL(new Blob([file],{type:(OFF.data.files[id]||{}).type||file.type}));
+    const w=window.open(u,"_blank");if(!w){const x=document.createElement("a");x.href=u;x.target="_blank";x.rel="noopener";document.body.appendChild(x);x.click();x.remove()}
+    setTimeout(()=>URL.revokeObjectURL(u),120000)}catch(err){toast("That file isn't in the records folder.")}},true);
+async function writeJSON(dirName,fileName,obj){const d=await OFF.dir.getDirectoryHandle(dirName,{create:true});const fh=await d.getFileHandle(fileName,{create:true});const w=await fh.createWritable();await w.write(JSON.stringify(obj,null,1));await w.close()}
+async function saveData(){if(OFF.saving){clearTimeout(OFF.saveT);OFF.saveT=setTimeout(saveData,400);return}OFF.saving=true;
+  try{OFF.data.savedAt=new Date().toISOString();await writeJSON("data","data.json",OFF.data);
+    const day=todayISO();if(OFF.data.lastBackup!==day){const bd=await (await OFF.dir.getDirectoryHandle("data")).getDirectoryHandle("backups",{create:true});
+      const fh=await bd.getFileHandle("data-"+day+".json",{create:true});const w=await fh.createWritable();await w.write(JSON.stringify(OFF.data));await w.close();OFF.data.lastBackup=day;await writeJSON("data","data.json",OFF.data)}
+    OFF.dirty=false;setSaveState("Saved")}
+  catch(err){console.warn(err);setSaveState("Not saved – check folder access",true)}finally{OFF.saving=false}}
+window.addEventListener("beforeunload",e=>{if(OFF.dirty){e.preventDefault();e.returnValue=""}});
+function setSaveState(t,bad){const el=document.getElementById("savestate");if(el){el.textContent=t+(OFF.folderName?" · "+OFF.folderName:"");el.style.color=bad?"var(--red)":""}}
+async function openFolder(h){OFF.dir=h;OFF.folderName=h.name;
+  let data=null;try{const d=await h.getDirectoryHandle("data");const f=await (await d.getFileHandle("data.json")).getFile();data=JSON.parse(await f.text())}catch(e){}
+  if(!data){return false}
+  data.collections=data.collections||{};data.files=data.files||{};OFF.data=data;await idbSet("dir",h);return true}
+function gate(html){main.innerHTML=`<div class="panel" style="max-width:640px;margin:24px auto;padding:22px">${html}</div>`}
+async function boot(){
+  if(!window.showDirectoryPicker){gate(`<h2>Open this file in Google Chrome or Microsoft Edge</h2><p>This offline version saves your records straight into a folder on your computer, which only Chrome and Edge allow. On your Mac, right-click <strong>FC Compliance.html</strong> › Open With › Google Chrome.</p>`);return}
+  const saved=await idbGet("dir");
+  const ask=(msg)=>{gate(`<h2>Open your records</h2><p>${msg}</p><p class="muted" style="font-size:14px">Choose the <strong>FC Compliance Offline</strong> folder (the one that contains this file, the <em>data</em> folder and the <em>files</em> folder). Chrome will ask once to let this page save changes there.</p>
+    <div class="bar" style="margin-top:14px">${saved?`<button class="btn primary" id="g-cont">Continue with “${esc(saved.name)}”</button>`:""}<button class="btn ${saved?"":"primary"}" id="g-pick">Choose folder…</button></div><div class="err" id="g-err" hidden></div>`);
+    const err=t=>{const e=document.getElementById("g-err");e.hidden=false;e.textContent=t};
+    const go=async h=>{if(await h.requestPermission({mode:"readwrite"})!=="granted"){err("Chrome needs permission to save changes in that folder.");return}
+      if(await openFolder(h))start();else{gate(`<h2>No records in “${esc(h.name)}”</h2><p>That folder doesn't have a <em>data/data.json</em> file. Pick the <strong>FC Compliance Offline</strong> folder, or start a new, empty set of records here.</p><div class="bar"><button class="btn primary" id="g-back">Choose a different folder</button><button class="btn" id="g-new">Start new records here</button></div>`);
+        document.getElementById("g-back").onclick=()=>ask("Choose the records folder.");
+        document.getElementById("g-new").onclick=async()=>{OFF.dir=h;OFF.folderName=h.name;OFF.data={app:"FC Compliance Offline",collections:{},files:{}};await idbSet("dir",h);await saveData();start()}}};
+    if(saved)document.getElementById("g-cont").onclick=()=>go(saved).catch(e=>err("Couldn't open that folder – choose it again."));
+    document.getElementById("g-pick").onclick=async()=>{try{const h=await window.showDirectoryPicker({id:"fc-records",mode:"readwrite"});await go(h)}catch(e){if(e&&e.name!=="AbortError")err("Couldn't open that folder.")}}};
+  if(saved){try{if(await saved.queryPermission({mode:"readwrite"})==="granted"&&await openFolder(saved)){start();return}}catch(e){}}
+  ask(saved?"Click Continue to open your records.":"Pick the folder that holds your records to get started.");
+}
+function start(){
+  S.db=offlineDb;S.assets=offlineAssets;S.dl=offlineDl;S.writable=true;
+  const sub=(c,fn)=>offlineDb.collection(c).onSnapshot(s=>{fn(s);schedRender()});
+  sub("staff",s=>S.staff=s.docs.map(d=>({id:d.id,...d.data()})));
+  sub("items",s=>S.items=s.docs.map(d=>({id:d.id,...d.data()})));
+  sub("documents",s=>S.docs=s.docs.map(d=>({id:d.id,...d.data()})));
+  sub("learners",s=>S.learners=s.docs.map(d=>({id:d.id,...d.data()})));
+  sub("otj",s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());S.otj=o});
+  sub("audit",s=>S.audit=s.docs.map(d=>({id:d.id,...d.data()})));
+  sub("attendance",s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());S.att=o});
+  offlineDb.doc("config/audit").onSnapshot(s=>{S.auditCfg=s.exists?s.data():{};schedRender()});
+  offlineDb.doc("config/units").onSnapshot(s=>{S.units=s.exists?(s.data().units||[]):[];schedRender()});
+  setSaveState("Saved");render();
+}
+let renderT=null;function schedRender(){clearTimeout(renderT);renderT=setTimeout(render,0)}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("#b-folder");if(!b)return;
+  if(OFF.dirty){toast("Saving… try again in a moment.");return}S.db=null;OFF.listeners=[];OFF.data=null;boot()});
+
+boot();
+})();
+</script>
+
+</body>
+</html>
