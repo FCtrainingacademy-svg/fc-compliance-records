@@ -45,6 +45,7 @@ async function migrate() {
       method TEXT NOT NULL, col TEXT NOT NULL, doc_id TEXT NOT NULL, body JSONB, before JSONB, status TEXT NOT NULL DEFAULT 'pending',
       decided_by TEXT, decided_at TIMESTAMPTZ, note TEXT);
     ALTER TABLE files ADD COLUMN IF NOT EXISTS restricted BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS cal_token TEXT;
     UPDATE users SET role='manager' WHERE role NOT IN ('manager','admin');
     INSERT INTO meta (k, v) VALUES ('rev', '1') ON CONFLICT (k) DO NOTHING;
   `);
@@ -336,6 +337,65 @@ app.get('/api/files/missing', auth, notPending, needRole('manager'), async (req,
   if (!ids.length) return res.json({ missing: [] });
   const r = await pool.query(`SELECT id FROM files WHERE id = ANY($1)`, [ids]); const have = new Set(r.rows.map(x => x.id));
   res.json({ missing: ids.filter(x => !have.has(x)) });
+});
+
+// ---------- calendar feed (Manager subscribes once in Outlook / Google; it refreshes itself) ----------
+function addMonthsISO(iso, n) {
+  if (!iso || !n) return ''; const [y, m, d] = iso.split('-').map(Number); const dt = new Date(Date.UTC(y, m - 1 + Number(n), 1));
+  const last = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1, 0)).getUTCDate(); dt.setUTCDate(Math.min(d, last)); return dt.toISOString().slice(0, 10);
+}
+function addDaysISO(iso, n) { const [y, m, d] = iso.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d) + n * 864e5).toISOString().slice(0, 10); }
+const isISO = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+function icsEsc(v) { return String(v || '').replace(/\\/g, '\\\\').replace(/[,;]/g, m => '\\' + m).replace(/\r?\n/g, '\\n'); }
+function icsFold(line) { const out = []; while (line.length > 74) { out.push(line.slice(0, 74)); line = ' ' + line.slice(74); } out.push(line); return out.join('\r\n'); }
+async function buildFeed() {
+  const r = await pool.query(`SELECT col, id, data FROM docs WHERE col IN ('staff','items','learners')`);
+  const staff = {}, items = [], learners = [];
+  for (const row of r.rows) { if (row.col === 'staff') staff[row.id] = row.data; else if (row.col === 'items') items.push({ id: row.id, ...row.data }); else learners.push({ id: row.id, ...row.data }); }
+  const today = new Date().toISOString().slice(0, 10);
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//FC Training Academy//Compliance//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'X-WR-CALNAME:FC Training compliance', 'X-WR-TIMEZONE:Europe/London', 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H'];
+  const ev = (uid, date, summary, desc) => {
+    if (!isISO(date)) return;
+    L.push('BEGIN:VEVENT', 'UID:' + uid + '@fc-compliance', 'DTSTAMP:' + stamp, 'DTSTART;VALUE=DATE:' + date.replace(/-/g, ''),
+      'DTEND;VALUE=DATE:' + addDaysISO(date, 1).replace(/-/g, ''), 'SUMMARY:' + icsEsc(summary), 'DESCRIPTION:' + icsEsc(desc), 'TRANSP:TRANSPARENT', 'END:VEVENT');
+  };
+  for (const it of items) {
+    if (!it.staffId || it.oneOff) continue; // centre checks are no longer tracked in the app
+    const s = staff[it.staffId]; if (!s || s.active === false) continue;
+    const due = it.due || addMonthsISO(it.issued, it.cycleMonths); if (!isISO(due)) continue;
+    const rd = Number(it.remindDays) || 60;
+    ev(it.id + '-due', due, `DUE: ${it.title} (${s.name})`, `${it.category || ''} expires/due ${due}. Mark it renewed in FC Compliance & Learner Records.`);
+    const rem = addDaysISO(due, -rd); if (rem >= today) ev(it.id + '-rem', rem, `Renew soon: ${it.title} (${s.name})`, `Due ${due} (${rd} days' notice).`);
+  }
+  for (const l of learners) {
+    if ((l.status || 'Active') !== 'Active') continue;
+    ev(l.id + '-rev', l.nextReview, `Progress review: ${l.name}`, l.programme || '');
+    ev(l.id + '-gw', l.gateway, `EPA gateway: ${l.name}`, l.programme || '');
+    ev(l.id + '-end', l.plannedEnd, `Planned end: ${l.name}`, l.programme || '');
+  }
+  L.push('END:VCALENDAR');
+  return L.map(icsFold).join('\r\n') + '\r\n';
+}
+const calUrl = (req, t) => `https://${req.get('host')}/cal/${t}.ics`;
+app.get('/api/calendar-link', auth, notPending, needRole('manager'), async (req, res) => {
+  let t = (await pool.query(`SELECT cal_token FROM users WHERE id=$1`, [req.user.id])).rows[0].cal_token;
+  if (!t) { t = crypto.randomBytes(24).toString('hex'); await pool.query(`UPDATE users SET cal_token=$1 WHERE id=$2`, [t, req.user.id]); await log(req.user, 'created calendar link'); }
+  res.json({ url: calUrl(req, t) });
+});
+app.post('/api/calendar-link/reset', auth, notPending, needRole('manager'), async (req, res) => {
+  const t = crypto.randomBytes(24).toString('hex'); await pool.query(`UPDATE users SET cal_token=$1 WHERE id=$2`, [t, req.user.id]);
+  await log(req.user, 'reset calendar link'); res.json({ url: calUrl(req, t) });
+});
+app.get('/cal/:token.ics', async (req, res) => {
+  try {
+    if (!/^[0-9a-f]{48}$/.test(req.params.token)) return res.status(404).send('Not found');
+    const u = (await pool.query(`SELECT id FROM users WHERE cal_token=$1 AND active AND role='manager'`, [req.params.token])).rows[0];
+    if (!u) return res.status(404).send('Not found');
+    res.set({ 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'no-cache', 'Content-Disposition': 'inline; filename="fc-compliance.ics"' });
+    res.send(await buildFeed());
+  } catch (e) { console.warn('cal', e.message); res.status(500).send('Error'); }
 });
 
 // ---------- static ----------

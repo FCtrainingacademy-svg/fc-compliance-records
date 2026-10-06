@@ -160,7 +160,7 @@ select.st{border:1px solid var(--line);border-radius:6px;padding:4px 6px;backgro
       <div class="grow"><div class="sub">FC Training Academy</div><h1>Compliance &amp; Learner Records</h1></div>
       <div class="lcl" title="FC Training Academy is an LCL Awards Approved Centre, centre number LC 447"><img src="lcl-approved-centre.png" alt="LCL Awards Approved Centre" width="150" height="86"><span class="mono">Centre LC 447</span></div>
       <div class="bar">
-        <button class="btn" data-act="export-ics" id="b-ics">Add reminders to calendar</button>
+        <button class="btn" data-act="export-ics" id="b-ics">Calendar sync</button>
         <button class="btn" data-act="export-menu" id="b-csv">Export CSV</button>
       </div>
     </div>
@@ -202,7 +202,7 @@ const MIME={pdf:"application/pdf",png:"image/png",jpg:"image/jpeg",jpeg:"image/j
 /* ---------- state ---------- */
 const S={staff:[],items:[],docs:[],learners:[],audit:[],afilter:"open",otj:{},att:{},units:[],ready:{},db:null,assets:null,dl:null,writable:true,
   tab:"overview",view:null,filter:"attention",q:"",regDate:todayISO(),regProg:"all",lq:"",lstat:"Active",dq:"",dcat:"all"};
-const TABS=[["overview","Overview"],["learners","Learners"],["register","Register"],["staff","Staff"],["centre","Centre checks"],["documents","Documents"],["audit","EQA audit"]];
+const TABS=[["overview","Overview"],["learners","Learners"],["register","Register"],["staff","Staff"]];
 const BASE_TABS=[...TABS];
 
 /* ---------- utils ---------- */
@@ -234,9 +234,9 @@ function signedOff(l){return S.units.filter(x=>l.units&&l.units[x.key]&&l.units[
 
 function dueEntries(){
   const out=[];
-  for(const it of S.items){const st=itemStatus(it);if(it.oneOff&&st==="ok")continue;
+  for(const it of S.items){if(!it.staffId)continue;const st=itemStatus(it);if(it.oneOff&&st==="ok")continue;
     out.push({kind:"item",id:it.id,title:it.title,who:it.staffId?staffName(it.staffId):"Centre",cat:it.category,due:itemDue(it),st,days:daysUntil(itemDue(it)),area:it.staffId?"staff":"centre",oneOff:it.oneOff})}
-  for(const d of S.docs){if(d.category===ARCH)continue;const st=!d.file?"missing":status(d.review,d.remindDays||30);
+  for(const d of []){if(d.category===ARCH)continue;const st=!d.file?"missing":status(d.review,d.remindDays||30);
     out.push({kind:"doc",id:d.id,title:d.title,who:d.category,due:d.review,st,days:daysUntil(d.review),area:"documents",noFile:!d.file})}
   for(const l of S.learners){if(l.status&&l.status!=="Active")continue;
     if(l.nextReview||true)out.push({kind:"lreview",id:l.id,title:"Progress review",who:l.name,due:l.nextReview||null,st:status(l.nextReview,14),days:daysUntil(l.nextReview),area:"learners"});
@@ -274,10 +274,10 @@ function vOverview(de){
   const tiles=[["overdue","Overdue","var(--red)"],["soon","Due within reminder window","var(--amber)"],["missing","Missing date or file","var(--muted)"],["ok","In date","var(--green)"]];
   const active=S.learners.filter(l=>(l.status||"Active")==="Active");
   const nothing=!S.staff.length&&!S.items.length&&!S.docs.length&&!S.learners.length;
-  return `<div class="section-head"><div><h2>What needs attention</h2><p>Everything with a renewal, review or end date across staff, centre checks, QMS documents and learners. Today is <span class="mono">${fmt(todayISO())}</span>.</p></div></div>
+  return `<div class="section-head"><div><h2>What needs attention</h2><p>Everything with a renewal, review or end date across staff and learners. Today is <span class="mono">${fmt(todayISO())}</span>.</p></div></div>
   <div class="tiles">${tiles.map(([k,l,col])=>`<button class="tile" style="--c:${col}" aria-pressed="${f===k}" data-act="filter" data-k="${k}"><div class="num">${c[k]}</div><div class="lbl">${l}</div></button>`).join("")}</div>
-  <div class="filter"><button class="chipbtn" aria-pressed="${f==="attention"}" data-act="filter" data-k="attention">All needing action (${c.overdue+c.soon+c.missing})</button><span class="muted" style="align-self:center;font-size:13px">${active.length} active learner${active.length===1?"":"s"} · ${S.staff.filter(s=>s.active!==false).length} staff · ${S.docs.filter(d=>d.file).length}/${S.docs.length} documents uploaded</span></div>
-  <div class="panel list">${nothing?`<div class="empty"><strong>No records yet</strong>Start by adding your staff, then your learners. Centre checks and the QMS document list are set up for you to fill in.</div>`:list.length?list.map(dueRow).join(""):`<div class="empty"><strong>Nothing in this group</strong>Pick another tile above.</div>`}</div>`
+  <div class="filter"><button class="chipbtn" aria-pressed="${f==="attention"}" data-act="filter" data-k="attention">All needing action (${c.overdue+c.soon+c.missing})</button><span class="muted" style="align-self:center;font-size:13px">${active.length} active learner${active.length===1?"":"s"} · ${S.staff.filter(s=>s.active!==false).length} staff</span></div>
+  <div class="panel list">${nothing?`<div class="empty"><strong>No records yet</strong>Start by adding your staff, then your learners.</div>`:list.length?list.map(dueRow).join(""):`<div class="empty"><strong>Nothing in this group</strong>Pick another tile above.</div>`}</div>`
 }
 
 /* learners */
@@ -576,10 +576,10 @@ function buildICS(){
   const stamp=new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z";
   const ev=(uidv,date,summary,desc)=>{L.push("BEGIN:VEVENT","UID:"+uidv+"@fc-compliance","DTSTAMP:"+stamp,"DTSTART;VALUE=DATE:"+icsDate(date),"DTEND;VALUE=DATE:"+icsDate(addDays(date,1)),"SUMMARY:"+icsEsc(summary),"DESCRIPTION:"+icsEsc(desc),"TRANSP:TRANSPARENT","BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc(summary),"TRIGGER:PT9H","END:VALARM","END:VEVENT")};
   let n=0;
-  for(const it of S.items){const due=itemDue(it);if(!due)continue;const who=it.staffId?staffName(it.staffId):"Centre";const rd=Number(it.remindDays)||60;
+  for(const it of S.items){if(!it.staffId)continue;const due=itemDue(it);if(!due)continue;const who=it.staffId?staffName(it.staffId):"Centre";const rd=Number(it.remindDays)||60;
     ev(it.id+"-due",due,`DUE: ${it.title} (${who})`,`${it.category||""} expires/due ${fmt(due)}. Update the record in FC Training Compliance once renewed.`);n++;
     if(daysUntil(addDays(due,-rd))>=0)ev(it.id+"-rem",addDays(due,-rd),`Renew soon: ${it.title} (${who})`,`Due ${fmt(due)} (${rd} days).`)}
-  for(const d of S.docs){if(!d.review)continue;ev(d.id+"-rev",d.review,`Review document: ${d.title}`,`${d.category} ${d.version||""} review due.`);n++}
+  for(const d of []){if(!d.review)continue;ev(d.id+"-rev",d.review,`Review document: ${d.title}`,`${d.category} ${d.version||""} review due.`);n++}
   for(const l of S.learners){if((l.status||"Active")!=="Active")continue;
     if(l.nextReview){ev(l.id+"-rev",l.nextReview,`Progress review: ${l.name}`,`${l.programme||""}`);n++}
     if(l.gateway){ev(l.id+"-gw",l.gateway,`EPA gateway: ${l.name}`,`${l.programme||""}`);n++}
@@ -589,8 +589,8 @@ function buildICS(){
 function csvCell(v){v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
 function csv(rows){return rows.map(r=>r.map(csvCell).join(",")).join("\r\n")}
 function complianceCSV(){const rows=[["Area","Who / what","Record","Type","Issued","Due / review","Status","Reference","Files"]];
-  for(const it of S.items)rows.push([it.staffId?"Staff":"Centre",it.staffId?staffName(it.staffId):"Centre",it.title,it.category,it.issued||"",it.oneOff?"No expiry":itemDue(it)||"",SLABEL[itemStatus(it)],it.ref||"",(it.files||[]).map(f=>f.name).join("; ")]);
-  for(const d of S.docs)rows.push(["Document",d.owner||"",d.title,d.category,d.approved||"",d.review||"",d.file?SLABEL[status(d.review,d.remindDays||30)]:"Not uploaded",d.version||"",d.file?d.file.name:""]);
+  for(const it of S.items.filter(i=>i.staffId))rows.push([it.staffId?"Staff":"Centre",it.staffId?staffName(it.staffId):"Centre",it.title,it.category,it.issued||"",it.oneOff?"No expiry":itemDue(it)||"",SLABEL[itemStatus(it)],it.ref||"",(it.files||[]).map(f=>f.name).join("; ")]);
+  for(const d of [])rows.push(["Document",d.owner||"",d.title,d.category,d.approved||"",d.review||"",d.file?SLABEL[status(d.review,d.remindDays||30)]:"Not uploaded",d.version||"",d.file?d.file.name:""]);
   return csv(rows)}
 function learnersCSV(){const rows=[["Name","ULN","Programme","Cohort","Status","Employer","Start","Planned end","Next review","EPA gateway","Progress %","Units signed off","Attendance %","OTJ logged (h)","OTJ expected to date (h)","OTJ planned (h)",...S.units.map(u=>u.title)]];
   for(const l of S.learners){const a=attendance(l.id);rows.push([l.name,l.uln||"",l.programme||"",l.cohort||"",l.status||"Active",l.employer||"",l.start||"",l.plannedEnd||"",l.nextReview||"",l.gateway||"",unitProgress(l),signedOff(l)+"/"+S.units.length,a.pct??"",otjLogged(l.id),otjExpected(l)??"",l.otjPlanned||"",...S.units.map(u=>USTAT[(l.units&&l.units[u.key]&&l.units[u.key].s)||"ns"])])}
@@ -598,9 +598,24 @@ function learnersCSV(){const rows=[["Name","ULN","Programme","Cohort","Status","
 function otjCSV(){const rows=[["Learner","Date","Hours","Activity"]];for(const l of S.learners)for(const e of otjEntries(l.id))rows.push([l.name,e.d,e.h,e.a]);return csv(rows)}
 async function save(filename,data){if(!S.dl){toast("Downloads aren't available in this view.");return}
   try{await S.dl.save({filename,data});}catch(e){toast(e&&e.code==="declined"?"Download cancelled.":e&&e.code==="rejected_extension"?"This file type can't be downloaded here.":"Download didn't start. Try again.")}}
+function calendarSync(){const root=document.getElementById("modal-root");
+  const draw=(url,err)=>{root.innerHTML=`<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><header><h2 id="mt">Sync with your calendar</h2><p>Subscribe once and staff renewals, learner progress reviews, EPA gateways and end dates appear in your calendar. New and changed dates come through automatically (Outlook and Google check roughly every few hours).</p></header><form>
+  ${err?`<div class="err">${esc(err)}</div>`:url?`<div class="field"><label for="cal-url">Your private calendar link</label><input type="text" id="cal-url" readonly value="${esc(url)}"><span class="hint">Keep this link private: anyone with it can see these dates.</span></div>
+  <div class="bar"><button type="button" class="btn primary" data-c="copy">Copy link</button><a class="btn" href="${esc(url.replace(/^https:/,"webcal:"))}">Open in calendar app</a></div>
+  <div style="font-size:14px"><p style="margin:6px 0 2px"><strong>Outlook:</strong> Calendar › Add calendar › Subscribe from web › paste the link › Import.</p><p style="margin:2px 0"><strong>Google Calendar:</strong> Other calendars › + › From URL › paste the link › Add calendar.</p><p style="margin:2px 0"><strong>iPhone:</strong> tap <em>Open in calendar app</em> and choose Subscribe.</p></div>`:`<div class="empty">Getting your link…</div>`}
+  <div class="actions">${url?`<button type="button" class="btn danger left" data-c="reset">New link (stops the old one)</button><button type="button" class="btn" data-c="dl">Download a one-off file instead</button>`:""}<button type="button" class="btn" data-cancel>Close</button></div></form></div></div>`};
+  draw(null);
+  api("GET","/api/calendar-link").then(r=>draw(r.url)).catch(()=>draw(null,"Couldn't get your calendar link. Try again."));
+  let sure=false;
+  root.onclick=async e=>{if(e.target.matches("[data-scrim]")||e.target.closest("[data-cancel]")){root.onclick=null;root.innerHTML="";return}
+    const c=e.target.closest("[data-c]");if(!c)return;const k=c.dataset.c;
+    if(k==="copy"){const v=document.getElementById("cal-url").value;try{await navigator.clipboard.writeText(v);toast("Link copied")}catch(err){const i=document.getElementById("cal-url");i.select();toast("Press Ctrl+C / ⌘C to copy")}return}
+    if(k==="dl"){const {text,n}=buildICS();if(!n){toast("Add some dates first, then export.");return}return save("FC-compliance-reminders.ics",text)}
+    if(k==="reset"){if(!sure){sure=true;c.textContent="Tap again – calendars using the old link stop updating";return}
+      try{const r=await api("POST","/api/calendar-link/reset");sure=false;draw(r.url);toast("New link made. Re-subscribe with it.")}catch(err){toast("Couldn't make a new link.")}}}}
 function exportMenu(){const root=document.getElementById("modal-root");
   root.innerHTML=`<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><header><h2 id="mt">Export CSV</h2><p>Opens in Excel. Useful as an audit pack for LCL visits.</p></header><form>
-  <button type="button" class="btn" data-x="c">Compliance register (staff, centre, documents)</button><button type="button" class="btn" data-x="l">Learner tracker (progress, attendance, off-the-job)</button><button type="button" class="btn" data-x="o">Off-the-job hours log (every entry)</button>
+  <button type="button" class="btn" data-x="c">Staff compliance register</button><button type="button" class="btn" data-x="l">Learner tracker (progress, attendance, off-the-job)</button><button type="button" class="btn" data-x="o">Off-the-job hours log (every entry)</button>
   <div class="actions"><button type="button" class="btn" data-cancel>Close</button></div></form></div></div>`;
   root.querySelector("[data-scrim]").addEventListener("click",e=>{if(e.target.matches("[data-scrim]")||e.target.closest("[data-cancel]")){root.innerHTML="";return}
     const x=e.target.closest("[data-x]");if(!x)return;const t=todayISO();root.innerHTML="";
@@ -628,6 +643,7 @@ document.addEventListener("click",async e=>{
   if(a==="mark")return mark(id,b.dataset.k);
   if(a==="all-present")return allPresent();
   if(a==="export-menu")return exportMenu();
+  if(a==="export-ics"&&typeof ON!=="undefined"&&ON.me&&ON.me.role==="manager")return calendarSync();
   if(a==="export-ics"){const {text,n}=buildICS();if(!n){toast("Add some dates first, then export.");return}return save("FC-compliance-reminders.ics",text)}
   if(a==="rm-otj"){const lid=S.view.id;const en=[...otjEntries(lid)];en.splice(Number(b.dataset.i),1);return setOtj(lid,en)}
   if(a==="rmfile"){const [k,lid,uk]=b.dataset.ctx.split(":");if(k!=="unit")return;const l=S.learners.find(x=>x.id===lid);const files=[...((l.units[uk]&&l.units[uk].files)||[])];const [f]=files.splice(Number(b.dataset.i),1);
@@ -722,7 +738,7 @@ function userBox(){const ub=document.getElementById("userbox");if(!ub||!ON.me)re
   document.getElementById("b-out").onclick=async()=>{try{await api("POST","/api/logout")}catch(e){}showLogin("You have signed out.")};
   const ex=document.getElementById("b-export");if(ex)ex.onclick=()=>{toast("Preparing the offline copy – this can take a minute…");window.location.href="/api/export.zip"}}
 async function afterSignIn(u){ON.me=u;if(u.must_change){showChangePw(true);return}
-  TABS.length=0;BASE_TABS.forEach(t=>TABS.push(t));TABS.push(["approvals","Approvals"]);TABS.push(["activity","Activity"]);if(u.role==="manager"){TABS.push(["exams","Exams"]);TABS.push(["users","Users"])}
+  TABS.length=0;BASE_TABS.forEach(t=>TABS.push(t));TABS.push(["approvals","Approvals"]);TABS.push(["activity","Activity"]);if(u.role==="manager"){TABS.push(["users","Users"])}
   if(!TABS.find(t=>t[0]===S.tab))S.tab="overview";
   main.innerHTML=`<div class="empty"><strong>Loading records…</strong></div>`;
   await loadData();start();userBox();clearInterval(ON.pollT);ON.pollT=setInterval(poll,15000)}
