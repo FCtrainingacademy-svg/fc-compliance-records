@@ -20,7 +20,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process
 // Manager: changes everything directly, manages users, approves Admin requests.
 // Admin: views everything; every change is sent to the Manager for approval.
 const ROLES = ['manager', 'admin'];
-const COLLECTIONS = new Set(['staff', 'items', 'documents', 'learners', 'otj', 'attendance', 'audit', 'config', 'exams']);
+const COLLECTIONS = new Set(['staff', 'items', 'documents', 'learners', 'otj', 'attendance', 'audit', 'config', 'exams', 'ecordia']);
 // Collections only the Manager can see or change (exam papers, model answers).
 const MANAGER_ONLY = new Set(['exams']);
 const isMgr = u => u && u.role === 'manager';

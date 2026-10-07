@@ -212,7 +212,7 @@ const MIME={pdf:"application/pdf",png:"image/png",jpg:"image/jpeg",jpeg:"image/j
 /* ---------- state ---------- */
 const S={staff:[],items:[],docs:[],learners:[],audit:[],afilter:"open",otj:{},att:{},units:[],ready:{},db:null,assets:null,dl:null,writable:true,
   tab:"overview",view:null,filter:"attention",q:"",regDate:todayISO(),regProg:"all",lq:"",lstat:"Active",dq:"",dcat:"all"};
-const TABS=[["overview","Overview"],["learners","Learners"],["register","Register"],["staff","Staff"],["floor","Floor plan"]];
+const TABS=[["overview","Overview"],["learners","Learners"],["register","Register"],["staff","Staff"],["ecordia","Ecordia"],["floor","Floor plan"]];
 const BASE_TABS=[...TABS];
 
 /* ---------- utils ---------- */
@@ -265,7 +265,7 @@ function render(){
   const de=dueEntries();const urgent=de.filter(e=>e.st==="overdue").length;
   document.getElementById("tabs").innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" aria-selected="${S.tab===k}" data-act="tab" data-k="${k}">${l}${k==="approvals"&&ON.approvals?`<span class="n">${ON.approvals}</span>`:""}${k==="audit"&&S.audit.length?`<span class="n">${S.audit.filter(a=>a.status!=="ready").length}</span>`:""}${k==="overview"&&urgent?`<span class="n">${urgent}</span>`:""}</button>`).join("");
   if(!S.db)return;S.writable=roleWritable(S.tab);
-  const r={overview:vOverview,learners:vLearners,register:vRegister,staff:vStaff,floor:vFloor,centre:vCentre,documents:vDocuments,audit:vAudit,users:vUsers,activity:vActivity,approvals:vApprovals,exams:vExams}[S.tab];
+  const r={overview:vOverview,learners:vLearners,register:vRegister,staff:vStaff,ecordia:vEcordia,floor:vFloor,centre:vCentre,documents:vDocuments,audit:vAudit,users:vUsers,activity:vActivity,approvals:vApprovals,exams:vExams}[S.tab];
   const focusId=document.activeElement&&document.activeElement.id;
   main.innerHTML=(ON.me&&ON.me.role==="admin"&&S.tab!=="approvals"&&S.tab!=="activity"?`<div class="banner">You are signed in as Admin – any change you make is sent to the Manager for approval before it appears in the records.</div>`:"")+r(de);
   if(focusId){const el=document.getElementById(focusId);if(el&&el.tagName==="INPUT"){el.focus();const v=el.value;try{el.setSelectionRange(v.length,v.length)}catch(e){}}}
@@ -323,6 +323,7 @@ function vLearner(l){
   <div class="panel"><dl class="kv">
     ${[["ULN",l.uln],["Status",l.status||"Active"],["Start",fmt(l.start)],["Planned end",fmt(l.plannedEnd)],["Next progress review",fmt(l.nextReview)],["EPA gateway",fmt(l.gateway)],["Employer",l.employer],["Employer contact",l.employerContact],["Tutor / assessor",l.tutorId?staffName(l.tutorId):""],["Workplace mentor",l.mentor],["Mentor interview",l.mentorInterview?fmt(l.mentorInterview):"Not recorded"],["Evidence pieces",evidenceCount(l)+(l.evidenceTarget?` of ${l.evidenceTarget}`:"")],["NI number",l.niNumber],["Email",l.email],["Phone",l.phone]].map(([k,v])=>`<div><dt>${k}</dt><dd class="${/Start|end|review|gateway|interview|pieces/i.test(k)?"mono":""}">${esc(v||"—")}</dd></div>`).join("")}
   </dl>${l.notes?`<p style="margin:12px 0 0;white-space:pre-wrap">${esc(l.notes)}</p>`:""}</div>
+  ${ecFor(l).length?`<div class="panel"><h3>Ecordia feedback</h3><div class="files">${ecFor(l).map(x=>`<span class="file"><a href="/_blob/${esc(x.fileId)}" target="_blank" rel="noopener">${esc(x.title)}</a></span>`).join("")}</div></div>`:""}
   <div class="panel"><h3>Units &amp; portfolio evidence</h3>
   ${S.units.length?`<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Status</th><th>Signed off</th><th>Evidence</th></tr></thead><tbody>
   ${S.units.map(u=>{const x=(l.units&&l.units[u.key])||{};const s=x.s||"ns";return `<tr><td style="min-width:200px">${esc(u.title)}</td>
@@ -876,6 +877,54 @@ document.addEventListener("click",async e=>{const t=e.target;if(!t.closest)retur
   const r=t.closest("[data-rej]");if(r)return rejectBox(r.dataset.rej);
   const w=t.closest("[data-wd]");if(w){try{await api("POST","/api/changes/"+w.dataset.wd+"/withdraw");toast("Request withdrawn");APPR=null;ON.approvals=Math.max(0,ON.approvals-1);render()}catch(err){toast("Couldn't withdraw.")}return}
 },true);
+
+/* ---------- Ecordia tab: review kit + learner feedback files ---------- */
+function ecList(){return Object.entries((typeof ON!=="undefined"&&ON.data&&ON.data.collections.ecordia)||{}).map(([id,d])=>({id,...d}))}
+function ecGroup(x){const p=(x.path||x.title).split("/");if(p.length>2)return /^learners?$/i.test(p[1])?"Learner feedback":p[1];
+  return /^(?!learner - )[^-]+ - .*(feedback|evidence|portfolio)/i.test(x.title)?"Learner feedback":"Review kit"}
+function ecFor(l){const n=String(l.name||"").toLowerCase().replace(/[^a-z ]/g,"").trim();if(!n)return [];return ecList().filter(x=>x.title.toLowerCase().replace(/[^a-z ]/g,"").startsWith(n)).sort((a,b)=>a.title.localeCompare(b.title))}
+function vEcordia(){
+  const L=ecList();const g={};L.forEach(x=>(g[ecGroup(x)]=g[ecGroup(x)]||[]).push(x));
+  const order=["Review kit","Learner feedback",...Object.keys(g).filter(k=>k!=="Review kit"&&k!=="Learner feedback").sort()].filter(k=>g[k]);
+  const mgr=ON.me&&ON.me.role==="manager";
+  const who=x=>{const l=S.learners.find(l=>ecFor(l).some(y=>y.id===x.id));return l?`<button class="rowlink" data-act="open-learner" data-id="${l.id}" style="color:var(--accent)">${esc(l.name)}</button>`:'<span class="muted">—</span>'};
+  const row=x=>`<tr><td><a href="/_blob/${esc(x.fileId)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(x.title)}</a></td><td>${who(x)}</td><td class="mono" style="white-space:nowrap">${x.modified?fmt(x.modified.slice(0,10)):"—"}</td><td>${mgr?`<button class="btn sm danger" data-ecdel="${esc(x.id)}">Remove</button>`:""}</td></tr>`;
+  return `<div class="section-head"><div><h2>Ecordia</h2><p>The Ecordia review kit (checklist, references, feedback template) and each learner's assessor feedback. Files whose name starts with a learner's name also appear on that learner's page.</p></div>
+    <div class="bar"><button class="btn" id="ec-add">Add files</button><button class="btn primary" id="ec-folder">Import ECORDIA folder</button></div></div>
+    <input type="file" id="ec-in-folder" webkitdirectory multiple hidden><input type="file" id="ec-in-files" multiple hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.csv">
+    <div id="ec-prog" class="banner" hidden></div>
+    ${L.length?order.map(k=>`<h3 style="margin:16px 0 8px;font-size:15px">${esc(k)} <span class="muted" style="font-weight:400">· ${g[k].length}</span></h3><div class="panel tbl-wrap"><table><thead><tr><th>File</th><th>Learner</th><th>Updated</th><th></th></tr></thead><tbody>${g[k].sort((a,b)=>a.title.localeCompare(b.title)).map(row).join("")}</tbody></table></div>`).join("")
+      :`<div class="panel"><div class="empty"><strong>No Ecordia files yet</strong>Click <em>Import ECORDIA folder</em> and choose <em>Downloads › ECORDIA</em>. Import it again after a review and only new or changed files are uploaded.</div></div>`}`}
+async function ecUpload(files){
+  const have={};ecList().forEach(x=>have[x.path]=x);
+  const list=[...files].filter(f=>{const ext=(f.name.split(".").pop()||"").toLowerCase();return EX_TYPES[ext]&&!/^(thumbs\.db|\.ds_store)$/i.test(f.name)&&!f.name.startsWith("~$")&&!f.name.startsWith(".")});
+  const todo=list.filter(f=>{const h=have[f.webkitRelativePath||f.name];return !h||h.size!==f.size||h.lastModified!==f.lastModified});
+  const same=list.length-todo.length;
+  if(!todo.length){toast(same?"Everything is already up to date.":"No documents in that selection.");return}
+  let done=0,failed=[];const show=()=>{const p=document.getElementById("ec-prog");if(p){p.hidden=false;p.textContent=`Uploading ${done+failed.length} of ${todo.length}… keep this page open.`}};show();
+  const q=[...todo];
+  async function worker(){while(q.length){const f=q.shift();const ext=f.name.split(".").pop().toLowerCase();const path=f.webkitRelativePath||f.name;
+      try{if(f.size>20*1024*1024)throw {code:"too_large"};
+        const r=await api("POST","/api/files",f,{"X-File-Type":EX_TYPES[ext],"X-File-Name":encodeURIComponent(f.name),"Content-Type":"application/octet-stream"});
+        const id=(await exHash(path)).replace(/^ex-/,"ec-");const old=have[path];
+        const doc={title:f.name,path,fileId:r.id,type:EX_TYPES[ext],size:f.size,lastModified:f.lastModified,modified:new Date(f.lastModified||Date.now()).toISOString(),addedAt:new Date().toISOString(),addedBy:ON.me.name};
+        await api("PUT","/api/doc/ecordia/"+encodeURIComponent(id),doc);col("ecordia")[id]=doc;done++;
+        if(old&&old.fileId&&ON.me.role==="manager")api("DELETE","/api/files/"+old.fileId).catch(()=>{})}
+      catch(e){failed.push(f.name+(e&&e.code==="too_large"?" (over 20 MB)":""))}
+      show()}}
+  await Promise.all([worker(),worker(),worker()]);
+  notify();render();
+  setTimeout(()=>{const p=document.getElementById("ec-prog");if(!p)return;p.hidden=false;
+    p.textContent=`Uploaded ${done} file${done===1?"":"s"}.`+(same?` ${same} already up to date.`:"")+(ON.me.role!=="manager"?" Sent to the Manager for approval.":"")+(failed.length?` Couldn't upload: ${failed.slice(0,5).join(", ")}`:"")},50)}
+document.addEventListener("click",async e=>{const t=e.target;if(!t.closest)return;
+  if(t.closest("#ec-folder")){document.getElementById("ec-in-folder").click();return}
+  if(t.closest("#ec-add")){document.getElementById("ec-in-files").click();return}
+  const d=t.closest("[data-ecdel]");if(d){const id=d.dataset.ecdel;const x=col("ecordia")[id];if(!x)return;
+    const root=document.getElementById("modal-root");root.innerHTML=`<div class="scrim"><div class="modal" role="dialog" aria-modal="true" style="padding:20px"><p>Remove “${esc(x.title)}” from the LMS? Your copy in the ECORDIA folder is not touched.</p><div class="bar"><button class="btn danger" id="ecd-ok">Remove</button><button class="btn" id="ecd-x">Cancel</button></div></div></div>`;
+    document.getElementById("ecd-x").onclick=()=>root.innerHTML="";
+    document.getElementById("ecd-ok").onclick=async()=>{root.innerHTML="";try{await api("DELETE","/api/doc/ecordia/"+encodeURIComponent(id));await api("DELETE","/api/files/"+x.fileId).catch(()=>{});delete col("ecordia")[id];notify();render();toast("Removed")}catch(err){toast("Couldn't remove it.")}};return}
+},true);
+document.addEventListener("change",e=>{const t=e.target;if(t.id==="ec-in-folder"||t.id==="ec-in-files"){const f=t.files;if(f&&f.length)ecUpload(f);t.value=""}});
 
 /* ---------- Exams tab (Manager only): MLP Centre CD Pack and other exam papers ---------- */
 const EX_TYPES={pdf:"application/pdf",doc:"application/msword",docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",xls:"application/vnd.ms-excel",
