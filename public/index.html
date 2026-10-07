@@ -298,7 +298,7 @@ function vLearners(){
   const q=S.lq.toLowerCase();
   const ls=S.learners.filter(l=>(S.lstat==="all"||(l.status||"Active")===S.lstat)&&(!q||[l.name,l.employer,l.uln,l.cohort].join(" ").toLowerCase().includes(q))).sort((a,b)=>a.name.localeCompare(b.name));
   return `<div class="section-head"><div><h2>Learners</h2><p>Course progress, portfolio evidence, attendance and off-the-job hours for each learner.</p></div>
-  <div class="bar"><button class="btn" data-act="edit-units">Course units (${S.units.length})</button>${S.writable?`<button class="btn primary" data-act="add-learner">Add learner</button>`:""}</div></div>
+  <div class="bar"><button class="btn" data-act="edit-res">Learner resources (${RES().length})</button><button class="btn" data-act="edit-units">Course units (${S.units.length})</button>${S.writable?`<button class="btn primary" data-act="add-learner">Add learner</button>`:""}</div></div>
   <div class="filter"><input id="lq" type="search" placeholder="Search name, employer, ULN or cohort" value="${esc(S.lq)}" data-input="lq" aria-label="Search learners">
   <select id="lstat" data-change="lstat" aria-label="Status filter"><option value="all">All statuses</option>${LSTATUS.map(s=>`<option ${S.lstat===s?"selected":""}>${s}</option>`).join("")}</select></div>
   ${ls.length?`<div class="grid2">${ls.map(learnerCard).join("")}</div>`:`<div class="panel"><div class="empty"><strong>${S.learners.length?"No learners match":"No learners yet"}</strong>${S.learners.length?"Change the search or status filter.":"Add your first apprentice to start tracking units, portfolio evidence, attendance and off-the-job hours."}</div></div>`}`
@@ -541,6 +541,28 @@ function docForm(d){
       const body={...(d||{}),...o,file,updatedAt:new Date().toISOString()};delete body.id;await S.db.collection("documents").doc(id).set(body)},
     onDelete:d?async()=>{await S.db.collection("documents").doc(d.id).delete();if(d.file&&S.assets)S.assets.delete(d.file.id).catch(()=>{})}:null});
 }
+function RES(){const c=(typeof ON!=="undefined"&&ON.data&&ON.data.collections.config)||{};return (c["learner-resources"]&&c["learner-resources"].items)||[]}
+function resEditor(){
+  const root=document.getElementById("modal-root");let list=RES().map(x=>({...x}));let err="";
+  const draw=()=>{root.innerHTML=`<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt" style="max-width:640px"><header><h2 id="mt">Learner resources</h2><p>Links shown on the Resources section of the learner portal. Only signed-in learners see them. Links must start with https://.</p></header><form>
+  ${list.map((r,i)=>`<div style="border:1px solid var(--line);border-radius:8px;padding:10px;display:grid;gap:8px">
+    <div class="frow"><div class="field"><label for="r-t-${i}">Title</label><input type="text" id="r-t-${i}" data-k="title" data-i="${i}" value="${esc(r.title||"")}" placeholder="e.g. LCL Gas Safety Training Manual"></div>
+    <div class="field"><label for="r-g-${i}">Group</label><input type="text" id="r-g-${i}" data-k="group" data-i="${i}" value="${esc(r.group||"")}" placeholder="e.g. Manuals"></div></div>
+    <div class="field"><label for="r-u-${i}">Link</label><input type="text" id="r-u-${i}" data-k="url" data-i="${i}" value="${esc(r.url||"")}" placeholder="https://"></div>
+    <div class="field"><label for="r-n-${i}">Note for learners</label><input type="text" id="r-n-${i}" data-k="note" data-i="${i}" value="${esc(r.note||"")}" placeholder="e.g. Sign in with your own ATS login"></div>
+    ${S.writable?`<div class="bar" style="justify-content:flex-end"><button type="button" class="btn sm" data-up="${i}" ${i?"":"disabled"}>Move up</button><button type="button" class="btn sm danger" data-x="${i}">Remove</button></div>`:""}</div>`).join("")||`<div class="empty">No resources yet.</div>`}
+  ${S.writable?`<button type="button" class="btn sm" data-add style="justify-self:start">Add resource</button>`:""}${err?`<div class="err">${esc(err)}</div>`:""}
+  <div class="actions"><button type="button" class="btn" data-cancel>Cancel</button>${S.writable?`<button class="btn primary">Save resources</button>`:""}</div></form></div></div>`};
+  const sync=()=>root.querySelectorAll("input[data-i]").forEach(inp=>list[inp.dataset.i][inp.dataset.k]=inp.value);
+  draw();
+  root.onclick=e=>{if(e.target.matches("[data-scrim]")||e.target.closest("[data-cancel]")){root.onclick=null;root.onsubmit=null;root.innerHTML="";return}
+    if(e.target.closest("[data-add]")){sync();list.push({title:"",url:"",note:"",group:""});draw();return}
+    const x=e.target.closest("[data-x]");if(x){sync();list.splice(+x.dataset.x,1);draw();return}
+    const u=e.target.closest("[data-up]");if(u){sync();const i=+u.dataset.up;[list[i-1],list[i]]=[list[i],list[i-1]];draw()}};
+  root.onsubmit=async e=>{e.preventDefault();sync();list=list.map(r=>({title:(r.title||"").trim(),url:(r.url||"").trim(),note:(r.note||"").trim(),group:(r.group||"").trim()})).filter(r=>r.title||r.url);
+    const bad=list.find(r=>!r.title||!/^https:\/\/\S+$/i.test(r.url));if(bad){err=`Each resource needs a title and a link starting with https:// (check "${bad.title||bad.url}").`;draw();return}
+    try{await S.db.doc("config/learner-resources").set({items:list});root.onclick=null;root.onsubmit=null;root.innerHTML="";toast(ON.me&&ON.me.role!=="manager"?"Sent to the Manager for approval":"Resources saved")}catch(x){err="Couldn't save. Try again.";draw()}};
+}
 function unitsEditor(){
   const root=document.getElementById("modal-root");let list=S.units.map(u=>({...u}));
   const draw=()=>{root.innerHTML=`<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><header><h2 id="mt">Course units</h2><p>The units every learner is tracked against. Match these to your scheme of work. Renaming a unit keeps each learner's progress.</p></header><form>
@@ -664,6 +686,7 @@ document.addEventListener("click",async e=>{
   if(a==="add-doc")return docForm();
   if(a==="edit-doc")return docForm(S.docs.find(x=>x.id===id));
   if(a==="edit-units")return unitsEditor();
+  if(a==="edit-res")return resEditor();
   if(a==="renew")return renew(id);
   if(a==="mark")return mark(id,b.dataset.k);
   if(a==="all-present")return allPresent();

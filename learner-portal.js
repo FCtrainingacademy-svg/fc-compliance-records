@@ -118,6 +118,11 @@ module.exports = function learnerPortal(app, d) {
     res.json({ learner: { name: req.learner.name, cohort: req.learner.cohort, email: req.learner.email },
       mocks: Object.keys(BANK.mocks).map(k => ({ id: k, count: BANK.mocks[k].length, minutes: MINUTES })), attempts: a.rows, open: open.rows[0] || null });
   });
+  app.get('/api/learn/resources', lauth, async (req, res) => {
+    const r = await pool.query(`SELECT data FROM docs WHERE col='config' AND id='learner-resources'`);
+    const items = ((r.rows[0] && r.rows[0].data.items) || []).filter(x => x && x.title && /^https:\/\//i.test(String(x.url || '')));
+    res.json({ items: items.map(x => ({ title: String(x.title), url: String(x.url), note: String(x.note || ''), group: String(x.group || '') })) });
+  });
   const paperFor = a => a.paper.map(p => { const q = BANK.mocks[a.mock][p.q]; return { s: q.s, sec: BANK.sections[q.s], q: q.q, opts: p.o.map(i => q.o[i]) }; });
   app.post('/api/learn/start/:mock', lauth, async (req, res) => {
     const qs = BANK.mocks[req.params.mock]; if (!qs) return res.status(404).json({ error: 'No such mock.' });
