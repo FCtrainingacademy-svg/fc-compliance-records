@@ -187,7 +187,7 @@ async function home(){
     <h1>Hello ${esc(ME.learner.name.split(" ")[0])}</h1>
     <p>Practise for your CCN1 / ACS assessment. Each mock covers every section of the CCN1 Practical Performance Criteria. Your tutor can see your scores so they can help with the areas you find hardest.</p></section>
     <div class="mocks">${cards}</div>
-    <h2 style="font-size:20px;margin-top:28px">Resources</h2><div id="res"><p style="color:var(--muted)">Loading…</p></div>
+    <h2 id="resources" style="font-size:20px;margin-top:28px;scroll-margin-top:80px">Resources</h2><div id="res"><p style="color:var(--muted)">Loading…</p></div>
     <h2 style="font-size:20px;margin-top:28px">Your results</h2>${hist}
     <div class="how"><h3>How it works</h3><ul>
       <li>One answer per question. Your answers save as you go, so you can close the page and come back before the time runs out.</li>
@@ -200,6 +200,7 @@ async function home(){
     if (!R.items.length){ box.innerHTML = `<p style="color:var(--muted)">Your tutor hasn't added any resources yet.</p>`; return; }
     const groups = {}; R.items.forEach(x => (groups[x.group || "General"] = groups[x.group || "General"] || []).push(x));
     box.innerHTML = Object.keys(groups).map(g => `<h3 style="font-size:15px;margin:12px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${esc(g)}</h3><div class="mocks" style="margin-top:0">${groups[g].map(x => `<a class="mock" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><h2 style="font-size:18px">${esc(x.title)} <span aria-hidden="true">↗</span></h2>${x.note?`<div class="meta">${esc(x.note)}</div>`:""}<span class="meta" style="color:var(--flue);word-break:break-all">${x.file?esc(fileKind(x.file)):esc(x.url.replace(/^https:\/\//,""))}</span></a>`).join("")}</div>`).join("");
+    if (location.hash === "#resources") { const h = document.getElementById("resources"); if (h) h.scrollIntoView(); }
   } catch(x){ const box = document.getElementById("res"); if (box) box.innerHTML = `<p style="color:var(--muted)">Resources couldn't load. Refresh to try again.</p>`; }
 }
 
