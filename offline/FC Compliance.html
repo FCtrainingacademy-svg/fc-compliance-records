@@ -174,7 +174,7 @@ select.st{border:1px solid var(--line);border-radius:6px;padding:4px 6px;backgro
 (() => {
 "use strict";
 /* ---------- constants ---------- */
-const STAFF_CATS=["Gas Safe registration","ACS certificate","Assessor qualification","IQA qualification","Teaching qualification","DBS check","CPD record","Appraisal","Standardisation","Right to work","First aid","Other"];
+const STAFF_CATS=["Gas Safe registration","ACS certificate","Assessor qualification","IQA qualification","Teaching qualification","DBS check","CPD record","Appraisal","Standardisation","Right to work","First aid","LCL personnel file","Other"];
 const CENTRE_CATS=["Awarding body (LCL)","Insurance","Equipment calibration","Gas safety (training rigs)","Electrical / PAT","Fire safety","Health & safety","Data protection","Other"];
 const DOC_CATS=["Quality manual","Policy","Procedure","Form / template","Register / record","Audit & IQA","Risk assessment","Insurance & certificates","Normative document","Awarding body","Apprenticeship standard","Evidence","Other","Archived (old version)"];
 const ARCH="Archived (old version)";
@@ -196,6 +196,16 @@ const TEMPLATES={
   "Admin / support":[["DBS check","DBS check",36],["Annual appraisal","Appraisal",12],["Right to work check","Right to work",0]],
   "Other":[["Annual appraisal","Appraisal",12],["Right to work check","Right to work",0]]
 };
+/* LCL personnel file (Centre Quality Manual System Guidelines, D5-6) */
+const LCL_FILE={cia:["Confidentiality & Impartiality Agreement (CIA)","LCL personnel file",0],sif:["Induction record (SIF)","LCL personnel file",0],cv:["CV on file","LCL personnel file",0],
+  fa:["First aid certificate","First aid",36],aivaf:["AIVAF form sent to LCL (with certificates)","LCL personnel file",0],raaiv:["Register of Assessors (RAAIV) entry","LCL personnel file",0]};
+{const tech=["cia","sif","cv","fa","aivaf","raaiv"];const by={"Gas trainer / assessor":tech,"Internal quality assurer (IQA)":tech,"Centre manager":["cia","sif","cv","fa"],"Admin / support":["cia","sif","cv"],"Other":["cia","sif","cv"]};
+  for(const r in by)by[r].forEach(k=>TEMPLATES[r].push(LCL_FILE[k]))}
+function normT(t){return String(t||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()}
+function missingTpl(s){const have=new Set(S.items.filter(i=>i.staffId===s.id).map(i=>normT(i.title)));const lcl=new Set(Object.values(LCL_FILE).map(x=>x[0]));return (TEMPLATES[s.role]||TEMPLATES.Other).filter(([t])=>lcl.has(t)&&!have.has(normT(t)))}
+async function addTemplate(id){const s=S.staff.find(x=>x.id===id);if(!s)return;const m=missingTpl(s);if(!m.length){toast("Nothing missing for this role.");return}
+  try{for(const [title,category,cyc] of m){await S.db.collection("items").doc(uid()).set({title,category,staffId:id,cycleMonths:cyc||"",oneOff:!cyc,remindDays:cyc===3?14:60,files:[],updatedAt:new Date().toISOString()})}
+    toast(`${m.length} check${m.length>1?"s":""} added. Fill in the dates and upload the paperwork.`)}catch(e){toast("Couldn't add them. Try again.")}}
 const MIME={pdf:"application/pdf",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp",gif:"image/gif",txt:"text/plain",csv:"text/csv",md:"text/markdown",json:"application/json",mp4:"video/mp4",webm:"video/webm"};
 
 /* ---------- state ---------- */
@@ -228,6 +238,7 @@ function otjLogged(lid){return otjEntries(lid).reduce((a,e)=>a+(Number(e.h)||0),
 function otjExpected(l){const p=Number(l.otjPlanned)||0;if(!p||!l.start||!l.plannedEnd)return null;const tot=parse(l.plannedEnd)-parse(l.start);if(tot<=0)return null;const el=Math.min(Math.max(parse(todayISO())-parse(l.start),0),tot);return Math.round(p*el/tot)}
 function attendance(lid){let pres=0,tot=0,late=0;for(const m in S.att){const r=S.att[m].r&&S.att[m].r[lid];if(!r)continue;for(const d in r){const c=r[d];if(c==="AA")continue;tot++;if(c==="P"||c==="L")pres++;if(c==="L")late++}}return{pres,tot,late,pct:tot?Math.round(pres/tot*100):null}}
 function unitProgress(l){const u=S.units;if(!u.length)return 0;let pts=0;for(const x of u){const s=(l.units&&l.units[x.key]&&l.units[x.key].s)||"ns";pts+=s==="so"?1:s==="sub"?.66:s==="ip"?.33:0}return Math.round(pts/u.length*100)}
+function evidenceCount(l){let n=0;const u=l.units||{};for(const k in u)n+=(u[k].files||[]).length;return n}
 function signedOff(l){return S.units.filter(x=>l.units&&l.units[x.key]&&l.units[x.key].s==="so").length}
 
 function dueEntries(){
@@ -238,6 +249,7 @@ function dueEntries(){
     out.push({kind:"doc",id:d.id,title:d.title,who:d.category,due:d.review,st,days:daysUntil(d.review),area:"documents",noFile:!d.file})}
   for(const l of S.learners){if(l.status&&l.status!=="Active")continue;
     if(l.nextReview||true)out.push({kind:"lreview",id:l.id,title:"Progress review",who:l.name,due:l.nextReview||null,st:status(l.nextReview,14),days:daysUntil(l.nextReview),area:"learners"});
+    if(!l.mentorInterview)out.push({kind:"lmentor",id:l.id,title:"Learner, mentor & employer interview not recorded",who:l.name,due:null,st:"missing",days:null,area:"learners"});
     if(l.plannedEnd)out.push({kind:"lend",id:l.id,title:"Planned end date",who:l.name,due:l.plannedEnd,st:status(l.plannedEnd,60),days:daysUntil(l.plannedEnd),area:"learners"});
     const exp=otjExpected(l);if(exp&&otjLogged(l.id)<exp*0.9)out.push({kind:"lotj",id:l.id,title:`Off-the-job hours behind (${otjLogged(l.id)} of ${exp} expected)`,who:l.name,due:null,st:"soon",days:null,area:"learners",flag:true});
   }
@@ -307,7 +319,7 @@ function vLearner(l){
   <div class="stat"><div class="big">${a.pct==null?"—":a.pct+"%"}</div><div class="lbl">Attendance · ${a.pres}/${a.tot} sessions${a.late?`, ${a.late} late`:""}</div></div>
   <div class="stat"><div class="big">${log} h</div><div class="lbl">Off-the-job logged${exp!=null?` · ${exp} h expected by today of ${esc(l.otjPlanned)} h`:l.otjPlanned?` of ${esc(l.otjPlanned)} h planned`:" · set planned hours in details"}</div></div></div>
   <div class="panel"><dl class="kv">
-    ${[["ULN",l.uln],["Status",l.status||"Active"],["Start",fmt(l.start)],["Planned end",fmt(l.plannedEnd)],["Next progress review",fmt(l.nextReview)],["EPA gateway",fmt(l.gateway)],["Employer",l.employer],["Employer contact",l.employerContact],["Tutor / assessor",l.tutorId?staffName(l.tutorId):""],["Email",l.email],["Phone",l.phone]].map(([k,v])=>`<div><dt>${k}</dt><dd class="${/Start|end|review|gateway/i.test(k)?"mono":""}">${esc(v||"—")}</dd></div>`).join("")}
+    ${[["ULN",l.uln],["Status",l.status||"Active"],["Start",fmt(l.start)],["Planned end",fmt(l.plannedEnd)],["Next progress review",fmt(l.nextReview)],["EPA gateway",fmt(l.gateway)],["Employer",l.employer],["Employer contact",l.employerContact],["Tutor / assessor",l.tutorId?staffName(l.tutorId):""],["Workplace mentor",l.mentor],["Mentor interview",l.mentorInterview?fmt(l.mentorInterview):"Not recorded"],["Evidence pieces",evidenceCount(l)+(l.evidenceTarget?` of ${l.evidenceTarget}`:"")],["NI number",l.niNumber],["Email",l.email],["Phone",l.phone]].map(([k,v])=>`<div><dt>${k}</dt><dd class="${/Start|end|review|gateway|interview|pieces/i.test(k)?"mono":""}">${esc(v||"—")}</dd></div>`).join("")}
   </dl>${l.notes?`<p style="margin:12px 0 0;white-space:pre-wrap">${esc(l.notes)}</p>`:""}</div>
   <div class="panel"><h3>Units &amp; portfolio evidence</h3>
   ${S.units.length?`<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Status</th><th>Signed off</th><th>Evidence</th></tr></thead><tbody>
@@ -350,7 +362,7 @@ function vStaff(){
 function vStaffOne(s){
   const its=S.items.filter(i=>i.staffId===s.id).sort((a,b)=>({overdue:0,soon:1,missing:2,ok:3}[itemStatus(a)]-{overdue:0,soon:1,missing:2,ok:3}[itemStatus(b)]));
   return `<div class="detail"><div><button class="btn sm back" data-act="back">← All staff</button></div>
-  <div class="section-head"><div><h2>${esc(s.name)}</h2><p>${esc(s.role||"")}${s.active===false?" · Left":""}</p></div>${S.writable?`<div class="bar"><button class="btn" data-act="edit-staff" data-id="${s.id}">Edit details</button><button class="btn primary" data-act="add-item" data-staff="${s.id}">Add record</button></div>`:""}</div>
+  <div class="section-head"><div><h2>${esc(s.name)}</h2><p>${esc(s.role||"")}${s.active===false?" · Left":""}</p></div>${S.writable?`<div class="bar"><button class="btn" data-act="edit-staff" data-id="${s.id}">Edit details</button>${missingTpl(s).length?`<button class="btn" data-act="add-tpl" data-id="${s.id}" title="${esc(missingTpl(s).map(x=>x[0]).join(", "))}">Add LCL paperwork checks (${missingTpl(s).length})</button>`:""}<button class="btn primary" data-act="add-item" data-staff="${s.id}">Add record</button></div>`:""}</div>
   <div class="panel"><dl class="kv">${[["Start date",fmt(s.start)],["Email",s.email],["Phone",s.phone],["Gas Safe ID",s.gasSafe]].map(([k,v])=>`<div><dt>${k}</dt><dd>${esc(v||"—")}</dd></div>`).join("")}</dl>${s.notes?`<p style="margin:12px 0 0;white-space:pre-wrap">${esc(s.notes)}</p>`:""}</div>
   <div class="panel list" style="padding:0">${its.length?its.map(itemRow).join(""):`<div class="empty">No records yet. Use <b>Add record</b>.</div>`}</div></div>`
 }
@@ -496,6 +508,8 @@ function learnerForm(l){
       {type:"row",fields:[{k:"nextReview",label:"Next progress review",type:"date"},{k:"gateway",label:"EPA gateway date",type:"date"}]},
       {type:"row",fields:[{k:"otjPlanned",label:"Planned off-the-job hours",type:"number",min:0,hint:"From the training plan / commitment statement"},{k:"status",label:"Status",type:"select",options:LSTATUS}]},
       {k:"tutorId",label:"Tutor / assessor",type:"select",options:tutors,empty:"Not assigned"},
+      {type:"row",fields:[{k:"mentor",label:"Workplace mentor",ph:"Gas Safe engineer supervising on the job"},{k:"mentorInterview",label:"Learner, mentor & employer interview",type:"date",hint:"When everyone confirmed their roles and responsibilities"}]},
+      {type:"row",fields:[{k:"niNumber",label:"National Insurance number",ph:"e.g. QQ 12 34 56 C",hint:"Needed on the completion certificate"},{k:"evidenceTarget",label:"Evidence pieces target",type:"number",min:0,hint:"Pieces of on-the-job evidence expected in the portfolio"}]},
       {type:"row",fields:[{k:"employer",label:"Employer"},{k:"employerContact",label:"Employer contact"}]},
       {type:"row",fields:[{k:"email",label:"Learner email",type:"email"},{k:"phone",label:"Learner phone"}]},
       {k:"notes",label:"Notes",type:"textarea"}],
@@ -590,8 +604,8 @@ function complianceCSV(){const rows=[["Area","Who / what","Record","Type","Issue
   for(const it of S.items)rows.push([it.staffId?"Staff":"Centre",it.staffId?staffName(it.staffId):"Centre",it.title,it.category,it.issued||"",it.oneOff?"No expiry":itemDue(it)||"",SLABEL[itemStatus(it)],it.ref||"",(it.files||[]).map(f=>f.name).join("; ")]);
   for(const d of S.docs)rows.push(["Document",d.owner||"",d.title,d.category,d.approved||"",d.review||"",d.file?SLABEL[status(d.review,d.remindDays||30)]:"Not uploaded",d.version||"",d.file?d.file.name:""]);
   return csv(rows)}
-function learnersCSV(){const rows=[["Name","ULN","Programme","Cohort","Status","Employer","Start","Planned end","Next review","EPA gateway","Progress %","Units signed off","Attendance %","OTJ logged (h)","OTJ expected to date (h)","OTJ planned (h)",...S.units.map(u=>u.title)]];
-  for(const l of S.learners){const a=attendance(l.id);rows.push([l.name,l.uln||"",l.programme||"",l.cohort||"",l.status||"Active",l.employer||"",l.start||"",l.plannedEnd||"",l.nextReview||"",l.gateway||"",unitProgress(l),signedOff(l)+"/"+S.units.length,a.pct??"",otjLogged(l.id),otjExpected(l)??"",l.otjPlanned||"",...S.units.map(u=>USTAT[(l.units&&l.units[u.key]&&l.units[u.key].s)||"ns"])])}
+function learnersCSV(){const rows=[["Name","ULN","Programme","Cohort","Status","Employer","Start","Planned end","Next review","EPA gateway","Progress %","Units signed off","Attendance %","OTJ logged (h)","OTJ expected to date (h)","OTJ planned (h)","Workplace mentor","Mentor interview","Evidence pieces","Evidence target",...S.units.map(u=>u.title)]];
+  for(const l of S.learners){const a=attendance(l.id);rows.push([l.name,l.uln||"",l.programme||"",l.cohort||"",l.status||"Active",l.employer||"",l.start||"",l.plannedEnd||"",l.nextReview||"",l.gateway||"",unitProgress(l),signedOff(l)+"/"+S.units.length,a.pct??"",otjLogged(l.id),otjExpected(l)??"",l.otjPlanned||"",l.mentor||"",l.mentorInterview||"",evidenceCount(l),l.evidenceTarget||"",...S.units.map(u=>USTAT[(l.units&&l.units[u.key]&&l.units[u.key].s)||"ns"])])}
   return csv(rows)}
 function otjCSV(){const rows=[["Learner","Date","Hours","Activity"]];for(const l of S.learners)for(const e of otjEntries(l.id))rows.push([l.name,e.d,e.h,e.a]);return csv(rows)}
 async function save(filename,data){if(!S.dl){toast("Downloads aren't available in this view.");return}
@@ -616,6 +630,7 @@ document.addEventListener("click",async e=>{
   if(a==="add-learner")return learnerForm();
   if(a==="edit-learner")return learnerForm(S.learners.find(x=>x.id===id));
   if(a==="add-staff")return staffForm();
+  if(a==="add-tpl")return addTemplate(id);
   if(a==="edit-staff")return staffForm(S.staff.find(x=>x.id===id));
   if(a==="add-item")return itemForm(null,b.dataset.staff||null);
   if(a==="edit-item")return itemForm(S.items.find(x=>x.id===id));
