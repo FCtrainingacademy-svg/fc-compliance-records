@@ -131,8 +131,23 @@ module.exports = function learnerPortal(app, d) {
   });
   app.get('/api/learn/resources', lauth, async (req, res) => {
     const r = await pool.query(`SELECT data FROM docs WHERE col='config' AND id='learner-resources'`);
-    const items = ((r.rows[0] && r.rows[0].data.items) || []).filter(x => x && x.title && /^https:\/\//i.test(String(x.url || '')));
-    res.json({ items: items.map(x => ({ title: String(x.title), url: String(x.url), note: String(x.note || ''), group: String(x.group || '') })) });
+    const items = ((r.rows[0] && r.rows[0].data.items) || []).filter(x => x && x.title && (resFile(x) || /^https:\/\//i.test(String(x.url || ''))));
+    res.json({ items: items.map(x => { const f = resFile(x);
+      return { title: String(x.title), url: f ? '/api/learn/file/' + f.id : String(x.url), file: f ? { name: String(f.name || ''), type: String(f.type || '') } : null, note: String(x.note || ''), group: String(x.group || '') }; }) });
+  });
+  // Files attached to learner resources. Only files listed in the resources config can be opened.
+  function resFile(x) { const f = x && x.file; return f && /^[0-9a-f]{32}$/.test(String(f.id || '')) ? f : null; }
+  app.get('/api/learn/file/:id', lauth, async (req, res) => {
+    const id = String(req.params.id || ''); if (!/^[0-9a-f]{32}$/.test(id)) return res.status(404).send('Not found');
+    const c = await pool.query(`SELECT data FROM docs WHERE col='config' AND id='learner-resources'`);
+    const listed = ((c.rows[0] && c.rows[0].data.items) || []).some(x => { const f = resFile(x); return f && f.id === id; });
+    if (!listed) return res.status(404).send('Not found');
+    const r = await pool.query(`SELECT name, type, data, restricted FROM files WHERE id=$1`, [id]);
+    const f = r.rows[0]; if (!f || f.restricted) return res.status(404).send('Not found');
+    const inline = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'text/plain'].includes(f.type);
+    res.set({ 'Content-Type': f.type, 'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(f.name || id)}`,
+      'Cache-Control': 'private, max-age=600', 'X-Content-Type-Options': 'nosniff' });
+    res.send(f.data);
   });
   const paperFor = a => a.paper.map(p => { const q = BANK.mocks[a.mock][p.q]; return { s: q.s, sec: BANK.sections[q.s], q: q.q, opts: p.o.map(i => q.o[i]) }; });
   app.post('/api/learn/start/:mock', lauth, async (req, res) => {

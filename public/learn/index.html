@@ -195,10 +195,11 @@ async function home(){
       <li>After marking you see the correct answers, why, and the standard to read.</li>
       <li>Questions and answers are shuffled each attempt.</li></ul>
       <p style="margin:10px 0 0"><button class="linkbtn" id="chpw">Change my password</button></p></div>${footer}`;
+  const fileKind = f => { const e = (f.name.split(".").pop()||"").toUpperCase(); return (e==="PDF"?"PDF document":e==="DOC"||e==="DOCX"?"Word document":e==="XLS"||e==="XLSX"?"Spreadsheet":e==="PPT"||e==="PPTX"?"Slides":/PNG|JPE?G|WEBP|GIF/.test(e)?"Image":"File"); };
   try { const R = await api("GET","/api/learn/resources"); const box = document.getElementById("res"); if (!box) return;
     if (!R.items.length){ box.innerHTML = `<p style="color:var(--muted)">Your tutor hasn't added any resources yet.</p>`; return; }
     const groups = {}; R.items.forEach(x => (groups[x.group || "General"] = groups[x.group || "General"] || []).push(x));
-    box.innerHTML = Object.keys(groups).map(g => `<h3 style="font-size:15px;margin:12px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${esc(g)}</h3><div class="mocks" style="margin-top:0">${groups[g].map(x => `<a class="mock" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><h2 style="font-size:18px">${esc(x.title)} <span aria-hidden="true">↗</span></h2>${x.note?`<div class="meta">${esc(x.note)}</div>`:""}<span class="meta" style="color:var(--flue);word-break:break-all">${esc(x.url.replace(/^https:\/\//,""))}</span></a>`).join("")}</div>`).join("");
+    box.innerHTML = Object.keys(groups).map(g => `<h3 style="font-size:15px;margin:12px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${esc(g)}</h3><div class="mocks" style="margin-top:0">${groups[g].map(x => `<a class="mock" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><h2 style="font-size:18px">${esc(x.title)} <span aria-hidden="true">↗</span></h2>${x.note?`<div class="meta">${esc(x.note)}</div>`:""}<span class="meta" style="color:var(--flue);word-break:break-all">${x.file?esc(fileKind(x.file)):esc(x.url.replace(/^https:\/\//,""))}</span></a>`).join("")}</div>`).join("");
   } catch(x){ const box = document.getElementById("res"); if (box) box.innerHTML = `<p style="color:var(--muted)">Resources couldn't load. Refresh to try again.</p>`; }
 }
 

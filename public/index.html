@@ -543,25 +543,37 @@ function docForm(d){
 }
 function RES(){const c=(typeof ON!=="undefined"&&ON.data&&ON.data.collections.config)||{};return (c["learner-resources"]&&c["learner-resources"].items)||[]}
 function resEditor(){
-  const root=document.getElementById("modal-root");let list=RES().map(x=>({...x}));let err="";
-  const draw=()=>{root.innerHTML=`<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt" style="max-width:640px"><header><h2 id="mt">Learner resources</h2><p>Links shown on the Resources section of the learner portal. Only signed-in learners see them. Links must start with https://.</p></header><form>
+  const root=document.getElementById("modal-root");let list=RES().map(x=>({...x}));let err="",busy=false,fileFor=-1;
+  const draw=()=>{root.innerHTML=`<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt" style="max-width:640px"><header><h2 id="mt">Learner resources</h2><p>Links and files shown on the Resources section of the learner portal. Only signed-in learners see them. Links must start with https://.</p></header><form>
   ${list.map((r,i)=>`<div style="border:1px solid var(--line);border-radius:8px;padding:10px;display:grid;gap:8px">
     <div class="frow"><div class="field"><label for="r-t-${i}">Title</label><input type="text" id="r-t-${i}" data-k="title" data-i="${i}" value="${esc(r.title||"")}" placeholder="e.g. LCL Gas Safety Training Manual"></div>
     <div class="field"><label for="r-g-${i}">Group</label><input type="text" id="r-g-${i}" data-k="group" data-i="${i}" value="${esc(r.group||"")}" placeholder="e.g. Manuals"></div></div>
-    <div class="field"><label for="r-u-${i}">Link</label><input type="text" id="r-u-${i}" data-k="url" data-i="${i}" value="${esc(r.url||"")}" placeholder="https://"></div>
+    ${r.file?`<div class="field"><span class="label" style="font-weight:600">File</span><div class="bar" style="align-items:center"><span class="file">${esc(r.file.name||"File")}</span>${S.writable?`<button type="button" class="btn sm" data-unfile="${i}">Use a link instead</button>`:""}</div></div>`
+      :`<div class="field"><label for="r-u-${i}">Link</label><input type="text" id="r-u-${i}" data-k="url" data-i="${i}" value="${esc(r.url||"")}" placeholder="https://"></div>${S.writable?`<div><button type="button" class="btn sm" data-file="${i}">Attach a file instead (PDF, Word, image)</button></div>`:""}`}
     <div class="field"><label for="r-n-${i}">Note for learners</label><input type="text" id="r-n-${i}" data-k="note" data-i="${i}" value="${esc(r.note||"")}" placeholder="e.g. Sign in with your own ATS login"></div>
     ${S.writable?`<div class="bar" style="justify-content:flex-end"><button type="button" class="btn sm" data-up="${i}" ${i?"":"disabled"}>Move up</button><button type="button" class="btn sm danger" data-x="${i}">Remove</button></div>`:""}</div>`).join("")||`<div class="empty">No resources yet.</div>`}
-  ${S.writable?`<button type="button" class="btn sm" data-add style="justify-self:start">Add resource</button>`:""}${err?`<div class="err">${esc(err)}</div>`:""}
+  ${S.writable?`<button type="button" class="btn sm" data-add style="justify-self:start">Add resource</button><input type="file" id="r-file" hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt">`:""}${busy?`<div class="muted">Uploading file…</div>`:""}${err?`<div class="err">${esc(err)}</div>`:""}
   <div class="actions"><button type="button" class="btn" data-cancel>Cancel</button>${S.writable?`<button class="btn primary">Save resources</button>`:""}</div></form></div></div>`};
   const sync=()=>root.querySelectorAll("input[data-i]").forEach(inp=>list[inp.dataset.i][inp.dataset.k]=inp.value);
   draw();
-  root.onclick=e=>{if(e.target.matches("[data-scrim]")||e.target.closest("[data-cancel]")){root.onclick=null;root.onsubmit=null;root.innerHTML="";return}
+  root.onclick=e=>{if(e.target.matches("[data-scrim]")||e.target.closest("[data-cancel]")){root.onclick=null;root.onsubmit=null;root.onchange=null;root.innerHTML="";return}
     if(e.target.closest("[data-add]")){sync();list.push({title:"",url:"",note:"",group:""});draw();return}
     const x=e.target.closest("[data-x]");if(x){sync();list.splice(+x.dataset.x,1);draw();return}
-    const u=e.target.closest("[data-up]");if(u){sync();const i=+u.dataset.up;[list[i-1],list[i]]=[list[i],list[i-1]];draw()}};
-  root.onsubmit=async e=>{e.preventDefault();sync();list=list.map(r=>({title:(r.title||"").trim(),url:(r.url||"").trim(),note:(r.note||"").trim(),group:(r.group||"").trim()})).filter(r=>r.title||r.url);
-    const bad=list.find(r=>!r.title||!/^https:\/\/\S+$/i.test(r.url));if(bad){err=`Each resource needs a title and a link starting with https:// (check "${bad.title||bad.url}").`;draw();return}
-    try{await S.db.doc("config/learner-resources").set({items:list});root.onclick=null;root.onsubmit=null;root.innerHTML="";toast(ON.me&&ON.me.role!=="manager"?"Sent to the Manager for approval":"Resources saved")}catch(x){err="Couldn't save. Try again.";draw()}};
+    const u=e.target.closest("[data-up]");if(u){sync();const i=+u.dataset.up;[list[i-1],list[i]]=[list[i],list[i-1]];draw();return}
+    const fb=e.target.closest("[data-file]");if(fb){sync();fileFor=+fb.dataset.file;root.querySelector("#r-file").click();return}
+    const uf=e.target.closest("[data-unfile]");if(uf){sync();delete list[+uf.dataset.unfile].file;draw()}};
+  root.onchange=async e=>{if(e.target.id!=="r-file")return;const f=e.target.files&&e.target.files[0];e.target.value="";if(!f||fileFor<0)return;
+    const ext=(f.name.split(".").pop()||"").toLowerCase();const type=EX_TYPES[ext]||(ext==="txt"?"text/plain":"");
+    if(!type){err="That file type can't be added. Use PDF, Word, Excel, PowerPoint, an image or a text file.";draw();return}
+    if(f.size>20*1024*1024){err="That file is over 20 MB.";draw();return}
+    busy=true;err="";draw();
+    try{const r=await api("POST","/api/files",f,{"X-File-Type":type,"X-File-Name":encodeURIComponent(f.name),"Content-Type":"application/octet-stream"});
+      const row=list[fileFor];row.file={id:r.id,name:f.name,type};row.url="";if(!row.title)row.title=f.name.replace(/\.[^.]+$/,"")}
+    catch(x){err="Couldn't upload that file. Try again."}
+    busy=false;draw()};
+  root.onsubmit=async e=>{e.preventDefault();sync();list=list.map(r=>{const o={title:(r.title||"").trim(),url:r.file?"":(r.url||"").trim(),note:(r.note||"").trim(),group:(r.group||"").trim()};if(r.file)o.file=r.file;return o}).filter(r=>r.title||r.url||r.file);
+    const bad=list.find(r=>!r.title||(!r.file&&!/^https:\/\/\S+$/i.test(r.url)));if(bad){err=`Each resource needs a title and either a file or a link starting with https:// (check "${bad.title||bad.url}").`;draw();return}
+    try{await S.db.doc("config/learner-resources").set({items:list});root.onclick=null;root.onsubmit=null;root.onchange=null;root.innerHTML="";toast(ON.me&&ON.me.role!=="manager"?"Sent to the Manager for approval":"Resources saved")}catch(x){err="Couldn't save. Try again.";draw()}};
 }
 function unitsEditor(){
   const root=document.getElementById("modal-root");let list=S.units.map(u=>({...u}));
