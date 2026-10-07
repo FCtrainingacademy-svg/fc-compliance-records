@@ -314,7 +314,7 @@ function vLearner(l){
   const ents=otjEntries(l.id).map((e,i)=>({...e,i})).sort((x,y)=>(y.d||"").localeCompare(x.d||""));
   const att=[];for(const m in S.att){const r=S.att[m].r&&S.att[m].r[l.id];if(r)for(const d in r)att.push([m+"-"+d,r[d]])}att.sort((x,y)=>y[0].localeCompare(x[0]));
   return `<div class="detail"><div><button class="btn sm back" data-act="back">← All learners</button></div>
-  <div class="section-head"><div><h2>${esc(l.name)}</h2><p>${esc(l.programme||"")}${l.cohort?" · Cohort "+esc(l.cohort):""}</p></div>${S.writable?`<div class="bar"><button class="btn" data-act="edit-learner" data-id="${l.id}">Edit details</button></div>`:""}</div>
+  <div class="section-head"><div><h2>${esc(l.name)}</h2><p>${esc(l.programme||"")}${l.cohort?" · Cohort "+esc(l.cohort):""}</p></div>${S.writable?`<div class="bar">${/^https:\/\//.test(l.ecordia||"")?`<a class="btn primary" href="${esc(l.ecordia)}" target="_blank" rel="noopener">Open in Ecordia ↗</a>`:""}<button class="btn" data-act="edit-learner" data-id="${l.id}">Edit details</button></div>`:(/^https:\/\//.test(l.ecordia||"")?`<a class="btn primary" href="${esc(l.ecordia)}" target="_blank" rel="noopener">Open in Ecordia ↗</a>`:"")}</div>
   <div class="stat3"><div class="stat"><div class="big">${p}%</div><div class="lbl">Course progress · ${signedOff(l)} of ${S.units.length} units signed off</div></div>
   <div class="stat"><div class="big">${a.pct==null?"—":a.pct+"%"}</div><div class="lbl">Attendance · ${a.pres}/${a.tot} sessions${a.late?`, ${a.late} late`:""}</div></div>
   <div class="stat"><div class="big">${log} h</div><div class="lbl">Off-the-job logged${exp!=null?` · ${exp} h expected by today of ${esc(l.otjPlanned)} h`:l.otjPlanned?` of ${esc(l.otjPlanned)} h planned`:" · set planned hours in details"}</div></div></div>
@@ -508,6 +508,7 @@ function learnerForm(l){
       {type:"row",fields:[{k:"nextReview",label:"Next progress review",type:"date"},{k:"gateway",label:"EPA gateway date",type:"date"}]},
       {type:"row",fields:[{k:"otjPlanned",label:"Planned off-the-job hours",type:"number",min:0,hint:"From the training plan / commitment statement"},{k:"status",label:"Status",type:"select",options:LSTATUS}]},
       {k:"tutorId",label:"Tutor / assessor",type:"select",options:tutors,empty:"Not assigned"},
+      {k:"ecordia",label:"Ecordia portfolio link",ph:"https://… (copy from the learner's Ecordia page)",hint:"Opens the learner's Ecordia portfolio from their page here"},
       {type:"row",fields:[{k:"mentor",label:"Workplace mentor",ph:"Gas Safe engineer supervising on the job"},{k:"mentorInterview",label:"Learner, mentor & employer interview",type:"date",hint:"When everyone confirmed their roles and responsibilities"}]},
       {type:"row",fields:[{k:"niNumber",label:"National Insurance number",ph:"e.g. QQ 12 34 56 C",hint:"Needed on the completion certificate"},{k:"evidenceTarget",label:"Evidence pieces target",type:"number",min:0,hint:"Pieces of on-the-job evidence expected in the portfolio"}]},
       {type:"row",fields:[{k:"employer",label:"Employer"},{k:"employerContact",label:"Employer contact"}]},
