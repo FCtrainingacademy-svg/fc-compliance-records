@@ -409,6 +409,8 @@ app.get('/cal/:token.ics', async (req, res) => {
 
 // ---------- learner portal ----------
 const portal = require('./learner-portal')(app, { pool, express, bcrypt, jwt, auth, notPending, needRole, pwOk, throttled, attempts, log, getSecret: () => SECRET });
+// learners.<domain> is the learners' address: its home page goes straight to the learner portal.
+app.get('/', (req, res, next) => /^learners\./i.test(req.hostname || '') ? res.redirect(302, '/learn/') : next());
 app.get('/learn', (req, res, next) => { const u = req.originalUrl; if (u.split('?')[0] !== '/learn') return next(); res.redirect(301, '/learn/' + (u.includes('?') ? u.slice(u.indexOf('?')) : '')); });
 
 // ---------- static ----------
