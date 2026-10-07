@@ -40,7 +40,18 @@ module.exports = function learnerPortal(app, d) {
   async function learnerDoc(id) {
     const r = await pool.query(`SELECT data FROM docs WHERE col='learners' AND id=$1`, [id]); return r.rows[0] ? r.rows[0].data : null;
   }
+  // Staff can preview the portal with their own staff sign-in (X-Preview header). Preview attempts are kept apart from real learners.
+  async function staffPreview(req) {
+    if (req.get('x-preview') !== '1' || !req.cookies.clr_session) return null;
+    try {
+      const p = jwt.verify(req.cookies.clr_session, getSecret()); if (!p.uid) return null;
+      const r = await pool.query(`SELECT id, name, email, role, active, token_version, must_change FROM users WHERE id=$1`, [p.uid]); const u = r.rows[0];
+      if (!u || !u.active || u.must_change || u.token_version !== p.tv || !['manager', 'admin'].includes(u.role)) return null;
+      return { id: 'preview-' + u.id, email: u.email, name: u.name, cohort: 'Preview mode', programme: '', preview: true };
+    } catch (e) { return null; }
+  }
   async function lauth(req, res, next) {
+    const pv = await staffPreview(req); if (pv) { req.learner = pv; return next(); }
     try {
       const t = req.cookies[LCOOKIE]; if (!t) return res.status(401).json({ error: 'signin' });
       const p = jwt.verify(t, getSecret()); if (p.typ !== 'learner') throw 0;
@@ -115,7 +126,7 @@ module.exports = function learnerPortal(app, d) {
   app.get('/api/learn/me', lauth, async (req, res) => {
     const a = await pool.query(`SELECT id, mock, score, total, pct, finished_at FROM exam_attempts WHERE learner_id=$1 AND finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT 30`, [req.learner.id]);
     const open = await pool.query(`SELECT id, mock, due_at FROM exam_attempts WHERE learner_id=$1 AND finished_at IS NULL AND due_at > now() ORDER BY started_at DESC LIMIT 1`, [req.learner.id]);
-    res.json({ learner: { name: req.learner.name, cohort: req.learner.cohort, email: req.learner.email },
+    res.json({ learner: { name: req.learner.name, cohort: req.learner.cohort, email: req.learner.email, preview: !!req.learner.preview },
       mocks: Object.keys(BANK.mocks).map(k => ({ id: k, count: BANK.mocks[k].length, minutes: MINUTES })), attempts: a.rows, open: open.rows[0] || null });
   });
   app.get('/api/learn/resources', lauth, async (req, res) => {

@@ -133,8 +133,10 @@ const app = document.getElementById("app"), timerEl = document.getElementById("t
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const LETTERS = ["A","B","C","D"];
 const fmtDate = d => new Date(d).toLocaleString("en-GB",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+const PREVIEW = new URLSearchParams(location.search).get("preview") === "1";
 async function api(method, url, body){
-  const r = await fetch(url, { method, headers: body ? {"Content-Type":"application/json"} : {}, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin" });
+  const h = body ? {"Content-Type":"application/json"} : {}; if (PREVIEW) h["X-Preview"] = "1";
+  const r = await fetch(url, { method, headers: h, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin" });
   let j = {}; try { j = await r.json(); } catch(e) {}
   if (!r.ok) { const e = new Error(j.error || "Something went wrong. Try again."); e.status = r.status; throw e; }
   return j;
@@ -172,7 +174,7 @@ async function showInvite(token){
 
 /* ---------- home ---------- */
 async function home(){
-  try { ME = await api("GET","/api/learn/me"); } catch(x){ return showLogin(); }
+  try { ME = await api("GET","/api/learn/me"); } catch(x){ return showLogin(PREVIEW ? "Preview needs you to be signed in to the LMS as Manager or Admin in this browser. Sign in to the LMS, then press Preview learner portal again." : undefined); }
   chrome(true,false); htitle.textContent = "Learner Portal"; X = null;
   const best = {}; ME.attempts.forEach(a => { if (best[a.mock]==null || a.pct > best[a.mock]) best[a.mock] = a.pct; });
   const cards = ME.mocks.map(m => `<div class="mock"><div class="k">${esc(m.id)}</div><h2 style="font-size:20px">Mock exam ${esc(m.id)}</h2>
@@ -181,7 +183,7 @@ async function home(){
     ${ME.open && ME.open.mock===m.id?`<button class="btn primary" data-resume="${ME.open.id}">Continue mock ${esc(m.id)}</button>`:`<button class="btn primary" data-start="${esc(m.id)}">Start mock ${esc(m.id)}</button>`}</div>`).join("");
   const hist = ME.attempts.length ? `<div class="hist"><table><thead><tr><th>Date</th><th>Mock</th><th>Score</th><th></th></tr></thead><tbody>${ME.attempts.map(a => `<tr><td>${fmtDate(a.finished_at)}</td><td>${esc(a.mock)}</td><td class="mono">${a.score}/${a.total} · ${a.pct}%</td><td><button class="linkbtn" data-view="${a.id}">Review</button></td></tr>`).join("")}</tbody></table></div>`
     : `<p style="color:var(--muted);margin-top:10px">Your results will appear here after your first mock.</p>`;
-  app.innerHTML = `<section class="intro"><span class="pill">${esc(ME.learner.cohort || "FC Training Academy")}</span>
+  app.innerHTML = `${ME.learner.preview?`<div class="confirm" style="margin-top:18px"><p><b>Preview mode.</b> You're seeing the portal as a learner sees it, signed in with your staff login. Mock attempts you take here are not saved to any learner.</p></div>`:""}<section class="intro"><span class="pill">${esc(ME.learner.cohort || "FC Training Academy")}</span>
     <h1>Hello ${esc(ME.learner.name.split(" ")[0])}</h1>
     <p>Practise for your CCN1 / ACS assessment. Each mock covers every section of the CCN1 Practical Performance Criteria. Your tutor can see your scores so they can help with the areas you find hardest.</p></section>
     <div class="mocks">${cards}</div>
@@ -263,7 +265,7 @@ function changePw(){
 document.addEventListener("click", async e => {
   const t = e.target.closest("button"); if (!t) return;
   try {
-    if (t.id==="out"){ await api("POST","/api/learn/logout"); return showLogin(); }
+    if (t.id==="out"){ if (PREVIEW){ location.href = "/"; return; } await api("POST","/api/learn/logout"); return showLogin(); }
     if (t.id==="home" || t.id==="tohome"){ return home(); }
     if (t.id==="chpw") return changePw();
     if (t.dataset.start){ t.disabled = true; return loadExam(await api("POST","/api/learn/start/"+encodeURIComponent(t.dataset.start))); }
