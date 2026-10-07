@@ -5,18 +5,18 @@
 /* Layout: exam desk. Header strip, mock picker as three paper-like cards; exam = one question card + numbered grid; results = score then section bars then review. */
 :root{
   --bg:#EEF1F4; --paper:#FFFFFF; --sunk:#E3E8ED; --ink:#14212B; --muted:#5B6B78; --line:#D3DBE2;
-  --flue:#0E5A86; --flue-ink:#FFFFFF; --flame:#D98A12; --flame-soft:#FBEFD9;
+  --flue:#0E5A86; --flue-ink:#FFFFFF; --flue-soft:#E3EEF6; --flame:#D98A12; --flame-soft:#FBEFD9;
   --ok:#13704A; --ok-bg:#E2F3EA; --bad:#B42318; --bad-bg:#FCE9E7;
   --f-display:"Archivo",system-ui,sans-serif; --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   --r:10px; --wm:.05;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0D151C; --paper:#15212B; --sunk:#101A22; --ink:#E4EBF0; --muted:#94A4B1; --line:#253441;
-  --flue:#5BA8DA; --flue-ink:#08121A; --flame:#F2B04A; --flame-soft:#3A2B12;
+  --flue:#5BA8DA; --flue-ink:#08121A; --flue-soft:#12293A; --flame:#F2B04A; --flame-soft:#3A2B12;
   --ok:#6FD3A0; --ok-bg:#12301F; --bad:#FF8E82; --bad-bg:#3A1A17; --wm:.06; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0D151C; --paper:#15212B; --sunk:#101A22; --ink:#E4EBF0; --muted:#94A4B1; --line:#253441;
-  --flue:#5BA8DA; --flue-ink:#08121A; --flame:#F2B04A; --flame-soft:#3A2B12;
+  --flue:#5BA8DA; --flue-ink:#08121A; --flue-soft:#12293A; --flame:#F2B04A; --flame-soft:#3A2B12;
   --ok:#6FD3A0; --ok-bg:#12301F; --bad:#FF8E82; --bad-bg:#3A1A17; --wm:.06; color-scheme:dark}
 *{box-sizing:border-box}
 html,body{background:var(--bg);color:var(--ink)}
@@ -44,6 +44,10 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .intro h1{font-size:clamp(28px,5vw,40px)}
 .intro p{margin:0;color:var(--muted);max-width:62ch}
 .mocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:18px}
+.rbtn{display:inline-block;align-self:flex-start;margin-top:10px;padding:9px 16px;border-radius:8px;border:2px solid var(--flue);background:var(--flue-soft);color:var(--flue);font-weight:700;line-height:1.2;transition:background .15s,color .15s}
+.res:hover .rbtn,.res:focus-visible .rbtn{background:var(--flue);color:var(--flue-ink)}
+.res:hover{border-color:var(--flue)}
+.res:focus-visible{outline:2px solid var(--flame);outline-offset:2px}
 .mock{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .mock .k{font-family:var(--f-display);font-size:44px;line-height:1;color:var(--flue)}
 .mock .meta{font-size:14px;color:var(--muted)}
@@ -195,11 +199,12 @@ async function home(){
       <li>After marking you see the correct answers, why, and the standard to read.</li>
       <li>Questions and answers are shuffled each attempt.</li></ul>
       <p style="margin:10px 0 0"><button class="linkbtn" id="chpw">Change my password</button></p></div>${footer}`;
-  const fileKind = f => { const e = (f.name.split(".").pop()||"").toUpperCase(); return (e==="PDF"?"PDF document":e==="DOC"||e==="DOCX"?"Word document":e==="XLS"||e==="XLSX"?"Spreadsheet":e==="PPT"||e==="PPTX"?"Slides":/PNG|JPE?G|WEBP|GIF/.test(e)?"Image":"File"); };
+  const btnLabel = x => { if (!x.file) return "Open website ↗"; const e = (x.file.name.split(".").pop()||"").toLowerCase(); return e==="html"||e==="htm" ? "Read online →" : e==="pdf" ? "Open PDF" : "Open file"; };
+  const fileKind = f => { const e = (f.name.split(".").pop()||"").toUpperCase(); return (e==="HTML"||e==="HTM"?"Read online":e==="PDF"?"PDF document":e==="DOC"||e==="DOCX"?"Word document":e==="XLS"||e==="XLSX"?"Spreadsheet":e==="PPT"||e==="PPTX"?"Slides":/PNG|JPE?G|WEBP|GIF/.test(e)?"Image":"File"); };
   try { const R = await api("GET","/api/learn/resources"); const box = document.getElementById("res"); if (!box) return;
     if (!R.items.length){ box.innerHTML = `<p style="color:var(--muted)">Your tutor hasn't added any resources yet.</p>`; return; }
     const groups = {}; R.items.forEach(x => (groups[x.group || "General"] = groups[x.group || "General"] || []).push(x));
-    box.innerHTML = Object.keys(groups).map(g => `<h3 style="font-size:15px;margin:12px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${esc(g)}</h3><div class="mocks" style="margin-top:0">${groups[g].map(x => `<a class="mock" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><h2 style="font-size:18px">${esc(x.title)} <span aria-hidden="true">↗</span></h2>${x.note?`<div class="meta">${esc(x.note)}</div>`:""}<span class="meta" style="color:var(--flue);word-break:break-all">${x.file?esc(fileKind(x.file)):esc(x.url.replace(/^https:\/\//,""))}</span></a>`).join("")}</div>`).join("");
+    box.innerHTML = Object.keys(groups).map(g => `<h3 style="font-size:15px;margin:12px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${esc(g)}</h3><div class="mocks" style="margin-top:0">${groups[g].map(x => `<a class="mock res" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><h2 style="font-size:18px">${esc(x.title)}</h2>${x.note?`<div class="meta">${esc(x.note)}</div>`:""}${x.file?"":`<span class="meta" style="word-break:break-all">${esc(x.url.replace(/^https:\/\//,"").split("/")[0])}</span>`}<span class="rbtn">${esc(btnLabel(x))}</span></a>`).join("")}</div>`).join("");
     if (location.hash === "#resources") { const h = document.getElementById("resources"); if (h) h.scrollIntoView(); }
   } catch(x){ const box = document.getElementById("res"); if (box) box.innerHTML = `<p style="color:var(--muted)">Resources couldn't load. Refresh to try again.</p>`; }
 }

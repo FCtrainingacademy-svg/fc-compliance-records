@@ -27,7 +27,7 @@ const isMgr = u => u && u.role === 'manager';
 const MAX_FILE = 20 * 1024 * 1024;
 const OFFICE_TYPES = ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
-const FILE_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'text/plain', 'text/csv', 'text/markdown', 'application/json', ...OFFICE_TYPES]);
+const FILE_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'text/plain', 'text/csv', 'text/markdown', 'application/json', 'text/html', ...OFFICE_TYPES]);
 
 async function migrate() {
   await pool.query(`
@@ -261,6 +261,8 @@ app.post('/api/changes/:id/withdraw', auth, notPending, async (req, res) => {
 });
 
 // ---------- files ----------
+// HTML files are shown as read-only pages: sandboxed, no scripts, so an uploaded page can't act as the signed-in user.
+const HTML_CSP = "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data: https:; sandbox allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation";
 app.post('/api/files', auth, notPending, express.raw({ type: () => true, limit: MAX_FILE }), async (req, res) => {
   const type = String(req.get('x-file-type') || '').split(';')[0].trim();
   if (!FILE_TYPES.has(type)) return res.status(400).json({ error: 'unsupported_type' });
@@ -283,6 +285,7 @@ app.get('/_blob/:id', auth, async (req, res) => {
   const r = await pool.query(`SELECT name, type, data, restricted FROM files WHERE id=$1`, [req.params.id]);
   if (!r.rows[0] || (r.rows[0].restricted && !isMgr(req.user))) return res.status(404).send('Not found');
   const f = r.rows[0]; const inline = !OFFICE_TYPES.includes(f.type);
+  if (f.type === 'text/html') res.set({ 'Content-Security-Policy': HTML_CSP, 'X-Content-Type-Options': 'nosniff' });
   res.set({ 'Content-Type': f.type, 'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(f.name || req.params.id)}`, 'Cache-Control': 'private, max-age=3600' });
   res.send(f.data);
 });
@@ -408,7 +411,7 @@ app.get('/cal/:token.ics', async (req, res) => {
 });
 
 // ---------- learner portal ----------
-const portal = require('./learner-portal')(app, { pool, express, bcrypt, jwt, auth, notPending, needRole, pwOk, throttled, attempts, log, getSecret: () => SECRET });
+const portal = require('./learner-portal')(app, { HTML_CSP, pool, express, bcrypt, jwt, auth, notPending, needRole, pwOk, throttled, attempts, log, getSecret: () => SECRET });
 // learners.<domain> is the learners' address: its home page goes straight to the learner portal.
 app.get('/', (req, res, next) => /^learners\./i.test(req.hostname || '') ? res.redirect(302, '/learn/') : next());
 app.get('/learn', (req, res, next) => { const u = req.originalUrl; if (u.split('?')[0] !== '/learn') return next(); res.redirect(301, '/learn/' + (u.includes('?') ? u.slice(u.indexOf('?')) : '')); });

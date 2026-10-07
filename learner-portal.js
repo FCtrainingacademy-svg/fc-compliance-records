@@ -20,7 +20,7 @@ try { BANK = loadBank(); } catch (e) { console.error('Mock exam bank could not b
 const MINUTES = 45;
 
 module.exports = function learnerPortal(app, d) {
-  const { pool, express, bcrypt, jwt, auth, notPending, needRole, pwOk, throttled, attempts, log, getSecret } = d;
+  const { HTML_CSP, pool, express, bcrypt, jwt, auth, notPending, needRole, pwOk, throttled, attempts, log, getSecret } = d;
   const cookieOpts = () => ({ httpOnly: true, sameSite: 'lax', secure: process.env.COOKIE_INSECURE !== '1', maxAge: 12 * 3600 * 1000, path: '/' });
   const sha = s => crypto.createHash('sha256').update(String(s)).digest('hex');
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -149,7 +149,8 @@ module.exports = function learnerPortal(app, d) {
     if (!listed) return res.status(404).send('Not found');
     const r = await pool.query(`SELECT name, type, data, restricted FROM files WHERE id=$1`, [id]);
     const f = r.rows[0]; if (!f || f.restricted) return res.status(404).send('Not found');
-    const inline = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'text/plain'].includes(f.type);
+    const inline = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'text/plain', 'text/html'].includes(f.type);
+    if (f.type === 'text/html') res.set({ 'Content-Security-Policy': HTML_CSP, 'Content-Type': 'text/html; charset=utf-8' });
     res.set({ 'Content-Type': f.type, 'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(f.name || id)}`,
       'Cache-Control': 'private, max-age=600', 'X-Content-Type-Options': 'nosniff' });
     res.send(f.data);

@@ -549,10 +549,10 @@ function resEditor(){
     <div class="frow"><div class="field"><label for="r-t-${i}">Title</label><input type="text" id="r-t-${i}" data-k="title" data-i="${i}" value="${esc(r.title||"")}" placeholder="e.g. LCL Gas Safety Training Manual"></div>
     <div class="field"><label for="r-g-${i}">Group</label><input type="text" id="r-g-${i}" data-k="group" data-i="${i}" value="${esc(r.group||"")}" placeholder="e.g. Manuals"></div></div>
     ${r.file?`<div class="field"><span class="label" style="font-weight:600">File</span><div class="bar" style="align-items:center"><span class="file">${esc(r.file.name||"File")}</span>${S.writable?`<button type="button" class="btn sm" data-unfile="${i}">Use a link instead</button>`:""}</div></div>`
-      :`<div class="field"><label for="r-u-${i}">Link</label><input type="text" id="r-u-${i}" data-k="url" data-i="${i}" value="${esc(r.url||"")}" placeholder="https://"></div>${S.writable?`<div><button type="button" class="btn sm" data-file="${i}">Attach a file instead (PDF, Word, image)</button></div>`:""}`}
+      :`<div class="field"><label for="r-u-${i}">Link</label><input type="text" id="r-u-${i}" data-k="url" data-i="${i}" value="${esc(r.url||"")}" placeholder="https://"></div>${S.writable?`<div><button type="button" class="btn sm" data-file="${i}">Attach a file instead (web page, PDF, Word, image)</button></div>`:""}`}
     <div class="field"><label for="r-n-${i}">Note for learners</label><input type="text" id="r-n-${i}" data-k="note" data-i="${i}" value="${esc(r.note||"")}" placeholder="e.g. Sign in with your own ATS login"></div>
     ${S.writable?`<div class="bar" style="justify-content:flex-end"><button type="button" class="btn sm" data-up="${i}" ${i?"":"disabled"}>Move up</button><button type="button" class="btn sm danger" data-x="${i}">Remove</button></div>`:""}</div>`).join("")||`<div class="empty">No resources yet.</div>`}
-  ${S.writable?`<button type="button" class="btn sm" data-add style="justify-self:start">Add resource</button><input type="file" id="r-file" hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt">`:""}${busy?`<div class="muted">Uploading file…</div>`:""}${err?`<div class="err">${esc(err)}</div>`:""}
+  ${S.writable?`<button type="button" class="btn sm" data-add style="justify-self:start">Add resource</button><input type="file" id="r-file" hidden accept=".pdf,.html,.htm,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt">`:""}${busy?`<div class="muted">Uploading file…</div>`:""}${err?`<div class="err">${esc(err)}</div>`:""}
   <div class="actions"><button type="button" class="btn" data-cancel>Cancel</button>${S.writable?`<button class="btn primary">Save resources</button>`:""}</div></form></div></div>`};
   const sync=()=>root.querySelectorAll("input[data-i]").forEach(inp=>list[inp.dataset.i][inp.dataset.k]=inp.value);
   draw();
@@ -563,7 +563,7 @@ function resEditor(){
     const fb=e.target.closest("[data-file]");if(fb){sync();fileFor=+fb.dataset.file;root.querySelector("#r-file").click();return}
     const uf=e.target.closest("[data-unfile]");if(uf){sync();delete list[+uf.dataset.unfile].file;draw()}};
   root.onchange=async e=>{if(e.target.id!=="r-file")return;const f=e.target.files&&e.target.files[0];e.target.value="";if(!f||fileFor<0)return;
-    const ext=(f.name.split(".").pop()||"").toLowerCase();const type=EX_TYPES[ext]||(ext==="txt"?"text/plain":"");
+    const ext=(f.name.split(".").pop()||"").toLowerCase();const type=EX_TYPES[ext]||(ext==="txt"?"text/plain":(ext==="html"||ext==="htm")?"text/html":"");
     if(!type){err="That file type can't be added. Use PDF, Word, Excel, PowerPoint, an image or a text file.";draw();return}
     if(f.size>20*1024*1024){err="That file is over 20 MB.";draw();return}
     busy=true;err="";draw();
