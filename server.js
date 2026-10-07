@@ -339,6 +339,15 @@ app.get('/api/files/missing', auth, notPending, needRole('manager'), async (req,
   res.json({ missing: ids.filter(x => !have.has(x)) });
 });
 
+// ---------- floor plan (signed-in users only) ----------
+const FLOOR = { 'floor-plan.pdf': 'application/pdf', 'fp-1.png': 'image/png', 'fp-2.png': 'image/png' };
+app.get('/private/:f', auth, (req, res) => {
+  const t = FLOOR[req.params.f]; if (!t) return res.status(404).send('Not found');
+  res.set({ 'Content-Type': t, 'Cache-Control': 'private, max-age=3600' });
+  if (req.params.f.endsWith('.pdf')) res.set('Content-Disposition', 'inline; filename="FC Training Academy - Floor Plan v1.pdf"');
+  res.sendFile(path.join(__dirname, 'private', req.params.f));
+});
+
 // ---------- calendar feed (Manager subscribes once in Outlook / Google; it refreshes itself) ----------
 function addMonthsISO(iso, n) {
   if (!iso || !n) return ''; const [y, m, d] = iso.split('-').map(Number); const dt = new Date(Date.UTC(y, m - 1 + Number(n), 1));

@@ -212,7 +212,7 @@ const MIME={pdf:"application/pdf",png:"image/png",jpg:"image/jpeg",jpeg:"image/j
 /* ---------- state ---------- */
 const S={staff:[],items:[],docs:[],learners:[],audit:[],afilter:"open",otj:{},att:{},units:[],ready:{},db:null,assets:null,dl:null,writable:true,
   tab:"overview",view:null,filter:"attention",q:"",regDate:todayISO(),regProg:"all",lq:"",lstat:"Active",dq:"",dcat:"all"};
-const TABS=[["overview","Overview"],["learners","Learners"],["register","Register"],["staff","Staff"]];
+const TABS=[["overview","Overview"],["learners","Learners"],["register","Register"],["staff","Staff"],["floor","Floor plan"]];
 const BASE_TABS=[...TABS];
 
 /* ---------- utils ---------- */
@@ -265,7 +265,7 @@ function render(){
   const de=dueEntries();const urgent=de.filter(e=>e.st==="overdue").length;
   document.getElementById("tabs").innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" aria-selected="${S.tab===k}" data-act="tab" data-k="${k}">${l}${k==="approvals"&&ON.approvals?`<span class="n">${ON.approvals}</span>`:""}${k==="audit"&&S.audit.length?`<span class="n">${S.audit.filter(a=>a.status!=="ready").length}</span>`:""}${k==="overview"&&urgent?`<span class="n">${urgent}</span>`:""}</button>`).join("");
   if(!S.db)return;S.writable=roleWritable(S.tab);
-  const r={overview:vOverview,learners:vLearners,register:vRegister,staff:vStaff,centre:vCentre,documents:vDocuments,audit:vAudit,users:vUsers,activity:vActivity,approvals:vApprovals,exams:vExams}[S.tab];
+  const r={overview:vOverview,learners:vLearners,register:vRegister,staff:vStaff,floor:vFloor,centre:vCentre,documents:vDocuments,audit:vAudit,users:vUsers,activity:vActivity,approvals:vApprovals,exams:vExams}[S.tab];
   const focusId=document.activeElement&&document.activeElement.id;
   main.innerHTML=(ON.me&&ON.me.role==="admin"&&S.tab!=="approvals"&&S.tab!=="activity"?`<div class="banner">You are signed in as Admin – any change you make is sent to the Manager for approval before it appears in the records.</div>`:"")+r(de);
   if(focusId){const el=document.getElementById(focusId);if(el&&el.tagName==="INPUT"){el.focus();const v=el.value;try{el.setSelectionRange(v.length,v.length)}catch(e){}}}
@@ -387,6 +387,13 @@ function vDocuments(){
   return `<div class="section-head"><div><h2>QMS &amp; normative documents</h2><p>Upload policies, procedures and normative documents with their version and review date. Uploads accept PDF, images and text files; save Word or Excel files as PDF first.</p></div>${S.writable?`<div class="bar">${S.assets?`<label class="btn" id="bulk-label"><input type="file" id="bulk-in" hidden multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.csv,.md,.json" data-change="bulk">Upload several files</label>`:""}<button class="btn primary" data-act="add-doc">Add document</button></div>`:""}</div>
   <div class="filter"><input id="dq" type="search" placeholder="Search documents" value="${esc(S.dq)}" data-input="dq" aria-label="Search documents"><select id="dcat" data-change="dcat" aria-label="Category"><option value="all">All current documents</option>${DOC_CATS.map(c=>`<option value="${esc(c)}" ${S.dcat===c?"selected":""}>${c}${c===ARCH?` (${nArch})`:""}</option>`).join("")}</select></div>
   <div class="panel">${ds.length?`<div class="tbl-wrap"><table><thead><tr><th>Document</th><th>Category</th><th>Version</th><th>Next review</th><th>Status</th><th>File</th></tr></thead><tbody>${ds.map(d=>{const st=!d.file?"missing":status(d.review,d.remindDays||30);return `<tr><td style="min-width:220px"><button class="rowlink" data-act="edit-doc" data-id="${d.id}"><span class="t" style="font-weight:600">${esc(d.title)}</span></button>${d.verdict&&VERDICT[d.verdict]&&d.category!==ARCH?`<div style="margin-top:3px"><span class="pill ${VERDICT[d.verdict][0]}" style="font-size:11px">${VERDICT[d.verdict][1]}</span></div>`:""}${d.owner?`<div class="muted" style="font-size:13px">Owner: ${esc(d.owner)}</div>`:""}</td><td style="white-space:nowrap">${esc(d.category)}</td><td class="mono">${esc(d.version||"—")}</td><td class="mono" style="white-space:nowrap">${fmt(d.review)}</td><td>${pill(st,!d.file?"Not uploaded":null)}</td><td style="min-width:140px">${d.file?fileLinks([d.file],false):""}${d.link?`<div style="font-size:13px"><a href="${esc(/^https:\/\//.test(d.link)?d.link:"#")}" target="_blank" rel="noopener" style="color:var(--accent)">${d.file?"Official source":"Get it from source"} ↗</a>${d.source?`<div class="muted">${esc(d.source)}</div>`:""}</div>`:d.file?"":"—"}</td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty"><strong>${S.docs.length?"No documents match":"No documents yet"}</strong>${S.docs.length?"Change the search or category.":"Add your quality manual, policies and procedures."}</div>`}</div>`
+}
+
+/* floor plan */
+function vFloor(){
+  return `<div class="section-head"><div><h2>Floor plan</h2><p>FC Training Academy – 285-291 Wanstead Park Road, MLP floor plan. Version 1, created 15 Jan 2025. Shows the training bays, fire alarms, emergency stop buttons, exit routes, first aid kit and fire extinguishers.</p></div><a class="btn" href="/private/floor-plan.pdf" target="_blank" rel="noopener">Open PDF ↗</a></div>
+  <div class="panel" style="padding:10px;margin-bottom:12px"><h3 style="margin:4px 6px 8px">Bays 1–8 and key</h3><img src="/private/fp-2.png" alt="Floor plan, bays 1 to 8: appliances in each bay, fire exits, fire alarms, emergency stop buttons, first aid kit and extinguishers, with key" style="display:block;width:100%;height:auto;background:#fff;border-radius:6px"></div>
+  <div class="panel" style="padding:10px"><h3 style="margin:4px 6px 8px">Bays 9–10, class area and kitchen</h3><img src="/private/fp-1.png" alt="Floor plan, bays 9 and 10, class area, kitchen, chimneys and flues, boilers, CO detectors and vents, fire exit" style="display:block;width:100%;height:auto;background:#fff;border-radius:6px"></div>`
 }
 
 /* ---------- forms ---------- */
