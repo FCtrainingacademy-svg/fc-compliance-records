@@ -323,6 +323,7 @@ function vLearner(l){
   <div class="panel"><dl class="kv">
     ${[["ULN",l.uln],["Status",l.status||"Active"],["Start",fmt(l.start)],["Planned end",fmt(l.plannedEnd)],["Next progress review",fmt(l.nextReview)],["EPA gateway",fmt(l.gateway)],["Employer",l.employer],["Employer contact",l.employerContact],["Tutor / assessor",l.tutorId?staffName(l.tutorId):""],["Workplace mentor",l.mentor],["Mentor interview",l.mentorInterview?fmt(l.mentorInterview):"Not recorded"],["Evidence pieces",evidenceCount(l)+(l.evidenceTarget?` of ${l.evidenceTarget}`:"")],["NI number",l.niNumber],["Email",l.email],["Phone",l.phone]].map(([k,v])=>`<div><dt>${k}</dt><dd class="${/Start|end|review|gateway|interview|pieces/i.test(k)?"mono":""}">${esc(v||"—")}</dd></div>`).join("")}
   </dl>${l.notes?`<p style="margin:12px 0 0;white-space:pre-wrap">${esc(l.notes)}</p>`:""}</div>
+  ${portalPanel(l)}
   ${ecFor(l).length?`<div class="panel"><h3>Ecordia feedback</h3><div class="files">${ecFor(l).map(x=>`<span class="file"><a href="/_blob/${esc(x.fileId)}" target="_blank" rel="noopener">${esc(x.title)}</a></span>`).join("")}</div></div>`:""}
   <div class="panel"><h3>Units &amp; portfolio evidence</h3>
   ${S.units.length?`<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Status</th><th>Signed off</th><th>Evidence</th></tr></thead><tbody>
@@ -876,6 +877,42 @@ document.addEventListener("click",async e=>{const t=e.target;if(!t.closest)retur
   const a=t.closest("[data-appr]");if(a){a.disabled=true;try{await api("POST","/api/changes/"+a.dataset.appr+"/approve",{});toast("Approved – records updated");APPR=null;ON.approvals=Math.max(0,ON.approvals-1);await loadData()}catch(err){toast(err.userMsg||"Couldn't approve.");APPR=null;render()}return}
   const r=t.closest("[data-rej]");if(r)return rejectBox(r.dataset.rej);
   const w=t.closest("[data-wd]");if(w){try{await api("POST","/api/changes/"+w.dataset.wd+"/withdraw");toast("Request withdrawn");APPR=null;ON.approvals=Math.max(0,ON.approvals-1);render()}catch(err){toast("Couldn't withdraw.")}return}
+},true);
+
+/* ---------- learner portal panel (on each learner's page) ---------- */
+const PORTAL={};
+function portalPanel(l){
+  if(typeof ON==="undefined"||!ON.me)return "";
+  const P=PORTAL[l.id];
+  if(P===undefined){PORTAL[l.id]=null;api("GET","/api/portal/"+encodeURIComponent(l.id)).then(r=>{PORTAL[l.id]=r;render()}).catch(()=>{PORTAL[l.id]={err:true};render()});}
+  if(!P)return `<div class="panel"><h3>Learner portal &amp; mock exams</h3><div class="muted">Loading…</div></div>`;
+  if(P.err)return `<div class="panel"><h3>Learner portal &amp; mock exams</h3><div class="muted">Couldn't load portal details.</div></div>`;
+  const mgr=ON.me.role==="manager",a=P.access;
+  const status=!a?"No portal access yet":!a.active?"Access turned off":a.has_password?`Active · username ${esc(a.email)}${a.last_login?` · last signed in ${fmt(String(a.last_login).slice(0,10))}`:""}`:`Invite sent to ${esc(a.email)}, password not set yet`;
+  const best={};P.attempts.forEach(x=>{if(best[x.mock]==null||x.pct>best[x.mock])best[x.mock]=x.pct});
+  const rows=P.attempts.map(x=>`<tr><td class="mono" style="white-space:nowrap">${fmt(String(x.finished_at).slice(0,10))}</td><td>Mock ${esc(x.mock)}</td><td class="mono">${x.score}/${x.total} · ${x.pct}%</td><td>${Object.entries(x.by_section||{}).filter(([k,b])=>b.r<b.t).map(([k,b])=>esc(P.sections[k])).slice(0,3).join(", ")||"—"}</td><td><button class="btn sm" data-prv="${x.id}">Review</button></td></tr>`).join("");
+  return `<div class="panel"><h3>Learner portal &amp; mock exams</h3>
+    <div class="bar" style="justify-content:space-between;margin-bottom:10px"><span class="muted" style="font-size:14px">${status}</span>
+    ${mgr&&(l.status||"Active")==="Active"?`<span class="bar">${a&&a.active?`<button class="btn sm danger" data-poff="${esc(l.id)}">Turn off access</button>`:""}<button class="btn sm primary" data-pinv="${esc(l.id)}">${a&&a.active?"New portal link":"Give portal access"}</button></span>`:""}</div>
+    <div id="pinv-${esc(l.id)}"></div>
+    ${P.attempts.length?`<div class="muted" style="font-size:14px;margin-bottom:6px">Best: ${Object.keys(best).sort().map(k=>`Mock ${esc(k)} <b class="mono">${best[k]}%</b>`).join(" · ")}</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Mock</th><th>Score</th><th>Sections to work on</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="muted" style="font-size:14px">No mock exams taken yet.</div>`}</div>`;
+}
+document.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;
+  if(t.dataset.pinv){const id=t.dataset.pinv;t.disabled=true;
+    try{const r=await api("POST","/api/portal/"+encodeURIComponent(id)+"/invite",{});PORTAL[id]=undefined;render();
+      const box=document.getElementById("pinv-"+id);if(box)box.innerHTML=`<div class="banner info" style="display:grid;gap:8px"><span>Send this link to the learner (WhatsApp or email). It works once and expires in 14 days. Their username is <b>${esc(r.email)}</b>.</span>
+        <input type="text" readonly value="${esc(r.url)}" id="pinv-url" style="border:1px solid var(--line);border-radius:6px;padding:7px 9px;background:var(--surface);color:var(--ink);width:100%">
+        <span><button class="btn sm primary" id="pinv-copy">Copy link</button></span></div>`;
+      const c=document.getElementById("pinv-copy");if(c)c.onclick=async()=>{const i=document.getElementById("pinv-url");try{await navigator.clipboard.writeText(i.value);toast("Link copied")}catch(x){i.select();toast("Press Ctrl+C / ⌘C to copy")}};
+    }catch(x){t.disabled=false;toast(x.userMsg||x.message||"Couldn't create the link.")}return}
+  if(t.dataset.poff){const id=t.dataset.poff;if(t.dataset.sure!=="1"){t.dataset.sure="1";t.textContent="Tap again to turn off";return}
+    try{await api("POST","/api/portal/"+encodeURIComponent(id)+"/disable",{});PORTAL[id]=undefined;render();toast("Portal access turned off")}catch(x){toast("Couldn't turn it off.")}return}
+  if(t.dataset.prv){try{const r=await api("GET","/api/portal-attempt/"+t.dataset.prv);const v=r.review;const root=document.getElementById("modal-root");
+    root.innerHTML=`<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true" style="max-width:720px"><header><h2>Mock ${esc(v.mock)} · ${v.score}/${v.total} (${v.pct}%)</h2><p>${fmt(String(v.finished_at).slice(0,10))}</p></header>
+      <div style="padding:8px 18px 18px;display:grid;gap:10px;max-height:70vh;overflow:auto">${v.items.map((q,i)=>`<div style="border-left:4px solid ${q.given===q.correct?"var(--green)":"var(--red)"};padding:4px 10px"><b>${i+1}. ${esc(q.q)}</b><div style="font-size:14px">${q.given===q.correct?"Correct: ":`Answered: ${q.given==null?"not answered":esc(q.opts[q.given])} · Correct: `}${esc(q.opts[q.correct])}</div></div>`).join("")}
+      <div class="actions"><button class="btn" data-pclose>Close</button></div></div></div></div>`;
+    root.querySelector("[data-scrim]").onclick=ev=>{if(ev.target.matches("[data-scrim]")||ev.target.closest("[data-pclose]"))root.innerHTML=""}}catch(x){toast("Couldn't open that attempt.")}}
 },true);
 
 /* ---------- Ecordia tab: review kit + learner feedback files ---------- */

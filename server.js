@@ -407,9 +407,13 @@ app.get('/cal/:token.ics', async (req, res) => {
   } catch (e) { console.warn('cal', e.message); res.status(500).send('Error'); }
 });
 
+// ---------- learner portal ----------
+const portal = require('./learner-portal')(app, { pool, express, bcrypt, jwt, auth, notPending, needRole, pwOk, throttled, attempts, log, getSecret: () => SECRET });
+app.get('/learn', (req, res, next) => { const u = req.originalUrl; if (u.split('?')[0] !== '/learn') return next(); res.redirect(301, '/learn/' + (u.includes('?') ? u.slice(u.indexOf('?')) : '')); });
+
 // ---------- static ----------
 app.get('/healthz', (req, res) => res.send('ok'));
 app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html', maxAge: '5m' }));
 app.use((req, res) => res.status(404).send('Not found'));
 
-migrate().then(() => app.listen(PORT, () => console.log('CLR listening on', PORT))).catch(e => { console.error(e); process.exit(1); });
+migrate().then(() => portal.migrate()).then(() => app.listen(PORT, () => console.log('CLR listening on', PORT))).catch(e => { console.error(e); process.exit(1); });

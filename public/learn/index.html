@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow"><title>FC Learner Portal</title><link rel="icon" href="/fc-logo.png">
+<style>
+/* Layout: exam desk. Header strip, mock picker as three paper-like cards; exam = one question card + numbered grid; results = score then section bars then review. */
+:root{
+  --bg:#EEF1F4; --paper:#FFFFFF; --sunk:#E3E8ED; --ink:#14212B; --muted:#5B6B78; --line:#D3DBE2;
+  --flue:#0E5A86; --flue-ink:#FFFFFF; --flame:#D98A12; --flame-soft:#FBEFD9;
+  --ok:#13704A; --ok-bg:#E2F3EA; --bad:#B42318; --bad-bg:#FCE9E7;
+  --f-display:"Archivo",system-ui,sans-serif; --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:10px; --wm:.05;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0D151C; --paper:#15212B; --sunk:#101A22; --ink:#E4EBF0; --muted:#94A4B1; --line:#253441;
+  --flue:#5BA8DA; --flue-ink:#08121A; --flame:#F2B04A; --flame-soft:#3A2B12;
+  --ok:#6FD3A0; --ok-bg:#12301F; --bad:#FF8E82; --bad-bg:#3A1A17; --wm:.06; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D151C; --paper:#15212B; --sunk:#101A22; --ink:#E4EBF0; --muted:#94A4B1; --line:#253441;
+  --flue:#5BA8DA; --flue-ink:#08121A; --flame:#F2B04A; --flame-soft:#3A2B12;
+  --ok:#6FD3A0; --ok-bg:#12301F; --bad:#FF8E82; --bad-bg:#3A1A17; --wm:.06; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink)}
+body{font:16px/1.55 var(--f-body);min-height:100%}
+h1,h2,h3{font-family:var(--f-display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+button{font:inherit;color:inherit}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.wm{position:fixed;inset:auto -60px -60px auto;width:420px;height:420px;opacity:var(--wm);pointer-events:none;z-index:0;background:url("/fc-logo.png") center/contain no-repeat}
+.wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding-inline:16px;padding-block:0 48px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);border-bottom:1px solid var(--line)}
+.bar{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.bar img{width:38px;height:38px;border-radius:50%;flex:none}
+.bar .t{flex:1;min-width:150px}
+.bar .t small{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.bar .t b{font-family:var(--f-display);font-size:18px}
+.timer{font-family:var(--f-mono);font-size:15px;background:var(--sunk);border-radius:6px;padding:4px 10px}
+.timer.low{background:var(--bad-bg);color:var(--bad)}
+.btn{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer;line-height:1.2}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--flue);border-color:var(--flue);color:var(--flue-ink)}
+.btn.ghost{background:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.opt:focus-within,.cell:focus-visible{outline:2px solid var(--flame);outline-offset:2px}
+.intro{padding-block:28px 8px;display:grid;gap:8px}
+.intro h1{font-size:clamp(28px,5vw,40px)}
+.intro p{margin:0;color:var(--muted);max-width:62ch}
+.mocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:18px}
+.mock{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.mock .k{font-family:var(--f-display);font-size:44px;line-height:1;color:var(--flue)}
+.mock .meta{font-size:14px;color:var(--muted)}
+.mock .best{font-size:14px}
+.how{margin-top:22px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.how h3{font-size:16px;margin-bottom:6px}
+.how ul{margin:0;padding-left:20px;color:var(--muted)}
+.pill{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 9px;background:var(--flame-soft);color:var(--flame)}
+.qcard{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-top:20px;display:grid;gap:14px}
+.qhead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.qnum{font-family:var(--f-mono);color:var(--muted);font-size:14px}
+.qtext{font-size:19px;font-weight:600;line-height:1.45;margin:0}
+.opts{display:grid;gap:8px}
+.opt{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer;background:var(--paper)}
+.opt:hover{border-color:var(--muted)}
+.opt input{margin-top:4px;accent-color:var(--flue);flex:none}
+.opt .l{font-family:var(--f-mono);color:var(--muted);flex:none}
+.opt.sel{border-color:var(--flue);background:var(--sunk)}
+.nav{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:6px;margin-top:14px}
+.cell{border:1px solid var(--line);background:var(--paper);border-radius:6px;padding:6px 0;text-align:center;font-family:var(--f-mono);font-size:13px;cursor:pointer}
+.cell.done{background:var(--flue);border-color:var(--flue);color:var(--flue-ink)}
+.cell.cur{outline:2px solid var(--flame);outline-offset:1px}
+.cell.flag{box-shadow:inset 0 -4px 0 var(--flame)}
+.legend{font-size:13px;color:var(--muted);margin-top:8px}
+.score{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:22px;margin-top:20px;display:grid;gap:6px}
+.score .big{font-family:var(--f-display);font-size:56px;line-height:1}
+.score p{margin:0;color:var(--muted)}
+.score .pill{justify-self:start}
+.secs{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-top:14px;display:grid;gap:10px}
+.sec{display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:4px 12px;align-items:center}
+.sec .n{font-size:15px}
+.sec .v{font-family:var(--f-mono);font-size:14px;text-align:right}
+.meter{grid-column:1/-1;height:8px;background:var(--sunk);border-radius:6px;overflow:hidden}
+.meter i{display:block;height:100%;border-radius:6px}
+.review{display:grid;gap:10px;margin-top:14px}
+.rv{background:var(--paper);border:1px solid var(--line);border-left:5px solid var(--ok);border-radius:8px;padding:14px 16px;display:grid;gap:6px}
+.rv.x{border-left-color:var(--bad)}
+.rv .q{font-weight:600;margin:0}
+.rv .a{font-size:15px;margin:0}
+.rv .a b.ok{color:var(--ok)} .rv .a b.bad{color:var(--bad)}
+.rv .e{font-size:15px;margin:0;color:var(--muted)}
+.rv .r{font-size:13px;margin:0;font-family:var(--f-mono);color:var(--flue)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;align-items:center}
+.chip{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:5px 12px;font-size:14px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.confirm{background:var(--flame-soft);border-radius:8px;padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.confirm p{margin:0;flex:1;min-width:200px}
+footer{margin-top:32px;font-size:13px;color:var(--muted);display:grid;gap:4px}
+@media (max-width:520px){.qtext{font-size:17px}.score .big{font-size:44px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<style>
+.auth{max-width:420px;margin:40px auto 0;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:24px;display:grid;gap:14px}
+.auth h1{font-size:26px}
+.auth p{margin:0;color:var(--muted)}
+.field{display:grid;gap:5px}
+.field label{font-weight:600;font-size:14px}
+.field input{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--paper);color:var(--ink);font:inherit;width:100%}
+.field input:focus-visible{outline:2px solid var(--flame);outline-offset:1px}
+.err{color:var(--bad);font-weight:600;font-size:14px;margin:0}
+.hist{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);margin-top:14px;overflow-x:auto}
+.hist table{border-collapse:collapse;width:100%;font-size:15px}
+.hist th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:10px 14px;border-bottom:1px solid var(--line)}
+.hist td{padding:10px 14px;border-bottom:1px solid var(--line)}
+.hist tr:last-child td{border-bottom:0}
+.linkbtn{background:none;border:0;color:var(--flue);font-weight:600;cursor:pointer;padding:0}
+.saving{font-size:13px;color:var(--muted)}
+</style>
+</head><body>
+<div class="wm" aria-hidden="true"></div>
+<header class="top"><div class="bar">
+  <img src="/fc-logo.png" alt="FC Training Academy">
+  <div class="t"><small>FC Training Academy</small><b id="htitle">Learner Portal</b></div>
+  <span class="timer" id="timer" hidden></span>
+  <span class="saving" id="saving" hidden></span>
+  <button class="btn ghost" id="home" hidden>My exams</button>
+  <button class="btn ghost" id="out" hidden>Sign out</button>
+</div></header>
+<main class="wrap" id="app"><div class="auth"><p>Loading…</p></div></main>
+
+<script>
+(() => {
+"use strict";
+const app = document.getElementById("app"), timerEl = document.getElementById("timer"), savingEl = document.getElementById("saving"),
+  homeBtn = document.getElementById("home"), outBtn = document.getElementById("out"), htitle = document.getElementById("htitle");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LETTERS = ["A","B","C","D"];
+const fmtDate = d => new Date(d).toLocaleString("en-GB",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+async function api(method, url, body){
+  const r = await fetch(url, { method, headers: body ? {"Content-Type":"application/json"} : {}, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin" });
+  let j = {}; try { j = await r.json(); } catch(e) {}
+  if (!r.ok) { const e = new Error(j.error || "Something went wrong. Try again."); e.status = r.status; throw e; }
+  return j;
+}
+let ME = null, X = null, tick = null, saveT = null;
+function chrome(signedIn, inExam){ outBtn.hidden = !signedIn; homeBtn.hidden = !inExam; timerEl.hidden = !inExam; if (!inExam){ clearInterval(tick); savingEl.hidden = true; } }
+const footer = `<footer><span>© FC Training Academy. Practice questions written by FC Training Academy for learner revision. They are not LCL Awards assessment papers.</span><span>Always check answers against the current edition of the standard and the manufacturer's instructions.</span></footer>`;
+
+/* ---------- sign in / invite ---------- */
+function showLogin(msg){
+  chrome(false,false); htitle.textContent = "Learner Portal";
+  app.innerHTML = `<form class="auth" id="login" novalidate><h1>Sign in</h1><p>Use the email address you gave FC Training Academy and the password you set.</p>
+    <div class="field"><label for="em">Email</label><input id="em" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required></div>
+    ${msg?`<p class="err" id="err">${esc(msg)}</p>`:`<p class="err" id="err" hidden></p>`}
+    <button class="btn primary" type="submit">Sign in</button>
+    <p style="font-size:14px">No password yet, or forgotten it? Ask FC Training Academy to send you a new portal link.</p></form>${footer}`;
+  document.getElementById("login").onsubmit = async e => { e.preventDefault(); const err = document.getElementById("err");
+    try { await api("POST","/api/learn/login",{ email: document.getElementById("em").value, password: document.getElementById("pw").value }); await boot(); }
+    catch(x){ err.hidden = false; err.textContent = x.message; } };
+}
+async function showInvite(token){
+  chrome(false,false);
+  let info; try { info = await api("GET","/api/learn/invite/"+encodeURIComponent(token)); } catch(x){ history.replaceState(null,"","/learn/"); return showLogin(x.message); }
+  app.innerHTML = `<form class="auth" id="inv" novalidate><h1>Welcome${info.name?", "+esc(info.name.split(" ")[0]):""}</h1>
+    <p>Set a password for the FC Training Academy learner portal. Your username is <b>${esc(info.email)}</b>.</p>
+    <div class="field"><label for="p1">New password</label><input id="p1" type="password" autocomplete="new-password" required><span style="font-size:13px;color:var(--muted)">At least 10 characters, with letters and numbers.</span></div>
+    <div class="field"><label for="p2">Type it again</label><input id="p2" type="password" autocomplete="new-password" required></div>
+    <p class="err" id="err" hidden></p><button class="btn primary" type="submit">Set password and sign in</button></form>${footer}`;
+  document.getElementById("inv").onsubmit = async e => { e.preventDefault(); const err = document.getElementById("err"); const a = document.getElementById("p1").value, b = document.getElementById("p2").value;
+    if (a !== b){ err.hidden = false; err.textContent = "The two passwords don't match."; return; }
+    try { await api("POST","/api/learn/invite/"+encodeURIComponent(token),{ password: a }); history.replaceState(null,"","/learn/"); await boot(); }
+    catch(x){ err.hidden = false; err.textContent = x.message; } };
+}
+
+/* ---------- home ---------- */
+async function home(){
+  try { ME = await api("GET","/api/learn/me"); } catch(x){ return showLogin(); }
+  chrome(true,false); htitle.textContent = "Learner Portal"; X = null;
+  const best = {}; ME.attempts.forEach(a => { if (best[a.mock]==null || a.pct > best[a.mock]) best[a.mock] = a.pct; });
+  const cards = ME.mocks.map(m => `<div class="mock"><div class="k">${esc(m.id)}</div><h2 style="font-size:20px">Mock exam ${esc(m.id)}</h2>
+    <div class="meta">${m.count} questions · ${m.minutes} minutes · all CCN1 sections</div>
+    <div class="best">${best[m.id]!=null?`Your best: <b class="mono">${best[m.id]}%</b>`:`<span style="color:var(--muted)">Not attempted yet</span>`}</div>
+    ${ME.open && ME.open.mock===m.id?`<button class="btn primary" data-resume="${ME.open.id}">Continue mock ${esc(m.id)}</button>`:`<button class="btn primary" data-start="${esc(m.id)}">Start mock ${esc(m.id)}</button>`}</div>`).join("");
+  const hist = ME.attempts.length ? `<div class="hist"><table><thead><tr><th>Date</th><th>Mock</th><th>Score</th><th></th></tr></thead><tbody>${ME.attempts.map(a => `<tr><td>${fmtDate(a.finished_at)}</td><td>${esc(a.mock)}</td><td class="mono">${a.score}/${a.total} · ${a.pct}%</td><td><button class="linkbtn" data-view="${a.id}">Review</button></td></tr>`).join("")}</tbody></table></div>`
+    : `<p style="color:var(--muted);margin-top:10px">Your results will appear here after your first mock.</p>`;
+  app.innerHTML = `<section class="intro"><span class="pill">${esc(ME.learner.cohort || "FC Training Academy")}</span>
+    <h1>Hello ${esc(ME.learner.name.split(" ")[0])}</h1>
+    <p>Practise for your CCN1 / ACS assessment. Each mock covers every section of the CCN1 Practical Performance Criteria. Your tutor can see your scores so they can help with the areas you find hardest.</p></section>
+    <div class="mocks">${cards}</div>
+    <h2 style="font-size:20px;margin-top:28px">Your results</h2>${hist}
+    <div class="how"><h3>How it works</h3><ul>
+      <li>One answer per question. Your answers save as you go, so you can close the page and come back before the time runs out.</li>
+      <li>You have ${ME.mocks[0]?ME.mocks[0].minutes:45} minutes. When the time is up, the exam is marked with the answers you saved.</li>
+      <li>After marking you see the correct answers, why, and the standard to read.</li>
+      <li>Questions and answers are shuffled each attempt.</li></ul>
+      <p style="margin:10px 0 0"><button class="linkbtn" id="chpw">Change my password</button></p></div>${footer}`;
+}
+
+/* ---------- exam ---------- */
+function loadExam(a){
+  X = { id: a.id, mock: a.mock, due: new Date(a.due).getTime(), qs: a.questions, ans: a.answers.slice(), flag: Array(a.questions.length).fill(false), i: 0, confirm: false };
+  chrome(true,true); htitle.textContent = "Mock exam " + a.mock; clearInterval(tick); tick = setInterval(updTimer, 1000); updTimer(); renderQ(); window.scrollTo(0,0);
+}
+function updTimer(){
+  if (!X) return; const left = Math.max(0, X.due - 60000 - Date.now()); const m = Math.floor(left/60000), s = Math.floor(left%60000/1000);
+  timerEl.textContent = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")} left`; timerEl.classList.toggle("low", left < 5*60000);
+  if (left <= 0) finish("time");
+}
+function queueSave(){ clearTimeout(saveT); savingEl.hidden = false; savingEl.textContent = "Saving…";
+  saveT = setTimeout(async () => { try { await api("PUT",`/api/learn/attempt/${X.id}/answers`,{ answers: X.ans }); savingEl.textContent = "Saved"; } catch(x){ savingEl.textContent = x.status===401 ? "Signed out" : "Not saved – check connection"; } }, 400); }
+function renderQ(){
+  const q = X.qs[X.i], n = X.qs.length, answered = X.ans.filter(a => a!=null).length;
+  app.innerHTML = `<div class="qcard"><div class="qhead"><span class="qnum">Question ${X.i+1} of ${n}</span><span class="pill">${esc(q.sec)}</span></div>
+    <p class="qtext" id="qtext">${esc(q.q)}</p>
+    <div class="opts" role="radiogroup" aria-labelledby="qtext">${q.opts.map((o,j) => `<label class="opt${X.ans[X.i]===j?" sel":""}"><input type="radio" name="opt" id="opt-${j}" value="${j}" ${X.ans[X.i]===j?"checked":""}><span class="l">${LETTERS[j]}</span><span>${esc(o)}</span></label>`).join("")}</div>
+    <div class="nav"><button class="btn" id="prev" ${X.i===0?"disabled":""}>Previous</button>
+      <button class="btn ghost" id="flag">${X.flag[X.i]?"Unflag":"Flag for review"}</button>
+      ${X.i<n-1?`<button class="btn primary" id="next">Next</button>`:`<button class="btn primary" id="sub">Finish and mark</button>`}</div>
+    ${X.confirm?`<div class="confirm"><p>${n-answered} question${n-answered===1?"":"s"} unanswered. Mark the exam anyway?</p><button class="btn primary" id="sure">Mark now</button><button class="btn" id="back">Keep going</button></div>`:""}
+  </div>
+  <div class="grid" aria-label="Question navigator">${X.qs.map((_,j)=>`<button class="cell${X.ans[j]!=null?" done":""}${j===X.i?" cur":""}${X.flag[j]?" flag":""}" data-go="${j}" aria-label="Question ${j+1}">${j+1}</button>`).join("")}</div>
+  <p class="legend">${answered} of ${n} answered · filled = answered · orange underline = flagged</p>
+  <div class="nav" style="margin-top:10px"><span></span><button class="btn" id="sub2">Finish and mark</button></div>`;
+}
+async function finish(force){
+  if (!X || X.finishing) return; const n = X.qs.length, answered = X.ans.filter(a => a!=null).length;
+  if (!force && answered < n && !X.confirm){ X.confirm = true; renderQ(); return; }
+  X.finishing = true; clearInterval(tick); clearTimeout(saveT);
+  try { const r = await api("POST",`/api/learn/attempt/${X.id}/finish`,{ answers: X.ans }); showReview(r.review, force==="time"); }
+  catch(x){ X.finishing = false; app.insertAdjacentHTML("afterbegin",`<p class="err" style="margin-top:16px">${esc(x.message)}</p>`); }
+}
+function showReview(rv, timedOut, filter){
+  chrome(true,false); homeBtn.hidden = false; htitle.textContent = "Mock exam " + rv.mock; X = { review: rv, filter: filter || "wrong", timedOut };
+  const n = rv.total, secs = Object.keys(rv.sections).filter(k => rv.by_section && rv.by_section[k]).map(k => { const b = rv.by_section[k], p = Math.round(b.r/b.t*100);
+    return `<div class="sec"><span class="n">${esc(rv.sections[k])}</span><span class="v">${b.r}/${b.t}</span><span class="meter"><i style="width:${Math.max(p,3)}%;background:${p===100?"var(--ok)":p>=60?"var(--flame)":"var(--bad)"}"></i></span></div>`; }).join("");
+  const list = rv.items.map((q,i) => ({q,i,ok:q.given===q.correct})).filter(x => X.filter==="all" || !x.ok);
+  app.innerHTML = `<div class="score"><span class="pill">Mock exam ${esc(rv.mock)} result${timedOut?" · time ran out":""}</span>
+    <div class="big mono">${rv.pct}%</div><p>${rv.score} of ${n} correct. ${rv.pct===100?"Every answer right. Try another mock.":"Go through every wrong answer below and read the standard listed before trying again."}</p></div>
+    <div class="secs"><h3 style="font-size:16px">Score by section</h3>${secs}</div>
+    <div class="filters"><button class="chip" aria-pressed="${X.filter==="wrong"}" data-f="wrong">Wrong answers (${n-rv.score})</button><button class="chip" aria-pressed="${X.filter==="all"}" data-f="all">All questions</button>
+      <span style="flex:1"></span><button class="btn" data-start="${esc(rv.mock)}">Retake mock ${esc(rv.mock)}</button><button class="btn primary" id="tohome">My exams</button></div>
+    <div class="review">${list.map(({q,i,ok}) => `<div class="rv${ok?"":" x"}"><p class="q"><span class="mono" style="color:var(--muted)">${i+1}.</span> ${esc(q.q)}</p>
+      <p class="a">${ok?`<b class="ok">Correct:</b> ${esc(q.opts[q.correct])}`:`<b class="bad">Your answer:</b> ${q.given==null?"not answered":esc(q.opts[q.given])}<br><b class="ok">Correct answer:</b> ${esc(q.opts[q.correct])}`}</p>
+      <p class="e">${esc(q.e)}</p><p class="r">Read: ${esc(q.r)}</p></div>`).join("") || `<div class="rv"><p class="q">No wrong answers.</p></div>`}</div>${footer}`;
+  window.scrollTo(0,0);
+}
+function changePw(){
+  app.insertAdjacentHTML("afterbegin", `<form class="auth" id="cp" novalidate style="margin-top:20px"><h1 style="font-size:20px">Change password</h1>
+    <div class="field"><label for="c0">Current password</label><input id="c0" type="password" autocomplete="current-password"></div>
+    <div class="field"><label for="c1">New password</label><input id="c1" type="password" autocomplete="new-password"></div>
+    <p class="err" id="cerr" hidden></p><div class="nav"><button class="btn" type="button" id="cpx">Cancel</button><button class="btn primary" type="submit">Save password</button></div></form>`);
+  window.scrollTo(0,0);
+  document.getElementById("cpx").onclick = () => document.getElementById("cp").remove();
+  document.getElementById("cp").onsubmit = async e => { e.preventDefault(); const err = document.getElementById("cerr");
+    try { await api("POST","/api/learn/password",{ current: document.getElementById("c0").value, password: document.getElementById("c1").value }); document.getElementById("cp").innerHTML = `<p>Password changed.</p>`; }
+    catch(x){ err.hidden = false; err.textContent = x.message; } };
+}
+
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t) return;
+  try {
+    if (t.id==="out"){ await api("POST","/api/learn/logout"); return showLogin(); }
+    if (t.id==="home" || t.id==="tohome"){ return home(); }
+    if (t.id==="chpw") return changePw();
+    if (t.dataset.start){ t.disabled = true; return loadExam(await api("POST","/api/learn/start/"+encodeURIComponent(t.dataset.start))); }
+    if (t.dataset.resume){ return loadExam(await api("GET","/api/learn/attempt/"+t.dataset.resume)); }
+    if (t.dataset.view){ const a = await api("GET","/api/learn/attempt/"+t.dataset.view); return showReview(a.review, false); }
+    if (X && X.review && t.dataset.f) return showReview(X.review, X.timedOut, t.dataset.f);
+    if (!X || !X.qs) return;
+    if (t.id==="prev"){ X.i--; X.confirm=false; return renderQ(); }
+    if (t.id==="next"){ X.i++; X.confirm=false; return renderQ(); }
+    if (t.id==="flag"){ X.flag[X.i] = !X.flag[X.i]; return renderQ(); }
+    if (t.dataset.go!=null){ X.i = +t.dataset.go; X.confirm=false; return renderQ(); }
+    if (t.id==="sub" || t.id==="sub2") return finish(false);
+    if (t.id==="sure") return finish(true);
+    if (t.id==="back"){ X.confirm=false; return renderQ(); }
+  } catch(x){ if (x.status===401) return showLogin("Please sign in again."); t.disabled = false; alertBox(x.message); }
+});
+function alertBox(m){ app.insertAdjacentHTML("afterbegin", `<p class="err" style="margin-top:16px">${esc(m)}</p>`); }
+document.addEventListener("change", e => { if (e.target.name==="opt" && X && X.qs){ X.ans[X.i] = +e.target.value; renderQ(); queueSave(); const f = document.getElementById("opt-"+e.target.value); if (f) f.focus(); } });
+
+async function boot(){
+  const inv = new URLSearchParams(location.search).get("invite");
+  if (inv) return showInvite(inv);
+  return home();
+}
+boot();
+})();
+</script>
+
+</body></html>
