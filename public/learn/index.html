@@ -44,7 +44,9 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .intro h1{font-size:clamp(28px,5vw,40px)}
 .intro p{margin:0;color:var(--muted);max-width:62ch}
 .mocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:18px}
-.rbtn{display:inline-block;align-self:flex-start;margin-top:10px;padding:9px 16px;border-radius:8px;border:2px solid var(--flue);background:var(--flue-soft);color:var(--flue);font-weight:700;line-height:1.2;transition:background .15s,color .15s}
+.mock > .btn.primary{margin-top:auto;background:var(--flue-soft);color:var(--flue);border:2px solid var(--flue);font-weight:700;transition:background .15s,color .15s}
+.mock > .btn.primary:hover,.mock > .btn.primary:focus-visible{background:var(--flue);color:var(--flue-ink)}
+.rbtn{display:inline-block;align-self:flex-start;margin-top:auto;padding:9px 16px;border-radius:8px;border:2px solid var(--flue);background:var(--flue-soft);color:var(--flue);font-weight:700;line-height:1.2;transition:background .15s,color .15s}
 .res:hover .rbtn,.res:focus-visible .rbtn{background:var(--flue);color:var(--flue-ink)}
 .res:hover{border-color:var(--flue)}
 .res:focus-visible{outline:2px solid var(--flame);outline-offset:2px}
