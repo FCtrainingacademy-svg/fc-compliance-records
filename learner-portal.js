@@ -41,8 +41,8 @@ module.exports = function learnerPortal(app, d) {
     const r = await pool.query(`SELECT data FROM docs WHERE col='learners' AND id=$1`, [id]); return r.rows[0] ? r.rows[0].data : null;
   }
   // Staff can preview the portal with their own staff sign-in (X-Preview header). Preview attempts are kept apart from real learners.
-  async function staffPreview(req) {
-    if (req.get('x-preview') !== '1' || !req.cookies.clr_session) return null;
+  async function staffPreview(req, force) {
+    if ((!force && req.get('x-preview') !== '1') || !req.cookies.clr_session) return null;
     try {
       const p = jwt.verify(req.cookies.clr_session, getSecret()); if (!p.uid) return null;
       const r = await pool.query(`SELECT id, name, email, role, active, token_version, must_change FROM users WHERE id=$1`, [p.uid]); const u = r.rows[0];
@@ -137,7 +137,12 @@ module.exports = function learnerPortal(app, d) {
   });
   // Files attached to learner resources. Only files listed in the resources config can be opened.
   function resFile(x) { const f = x && x.file; return f && /^[0-9a-f]{32}$/.test(String(f.id || '')) ? f : null; }
-  app.get('/api/learn/file/:id', lauth, async (req, res) => {
+  // Resource files open in a new tab, which can't send the X-Preview header, so staff signed in to the LMS can open them directly.
+  const fileAuth = async (req, res, next) => { const pv = await staffPreview(req, true); if (pv) { req.learner = pv; return next(); }
+    // Opened as a page (not by script) and not signed in: send them to the portal sign-in instead of showing an error.
+    if (req.accepts(['html', 'json']) === 'html') { const j = res.json.bind(res); res.json = b => (res.statusCode === 401 ? (res.status(302), res.redirect('/learn/')) : j(b)); }
+    return lauth(req, res, next); };
+  app.get('/api/learn/file/:id', fileAuth, async (req, res) => {
     const id = String(req.params.id || ''); if (!/^[0-9a-f]{32}$/.test(id)) return res.status(404).send('Not found');
     const c = await pool.query(`SELECT data FROM docs WHERE col='config' AND id='learner-resources'`);
     const listed = ((c.rows[0] && c.rows[0].data.items) || []).some(x => { const f = resFile(x); return f && f.id === id; });
