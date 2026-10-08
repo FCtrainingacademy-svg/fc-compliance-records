@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tightness &amp; Purge Calculator | FC Training Academy</title>
+<meta name="description" content="Free IGEM/UP/1B Edition 4 tightness test and purge calculator for domestic gas engineers and learners. Installation volume, permissible pressure drop and purge volume in four steps.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* ---- Brand: change these two lines to match the FC Training Academy site ---- */
+:root{ --brand:#0E5A86; --brand-2:#D9951A; }
+
+:root{
+  --bg:#f2f5f8; --surface:#ffffff; --sunk:#e8edf2; --ink:#16202b; --soft:#56616f; --line:#d3dbe4;
+  --brand-soft:#e1ecf5;
+  --ok:#17784a; --ok-bg:#e2f3ea; --bad:#b3261e; --bad-bg:#fbe8e6; --warn:#8a5a00; --warn-bg:#fcf0d6;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--brand:#5BA8DA;--brand-2:#F0B44A;--bg:#0E151B;--surface:#16212A;--sunk:#111A21;--ink:#E5ECF1;--soft:#93A3B0;--line:#26343F;--brand-soft:#12293A;--ok:#6FD3A0;--ok-bg:#12301F;--bad:#FF8A7E;--bad-bg:#3A1A18;--warn:#F3BC5C;--warn-bg:#3A2A10;color-scheme:dark}}
+:root[data-theme="dark"]{--brand:#5BA8DA;--brand-2:#F0B44A;--bg:#0E151B;--surface:#16212A;--sunk:#111A21;--ink:#E5ECF1;--soft:#93A3B0;--line:#26343F;--brand-soft:#12293A;--ok:#6FD3A0;--ok-bg:#12301F;--bad:#FF8A7E;--bad-bg:#3A1A18;--warn:#F3BC5C;--warn-bg:#3A2A10;color-scheme:dark}
+input,select,.seg label,.iconbtn,.btn{background:var(--surface)}
+.btn.primary{background:var(--brand);color:#fff}.btn.accent{background:var(--brand-2);color:#fff}.btn.link{background:none}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:'Source Sans 3',system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.5;
+  padding:0 16px calc(48px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:860px;margin:0 auto}
+header.tool{padding-block:28px 18px}
+.kicker{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin:0 0 6px}
+h1{font-family:'Barlow Semi Condensed',system-ui,sans-serif;font-weight:700;font-size:clamp(28px,5vw,38px);line-height:1.1;margin:0 0 8px;text-wrap:balance}
+.lede{color:var(--soft);margin:0;max-width:62ch}
+/* steps */
+ol.steps{list-style:none;margin:22px 0 18px;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;counter-reset:s}
+ol.steps li button{width:100%;text-align:left;border:none;background:var(--surface);border-top:4px solid var(--line);padding:10px 10px 12px;cursor:pointer;font:inherit;color:var(--soft);border-radius:0 0 8px 8px}
+ol.steps li button b{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+ol.steps li button span{font-weight:600;font-size:15px;color:var(--ink)}
+ol.steps li button[aria-current="step"]{border-top-color:var(--brand);color:var(--brand)}
+ol.steps li button.done{border-top-color:var(--ok)}
+@media(max-width:560px){ol.steps li button span{font-size:13px}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px}
+.card h2{font-family:'Barlow Semi Condensed',sans-serif;font-size:21px;margin:0 0 4px}
+.card .hint{color:var(--soft);font-size:14.5px;margin:0 0 14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:600px){.grid2,.grid3{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label,.legend{font-size:13.5px;font-weight:600;color:var(--soft)}
+input,select{font:16px 'Source Sans 3',sans-serif;padding:10px 11px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);width:100%;min-width:0}
+input.num{font-family:var(--mono)}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 45%,transparent);outline-offset:1px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg label{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer;font-weight:600;font-size:15px;color:var(--ink);background:#fff}
+.seg input{width:auto;accent-color:var(--brand)}
+.seg label:has(input:checked){border-color:var(--brand);background:var(--brand-soft)}
+/* pipe table */
+.pipes{display:flex;flex-direction:column;gap:8px}
+.pipe{display:grid;grid-template-columns:1.6fr 1fr .9fr auto;gap:8px;align-items:end}
+.pipe .vol{font-family:var(--mono);font-size:13.5px;color:var(--soft);padding-bottom:11px;white-space:nowrap}
+.pipe .custom{grid-column:1/-1}
+@media(max-width:600px){.pipe{grid-template-columns:1fr 1fr;} .pipe .vol{grid-column:1/2}}
+.iconbtn{border:1px solid var(--line);background:#fff;border-radius:8px;width:42px;height:42px;cursor:pointer;font-size:20px;color:var(--soft)}
+.btn{font:700 15px 'Source Sans 3',sans-serif;border-radius:9px;padding:11px 18px;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.accent{background:var(--brand-2);border-color:var(--brand-2);color:#fff}
+.btn.link{border:none;background:none;color:var(--brand);padding:6px 0}
+.nav{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:6px}
+/* summary strip */
+.totals{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+@media(max-width:600px){.totals{grid-template-columns:1fr 1fr}}
+.tot{background:var(--sunk);border-radius:8px;padding:10px}
+.tot small{display:block;font-size:12px;color:var(--soft);font-weight:600}
+.tot b{font-family:var(--mono);font-size:17px;font-variant-numeric:tabular-nums}
+.tot.key{background:var(--brand-soft)}
+.tot.key b{color:var(--brand)}
+.banner{border-radius:10px;padding:12px 14px;font-weight:600;margin-top:12px;display:flex;gap:10px;align-items:flex-start}
+.banner.ok{background:var(--ok-bg);color:var(--ok)}
+.banner.bad{background:var(--bad-bg);color:var(--bad)}
+.banner.warn{background:var(--warn-bg);color:var(--warn)}
+.banner.info{background:var(--brand-soft);color:var(--brand)}
+.banner p{margin:0;font-weight:400;color:var(--ink);font-size:14.5px}
+.banner strong{display:block}
+ol.proc{margin:0;padding-left:20px}
+ol.proc li{margin-bottom:6px}
+ol.proc li b{font-family:var(--mono);font-size:14px}
+table.lim{width:100%;border-collapse:collapse;font-size:14.5px}
+table.lim td,table.lim th{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}
+table.lim th{font-size:12.5px;color:var(--soft);text-transform:uppercase;letter-spacing:.04em}
+table.lim tr.hit td{background:var(--brand-soft);font-weight:700}
+table.lim td:last-child{font-family:var(--mono)}
+.review dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0}
+.review dt{color:var(--soft);font-size:14px}
+.review dd{margin:0;font-weight:600;font-family:var(--mono);font-size:14.5px}
+.review .verdict{font-family:'Barlow Semi Condensed',sans-serif;font-size:28px;margin:6px 0 2px}
+.review .verdict.ok{color:var(--ok)} .review .verdict.bad{color:var(--bad)} .review .verdict.warn{color:var(--warn)}
+.foot{font-size:13px;color:var(--soft);margin-top:18px}
+.foot a{color:var(--brand)}
+.saved{font-size:12.5px;color:var(--soft)}
+.print-only{display:none}
+.layout-toggle{display:flex;flex-direction:column;gap:6px;margin:4px 0 18px}
+.confirm{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:14.5px;background:var(--sunk);border-radius:8px;padding:10px 12px;cursor:pointer}
+.confirm input,.checks input{width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:var(--brand)}
+.checks{display:flex;flex-direction:column;gap:8px}
+.checks label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.timer{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.tstages{display:flex;gap:6px;flex-wrap:wrap}
+.tstages span{font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--sunk);color:var(--soft)}
+.tstages span.on{background:var(--brand);color:#fff}
+.tstages span.fin{background:var(--ok-bg);color:var(--ok)}
+.tclock{font-family:var(--mono);font-size:44px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+.tclock.done{color:var(--ok)}
+.tbtns{display:flex;gap:8px;flex-wrap:wrap}
+body.full ol.steps{display:none}
+body.full .step{display:block!important}
+body.full .step .nav{display:none}
+body.full #step4 .nav{display:flex}
+body.full .step+ .step{margin-top:26px}
+body.full .step::before{display:block;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin:0 0 8px}
+body.full #step1::before{content:"01 · Job and installation"}
+body.full #step2::before{content:"02 · Test setup"}
+body.full #step3::before{content:"03 · Readings and checks"}
+body.full #step4::before{content:"04 · Result"}
+[hidden]{display:none!important}
+@media print{
+  body{background:#fff;padding:0}
+  ol.steps,.nav,.noprint,.iconbtn,.btn{display:none!important}
+  .step[hidden]{display:none!important}
+  #step4{display:block!important}
+  .card{border:1px solid #bbb;break-inside:avoid}
+  .print-only{display:block}
+}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
+
+/* FC watermark + legal */
+body{position:relative}
+body::before{content:"";position:fixed;inset:0;background-image:url(data:image/png;base64,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);background-size:170px 170px;background-repeat:space;opacity:.07;pointer-events:none;z-index:0}
+body>*{position:relative;z-index:1}
+.fc-legal{width:100%;max-width:860px;margin:28px auto 0;border-top:1px solid rgba(120,130,140,.35);padding-top:14px;font-size:12.5px;line-height:1.55;color:inherit;opacity:.75;display:flex;flex-direction:column;gap:6px}
+.fc-legal p{margin:0}
+@media print{body::before{position:absolute;opacity:.08;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="tool">
+    <p class="kicker">FC Training Academy · Free engineer tool</p>
+    <h1>Tightness &amp; Purge Calculator</h1>
+    <p class="lede">Work out installation volume, the permissible pressure drop and your purge volume for a domestic tightness test to IGEM/UP/1B Edition 4, then save the result as a PDF.</p>
+  </header>
+
+  <div class="layout-toggle noprint" role="radiogroup" aria-label="Layout">
+    <span class="legend">Layout</span>
+    <div class="seg">
+      <label><input type="radio" name="layout" value="guided" checked> Guided, step by step</label>
+      <label><input type="radio" name="layout" value="full"> Full form, everything on one page</label>
+    </div>
+  </div>
+
+  <ol class="steps" aria-label="Steps">
+    <li><button type="button" data-go="1" aria-current="step"><b>Step 1</b><span>Installation</span></button></li>
+    <li><button type="button" data-go="2"><b>Step 2</b><span>Test setup</span></button></li>
+    <li><button type="button" data-go="3"><b>Step 3</b><span>Readings</span></button></li>
+    <li><button type="button" data-go="4"><b>Step 4</b><span>Review</span></button></li>
+  </ol>
+
+  <!-- STEP 1 -->
+  <section class="step" id="step1">
+    <div class="card">
+      <h2>Job and test context</h2>
+      <div class="grid3">
+        <div class="field"><label for="jEng">Engineer / learner</label><input id="jEng"></div>
+        <div class="field"><label for="jRef">Job reference</label><input id="jRef" placeholder="e.g. FC-0142"></div>
+        <div class="field"><label for="jDate">Date</label><input id="jDate" type="date"></div>
+      </div>
+      <div class="grid2" style="margin-top:12px">
+        <div class="field"><label for="jAddr">Site address</label><input id="jAddr" placeholder="e.g. 12 High Street, Ilford"></div>
+        <div class="field"><label for="jId">Gas Safe / learner ID (optional)</label><input id="jId"></div>
+      </div>
+      <div class="grid2" style="margin-top:12px">
+        <div class="field"><span class="legend">Premises</span>
+          <div class="seg"><label><input type="radio" name="premises" value="domestic" checked> Domestic dwelling</label><label><input type="radio" name="premises" value="other"> Other premises</label></div></div>
+        <div class="field"><span class="legend">Reason for test</span>
+          <div class="seg"><label><input type="radio" name="reason" value="routine" checked> Routine work</label><label><input type="radio" name="reason" value="escape"> Known or suspected escape</label></div></div>
+      </div>
+      <label class="confirm"><input type="checkbox" id="scopeOk"> I confirm the installation is within IGEM/UP/1B Edition 4 scope: installation volume up to 0.035 m³, pipework up to 35 mm (R1¼), meter up to 16 m³/h, and MOP up to 2 bar (natural gas 21 mbar / LPG 37 mbar nominal).</label>
+    </div>
+
+    <div class="card">
+      <h2>Gas and meter</h2>
+      <p class="hint">Choose the fuel gas and the meter included in the test. Choose "No meter" when testing from an AECV.</p>
+      <div class="field" style="margin-bottom:12px"><span class="legend">Fuel gas</span>
+        <div class="seg" role="radiogroup">
+          <label><input type="radio" name="gas" value="ng" checked> Natural gas</label>
+          <label><input type="radio" name="gas" value="lpg"> LPG</label>
+          <label><input type="radio" name="gas" value="lpgair"> LPG/Air</label>
+        </div></div>
+      <div class="grid2">
+        <div class="field"><label for="meter">Meter</label>
+          <select id="meter">
+            <option value="8">G4 / U6 diaphragm (8 L)</option>
+            <option value="2.4">E6 ultrasonic smart meter (2.4 L)</option>
+            <option value="25">G10 / U16 diaphragm (25 L)</option>
+            <option value="0">No meter / testing from AECV (0 L)</option>
+            <option value="custom">Other meter (enter volume)</option>
+          </select></div>
+        <div class="field" id="meterCustomWrap" hidden><label for="meterCustom">Meter internal volume (litres)</label>
+          <input id="meterCustom" class="num" inputmode="decimal" placeholder="e.g. 8"></div>
+        <div class="field"><label for="register">Meter register</label>
+          <select id="register"><option value="metric">Metric (m³)</option><option value="imperial">Imperial (ft³)</option></select></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Pipework</h2>
+      <p class="hint">Add each run by material, size and measured length. For hidden runs, use the largest size fitted and round the length up.</p>
+      <div class="pipes" id="pipes"></div>
+      <button type="button" class="btn link" id="addPipe">+ Add another pipe run</button>
+
+      <div class="field" style="margin-top:12px"><span class="legend">Valves and fittings</span>
+        <div class="seg">
+          <label><input type="radio" name="fit" value="auto" checked> Add 10% of pipework volume</label>
+          <label><input type="radio" name="fit" value="known"> I know the volume</label>
+        </div></div>
+      <div class="field" id="fitKnownWrap" hidden style="margin-top:8px;max-width:280px"><label for="fitKnown">Valves and fittings volume (litres)</label>
+        <input id="fitKnown" class="num" inputmode="decimal" placeholder="e.g. 0.3"></div>
+      <p class="hint" style="margin-top:8px">Use the actual valves and fittings volume where you can work it out; the 10% allowance is the fallback.</p>
+
+      <div class="totals" aria-live="polite">
+        <div class="tot"><small>Pipework</small><b id="tPipe">0.00 L</b></div>
+        <div class="tot"><small>Fittings</small><b id="tFit">0.00 L</b></div>
+        <div class="tot"><small>Meter</small><b id="tMeter">0.00 L</b></div>
+        <div class="tot key"><small>Installation volume</small><b id="tIV">0.000 m³</b></div>
+      </div>
+      <div id="scopeMsg"></div>
+    </div>
+    <div class="nav"><span class="saved" id="savedNote"></span><button type="button" class="btn primary" data-go="2">Next: test setup</button></div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="step" id="step2" hidden>
+    <div class="card">
+      <h2>What are you testing?</h2>
+      <div class="seg" style="flex-direction:column;align-items:stretch">
+        <label><input type="radio" name="ttype" value="existing" checked> Existing installation, appliances connected (cannot be isolated)</label>
+        <label><input type="radio" name="ttype" value="isolated"> Existing installation, appliances isolated</label>
+        <label><input type="radio" name="ttype" value="new"> New installation</label>
+        <label><input type="radio" name="ttype" value="newpipe"> New pipework, existing appliances can be isolated</label>
+        <label><input type="radio" name="ttype" value="pipework"> Pipework / meter only</label>
+      </div>
+      <div class="grid2" style="margin-top:14px">
+        <div class="field"><label for="gauge">Pressure gauge</label>
+          <select id="gauge">
+            <option value="0.25">Fluid (water) gauge</option>
+            <option value="0.25">Electronic gauge</option>
+            <option value="0.2">High-resolution electronic (1 decimal place)</option>
+          </select></div>
+        <div class="field"><label for="tp">Test pressure (mbar)</label>
+          <input id="tp" class="num" inputmode="decimal"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Your limit for this test</h2>
+      <div id="limitBox"></div>
+      <table class="lim" id="limTable" style="margin-top:10px"></table>
+    </div>
+
+    <div class="card">
+      <h2>Test procedure</h2>
+      <ol class="proc">
+        <li>Turn off all appliances and the ECV. Connect the gauge at the meter test point.</li>
+        <li><b>Let-by test:</b> raise the pressure to <b>7–10 mbar</b>, close the ECV and watch for <b>1 minute</b>. Any rise means the ECV is letting by.</li>
+        <li>Raise the pressure to the test pressure. Allow <b>1 minute</b> for temperature to stabilise.</li>
+        <li><b>Tightness test:</b> record the pressure, then watch for <b>2 minutes</b> and record the final pressure.</li>
+        <li>Ask whether anyone can smell gas. Any smell of gas must be traced and repaired, whatever the gauge shows.</li>
+      </ol>
+    </div>
+    <div class="nav"><button type="button" class="btn" data-go="1">Back</button><button type="button" class="btn primary" data-go="3">Next: readings</button></div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="step" id="step3" hidden>
+    <div class="card">
+      <h2>Before you start</h2>
+      <div class="checks">
+        <label><input type="checkbox" class="pre" id="pc1"> Visual inspection of the installation carried out</label>
+        <label><input type="checkbox" class="pre" id="pc2"> Safe-to-touch check of the meter and pipework carried out with a voltage detector</label>
+        <label><input type="checkbox" class="pre" id="pc3"> Appliances isolated as required, gauge connected and zeroed</label>
+        <label><input type="checkbox" class="pre" id="pc4"> Someone on site confirmed as available to report any smell of gas</label>
+      </div>
+    </div>
+    <div class="card noprint">
+      <h2>Test timer</h2>
+      <p class="hint">Let-by 1 minute, stabilise 1 minute, tightness test 2 minutes.</p>
+      <div class="timer">
+        <div class="tstages"><span data-st="0">Let-by</span><span data-st="1">Stabilise</span><span data-st="2">Tightness</span></div>
+        <div class="tclock" id="tClock" aria-live="polite">1:00</div>
+        <div class="tbtns"><button type="button" class="btn primary" id="tStart">Start</button><button type="button" class="btn" id="tNext">Next stage</button><button type="button" class="btn" id="tReset">Reset</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Let-by test (1 minute)</h2>
+      <div class="grid2">
+        <div class="field"><label for="lb1">Start (mbar)</label><input id="lb1" class="num" inputmode="decimal" placeholder="e.g. 8.0"></div>
+        <div class="field"><label for="lb2">After 1 minute (mbar)</label><input id="lb2" class="num" inputmode="decimal" placeholder="e.g. 8.0"></div>
+      </div>
+      <div id="lbMsg"></div>
+    </div>
+    <div class="card">
+      <h2>Temperature stabilisation (1 minute)</h2>
+      <p class="hint">Raise to the test pressure, then watch for at least 1 minute. Don't start the test until the reading is steady.</p>
+      <div class="grid2">
+        <div class="field"><label for="s1">Start (mbar)</label><input id="s1" class="num" inputmode="decimal" placeholder="e.g. 21.0"></div>
+        <div class="field"><label for="s2">After 1 minute (mbar)</label><input id="s2" class="num" inputmode="decimal" placeholder="e.g. 21.0"></div>
+      </div>
+      <div id="stMsg"></div>
+    </div>
+    <div class="card">
+      <h2>Tightness test (2 minutes)</h2>
+      <div class="grid2">
+        <div class="field"><label for="t1">Start (mbar)</label><input id="t1" class="num" inputmode="decimal" placeholder="e.g. 21.0"></div>
+        <div class="field"><label for="t2">After 2 minutes (mbar)</label><input id="t2" class="num" inputmode="decimal" placeholder="e.g. 21.0"></div>
+      </div>
+      <div class="field" style="margin-top:12px"><span class="legend">Smell of gas reported?</span>
+        <div class="seg"><label><input type="radio" name="smell" value="no" checked> No</label><label><input type="radio" name="smell" value="yes"> Yes</label><label><input type="radio" name="smell" value="unknown"> Not checked yet</label></div></div>
+      <div class="grid2" style="margin-top:12px">
+        <div class="field"><span class="legend">Confirm each stage was done</span>
+          <div class="checks"><label><input type="checkbox" class="stg" id="sg1"> 1-minute let-by test done</label><label><input type="checkbox" class="stg" id="sg2"> Stabilised for at least 1 minute</label><label><input type="checkbox" class="stg" id="sg3"> 2-minute tightness test done</label></div></div>
+        <div class="field"><span class="legend">Purging to be carried out?</span>
+          <div class="seg"><label><input type="radio" name="purgeq" value="yes" checked> Yes</label><label><input type="radio" name="purgeq" value="no"> No</label></div></div>
+      </div>
+      <div id="testMsg"></div>
+    </div>
+    <div class="card" id="retestCard" hidden>
+      <h2>Pipework-only retest</h2>
+      <p class="hint">The drop is within the limit for this installation. Isolate the appliances and repeat the test on the pipework. The pipework must show no perceptible movement.</p>
+      <div class="grid2">
+        <div class="field"><label for="r1">Start (mbar)</label><input id="r1" class="num" inputmode="decimal"></div>
+        <div class="field"><label for="r2">After 2 minutes (mbar)</label><input id="r2" class="num" inputmode="decimal"></div>
+      </div>
+      <div id="retestMsg"></div>
+    </div>
+    <div class="nav"><button type="button" class="btn" data-go="2">Back</button><button type="button" class="btn primary" data-go="4">Next: review</button></div>
+  </section>
+
+  <!-- STEP 4 -->
+  <section class="step review" id="step4" hidden>
+    <div class="print-only"><p class="kicker">FC Training Academy · Tightness &amp; Purge Record</p></div>
+    <div class="card">
+      <h2>Result</h2>
+      <div class="verdict" id="vText">–</div>
+      <p class="hint" id="vWhy" style="margin:0"></p>
+    </div>
+    <div class="card">
+      <h2>Summary</h2>
+      <dl id="sumList"></dl>
+    </div>
+    <div class="card">
+      <h2>Purge</h2>
+      <div id="purgeBox"></div>
+    </div>
+    <div class="nav noprint">
+      <button type="button" class="btn" data-go="3">Back</button>
+      <span style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn" id="shareBtn">Share</button>
+        <button type="button" class="btn" id="copyBtn">Copy summary</button>
+        <button type="button" class="btn accent" id="pdfBtn">Save as PDF</button>
+        <button type="button" class="btn" id="newBtn">Start a new test</button>
+      </span>
+    </div>
+  </section>
+
+  <p class="foot">Training aid based on IGEM/UP/1B Edition 4 (mandatory from 1 October 2026) for domestic installations up to 0.035 m³. It does not replace the standard, manufacturer's instructions or your own judgement. Built by <a href="https://fctrainingacademy.com">FC Training Academy</a>, Ilford · 0203 883 2009.</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // ---------- Data (IGEM/UP/1B Ed.4) ----------
+  // Internal volume in litres per metre, excluding the 10% fittings allowance.
+  var PIPES = {
+    "cu15":{label:"Copper 15 mm",lpm:0.14}, "cu22":{label:"Copper 22 mm",lpm:0.32},
+    "cu28":{label:"Copper 28 mm",lpm:0.54}, "cu35":{label:"Copper 35 mm",lpm:0.84},
+    "st15":{label:"Steel / stainless / CSST 15 mm (½\")",lpm:0.24}, "st20":{label:"Steel / stainless / CSST 20 mm (¾\")",lpm:0.46},
+    "st25":{label:"Steel / stainless / CSST 25 mm (1\")",lpm:0.64}, "st32":{label:"Steel / stainless / CSST 32 mm (1¼\")",lpm:1.10},
+    "pe20":{label:"PE SDR11 20 mm",lpm:0.201}, "pe25":{label:"PE SDR11 25 mm",lpm:0.327}, "pe32":{label:"PE SDR11 32 mm",lpm:0.539},
+    "custom":{label:"Other (enter litres per metre)",lpm:null}
+  };
+  // Maximum permissible pressure drop, appliances connected, no smell of gas. Volumes in litres.
+  var LIMITS = {
+    ng:[{max:5,mpd:8},{max:10,mpd:4},{max:15,mpd:2.5},{max:35,mpd:1}],
+    lpg:[{max:2.5,mpd:2},{max:5,mpd:1},{max:10,mpd:0.5},{max:35,mpd:0}],   // 0 = no perceptible movement
+    lpgair:[{max:25,mpd:1.5},{max:35,mpd:0.5}]
+  };
+  var GASNAME={ng:"Natural gas",lpg:"LPG",lpgair:"LPG/Air"};
+  var TTNAME={existing:"Existing, appliances connected",isolated:"Existing, appliances isolated",new:"New installation",newpipe:"New pipework, existing appliances isolated",pipework:"Pipework / meter only"};
+  var TP_DEFAULT={ng:21,lpg:37,lpgair:21};
+  var MAX_IV=35, FT3_PER_M3=35.3147;
+
+  var $=function(id){return document.getElementById(id)};
+  var q=function(s){return document.querySelector(s)};
+  var qa=function(s){return [].slice.call(document.querySelectorAll(s))};
+  function num(v){v=parseFloat(String(v==null?"":v).replace(",","."));return isFinite(v)?v:NaN}
+  function fx(n,d){return isFinite(n)?n.toFixed(d):"–"}
+  function radio(name){var r=q('input[name="'+name+'"]:checked');return r?r.value:null}
+  function cap(s){return s.charAt(0).toUpperCase()+s.slice(1)}
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+  // ---------- Pipe rows ----------
+  var pipeSeq=0;
+  function pipeOptions(sel){return Object.keys(PIPES).map(function(k){return '<option value="'+k+'"'+(k===sel?' selected':'')+'>'+PIPES[k].label+'</option>'}).join("")}
+  function addPipe(data){
+    data=data||{type:"cu22",len:"",lpm:""}; var id=++pipeSeq;
+    var row=document.createElement("div"); row.className="pipe"; row.dataset.id=id;
+    row.innerHTML='<div class="field"><label for="pt'+id+'">Material and size</label><select id="pt'+id+'" class="ptype">'+pipeOptions(data.type)+'</select></div>'+
+      '<div class="field"><label for="pl'+id+'">Length (m)</label><input id="pl'+id+'" class="num plen" inputmode="decimal" placeholder="e.g. 6" value="'+esc(data.len)+'"></div>'+
+      '<div class="vol" aria-live="polite">0.00 L</div>'+
+      '<button type="button" class="iconbtn" aria-label="Remove this pipe run" title="Remove">×</button>'+
+      '<div class="field custom" hidden><label for="pc'+id+'">Internal volume (litres per metre)</label><input id="pc'+id+'" class="num pcust" inputmode="decimal" value="'+esc(data.lpm)+'"></div>';
+    $("pipes").appendChild(row);
+    row.querySelector(".iconbtn").addEventListener("click",function(){ if(qa(".pipe").length>1){row.remove();update();} });
+    row.addEventListener("input",update); row.addEventListener("change",update);
+    update();
+  }
+  $("addPipe").addEventListener("click",function(){addPipe();});
+
+  // ---------- Calculations ----------
+  function calcIV(){
+    var pipeL=0, rows=[];
+    qa(".pipe").forEach(function(r){
+      var t=r.querySelector(".ptype").value, len=num(r.querySelector(".plen").value);
+      var custom=r.querySelector(".custom"); custom.hidden=t!=="custom";
+      var lpm=t==="custom"?num(r.querySelector(".pcust").value):PIPES[t].lpm;
+      var v=(len>0&&lpm>0)?len*lpm:0; pipeL+=v;
+      r.querySelector(".vol").textContent=fx(v,2)+" L";
+      rows.push({type:t,len:r.querySelector(".plen").value,lpm:r.querySelector(".pcust").value,label:PIPES[t].label,vol:v});
+    });
+    var fitMode=radio("fit"); $("fitKnownWrap").hidden=fitMode!=="known";
+    var fitL=fitMode==="known"?(num($("fitKnown").value)||0):pipeL*0.10;
+    var mSel=$("meter").value; $("meterCustomWrap").hidden=mSel!=="custom";
+    var meterL=mSel==="custom"?(num($("meterCustom").value)||0):num(mSel);
+    var iv=pipeL+fitL+meterL;
+    return {pipeL:pipeL,fitL:fitL,meterL:meterL,ivL:iv,ivM3:iv/1000,rows:rows,fitMode:fitMode};
+  }
+  function limitFor(gas,ivL){
+    var t=LIMITS[gas]; for(var i=0;i<t.length;i++){ if(ivL<=t[i].max) return t[i]; } return null;
+  }
+  function perceptible(){ return num($("gauge").value); }
+  function stepsDone(){ return qa(".stg").every(function(c){return c.checked}); }
+  // Smallest permissible limit for the gas (0 = no perceptible movement, e.g. LPG). Drops below it comply without an IV calculation.
+  function smallestLimit(gas){ var m=Infinity; LIMITS[gas].forEach(function(r){ if(r.mpd<m)m=r.mpd; }); return m; }
+
+  function evaluate(S){
+    var gas=radio("gas"), tt=radio("ttype"), pmv=perceptible();
+    var lb1=num($("lb1").value), lb2=num($("lb2").value), t1=num($("t1").value), t2=num($("t2").value);
+    var r1=num($("r1").value), r2=num($("r2").value), smell=radio("smell")==="yes";
+    var out={letby:null,drop:null,limit:null,status:"pending",why:"Enter your readings.",needRetest:false,retestDrop:null};
+    // let-by
+    if(isFinite(lb1)&&isFinite(lb2)){ var rise=lb2-lb1; out.letby=rise;
+      if(rise>pmv){ out.status="fail"; out.why="Let-by test failed: pressure rose "+fx(rise,1)+" mbar. The ECV is passing gas. Do not continue: make safe and report to the gas transporter/ECV owner."; return out; } }
+    if(!(isFinite(t1)&&isFinite(t2))) return out;
+    var drop=t1-t2; out.drop=drop;
+    if(drop<-pmv){ out.status="warn"; out.why="Pressure rose by "+fx(-drop,1)+" mbar during the test. Check for ECV let-by or temperature change, then repeat."; return out; }
+    if(S.ivL>MAX_IV){ out.status="warn"; out.why="Installation volume is over 0.035 m³, outside IGEM/UP/1B. Use IGEM/UP/1A."; return out; }
+    if(radio("smell")==="unknown"){ out.status="pending"; out.why="Ask whether anyone can smell gas before recording a result. A pressure-drop allowance never overrides a smell of gas."; return out; }
+    if(smell){ out.status="fail"; out.why="A smell of gas was reported. Trace and repair the escape before the installation is used, whatever the gauge shows."; return out; }
+    if(!$("scopeOk").checked){ out.status="pending"; out.why="Confirm the installation is within IGEM/UP/1B Edition 4 scope (step 1) to complete the result."; return out; }
+    if(!stepsDone()){ out.status="pending"; out.why="Tick the three stage confirmations (let-by, stabilisation, 2-minute test) to complete the result."; return out; }
+    if(drop<=pmv){ out.status="pass"; out.why="No perceptible movement ("+fx(Math.max(drop,0),1)+" mbar, gauge threshold "+pmv+" mbar) and no smell of gas."; return out; }
+    if(radio("reason")==="escape"){ out.status="fail"; out.why="Test for a known or suspected escape: perceptible movement of "+fx(drop,1)+" mbar. Trace and repair the escape, then retest."; return out; }
+    if(tt!=="existing"){ out.status="fail"; out.why=TTNAME[tt]+" tests must show no perceptible movement. A drop of "+fx(drop,1)+" mbar is a fail: trace and repair, then retest."; return out; }
+    var small=smallestLimit(gas);
+    if(small>0 && drop<small){ out.status="pass"; out.why="Drop of "+fx(drop,1)+" mbar is below the smallest permissible limit for "+GASNAME[gas]+" ("+small+" mbar), with no smell of gas, so the installation complies without needing the installation volume."; return out; }
+    var lim=limitFor(gas,S.ivL); out.limit=lim;
+    var allowed=lim?(lim.mpd>0?lim.mpd:pmv):0;
+    if(drop>allowed){ out.status="fail"; out.why="Drop of "+fx(drop,1)+" mbar is over the permissible "+(lim&&lim.mpd>0?lim.mpd+" mbar":"(no perceptible movement)")+" for "+fx(S.ivM3,4)+" m³ of "+GASNAME[gas]+". Trace and repair, then retest."; return out; }
+    // within limit: isolate appliances and retest pipework
+    out.needRetest=true;
+    if(!(isFinite(r1)&&isFinite(r2))){ out.status="pending"; out.why="Drop of "+fx(drop,1)+" mbar is within the "+allowed+" mbar limit. Isolate the appliances and retest the pipework to finish."; return out; }
+    var rd=r1-r2; out.retestDrop=rd;
+    if(rd>pmv){ out.status="fail"; out.why="Pipework-only retest dropped "+fx(rd,1)+" mbar. The pipework is not sound: trace and repair, then retest."; return out; }
+    out.status="pass"; out.why="Drop of "+fx(drop,1)+" mbar with appliances connected is within the "+allowed+" mbar limit, and the pipework-only retest showed no perceptible movement. Check the appliance connections with leak detection fluid.";
+    return out;
+  }
+
+  function up(n,d){ var f=Math.pow(10,d); return Math.ceil(n*f-1e-9)/f; }
+  function purge(S){
+    var gas=radio("gas"), pvM3=up(1.5*S.ivM3,5), reg=$("register").value;
+    var method;
+    if(gas==="ng") method = pvM3<=0.02 ? "Purge to air: pass at least the purge volume through the meter, venting safely to outside." : "Purge to ignition: purge at an appliance burner until a stable flame is established.";
+    else method = "Purge to ignition: all LPG and LPG/Air installations purge until a stable flame is established.";
+    return {pvM3:pvM3,pvL:pvM3*1000,pvFt3:up(1.5*S.ivM3*FT3_PER_M3,3),reg:reg,method:method};
+  }
+
+  // ---------- Render ----------
+  function render(){
+    var S=calcIV(), gas=radio("gas");
+    $("tPipe").textContent=fx(S.pipeL,2)+" L"; $("tFit").textContent=fx(S.fitL,2)+" L"; $("tMeter").textContent=fx(S.meterL,2)+" L";
+    $("tIV").textContent=fx(S.ivM3,4)+" m³";
+    $("scopeMsg").innerHTML = S.ivL>MAX_IV
+      ? '<div class="banner bad"><div><strong>Over 0.035 m³: outside IGEM/UP/1B</strong><p>This installation must be tested to IGEM/UP/1A.</p></div></div>'
+      : (S.ivL>0?'<div class="banner info"><div><strong>'+fx(S.ivL,2)+' litres, within the 35 L domestic limit</strong><p>Purge volume (1.5 × IV): '+fx(1.5*S.ivM3,4)+' m³.</p></div></div>':'');
+    // test pressure default follows gas
+    if(!$("tp").dataset.touched){ $("tp").value=TP_DEFAULT[gas]; }
+    // limit table
+    var lim=limitFor(gas,S.ivL), tt=radio("ttype"), pmv=perceptible();
+    var rows=LIMITS[gas].map(function(r,i,a){var lo=i?a[i-1].max:0;return '<tr'+(lim===r&&tt==="existing"?' class="hit"':'')+'><td>'+(i?'Over '+lo+' L up to ':'Up to ')+r.max+' L</td><td>'+(r.mpd?r.mpd+' mbar':'No perceptible movement')+'</td></tr>'}).join("");
+    $("limTable").innerHTML='<thead><tr><th>'+GASNAME[gas]+' installation volume</th><th>Max drop, appliances connected</th></tr></thead><tbody>'+rows+'</tbody>';
+    if(radio("reason")==="escape") $("limitBox").innerHTML='<div class="banner warn" style="margin-top:0"><div><strong>Known or suspected escape: no perceptible movement</strong><p>Any movement above '+pmv+' mbar must be traced and repaired. Volume-based allowances are not used.</p></div></div>';
+    else if(tt!=="existing") $("limitBox").innerHTML='<div class="banner info" style="margin-top:0"><div><strong>No perceptible movement</strong><p>'+TTNAME[tt]+' tests must show no movement above '+pmv+' mbar on your gauge.</p></div></div>';
+    else if(S.ivL>MAX_IV) $("limitBox").innerHTML='<div class="banner bad" style="margin-top:0"><div><strong>Outside IGEM/UP/1B</strong><p>Installation volume is over 0.035 m³.</p></div></div>';
+    else if(lim) $("limitBox").innerHTML='<div class="banner info" style="margin-top:0"><div><strong>'+(lim.mpd?lim.mpd+' mbar maximum drop':'No perceptible movement')+'</strong><p>For '+fx(S.ivM3,4)+' m³ of '+GASNAME[gas]+' with appliances connected and no smell of gas. Movement up to '+pmv+' mbar on your gauge counts as not perceptible.</p></div></div>';
+    else $("limitBox").innerHTML='<div class="banner warn" style="margin-top:0"><div><strong>Add your pipework in step 1</strong></div></div>';
+
+    // readings
+    var E=evaluate(S);
+    var lbRise=E.letby;
+    $("lbMsg").innerHTML = lbRise==null?"":(lbRise>pmv?'<div class="banner bad"><div><strong>Let-by: rise of '+fx(lbRise,1)+' mbar</strong><p>The ECV is letting by.</p></div></div>':'<div class="banner ok"><div><strong>Let-by: no perceptible rise</strong></div></div>');
+    var s1=num($("s1").value), s2=num($("s2").value);
+    $("stMsg").innerHTML = (isFinite(s1)&&isFinite(s2)) ? (Math.abs(s2-s1)>pmv ? '<div class="banner warn"><div><strong>Still moving: '+fx(s2-s1,1)+' mbar</strong><p>Wait and re-read until the gauge is steady before starting the 2-minute test.</p></div></div>' : '<div class="banner ok"><div><strong>Stable – start the 2-minute test</strong></div></div>') : "";
+    $("retestCard").hidden=!E.needRetest;
+    var cls={pass:"ok",fail:"bad",warn:"warn",pending:"info"}[E.status];
+    $("testMsg").innerHTML = E.drop==null?"":'<div class="banner '+cls+'"><div><strong>'+{pass:"Pass",fail:"Fail",warn:"Check",pending:"Next step"}[E.status]+(E.drop!=null?' · drop '+fx(E.drop,1)+' mbar':'')+'</strong><p>'+esc(E.why)+'</p></div></div>';
+    $("retestMsg").innerHTML = E.retestDrop==null?"":'<div class="banner '+(E.retestDrop>pmv?'bad':'ok')+'"><div><strong>Pipework retest: '+fx(E.retestDrop,1)+' mbar</strong></div></div>';
+
+    // review
+    var V={pass:["PASS","ok"],fail:["FAIL","bad"],warn:["CHECK","warn"],pending:["INCOMPLETE","warn"]}[E.status];
+    $("vText").textContent=V[0]; $("vText").className="verdict "+V[1]; $("vWhy").textContent=E.why;
+    var P=purge(S);
+    var items=[
+      ["Fuel gas",GASNAME[gas]],["Meter",$("meter").selectedOptions[0].text],["Job reference",$("jRef").value||"–"],["Premises",radio("premises")==="other"?"Other premises":"Domestic dwelling"],["Reason for test",radio("reason")==="escape"?"Known or suspected escape":"Routine work"],["Test arrangement",TTNAME[tt]],["Within Ed.4 scope",$("scopeOk").checked?"Confirmed":"Not confirmed"],
+      ["Pipework",fx(S.pipeL,2)+" L"],["Fittings",fx(S.fitL,2)+" L"+(S.fitMode==="auto"?" (10%)":"")],["Meter volume",fx(S.meterL,2)+" L"],
+      ["Installation volume",fx(S.ivM3,4)+" m³ ("+fx(S.ivL,2)+" L)"],
+      ["Permissible drop",(tt!=="existing"||radio("reason")==="escape")?"No perceptible movement":(lim?(lim.mpd?lim.mpd+" mbar":"No perceptible movement"):"–")],
+      ["Gauge threshold",pmv+" mbar"],["Test pressure",($("tp").value||"–")+" mbar"],
+      ["Let-by",E.letby==null?"–":(E.letby>pmv?"Rise "+fx(E.letby,1)+" mbar":"No perceptible rise")],
+      ["Test readings",(isFinite(num($("t1").value))?$("t1").value:"–")+" → "+(isFinite(num($("t2").value))?$("t2").value:"–")+" mbar"],
+      ["Pressure drop",E.drop==null?"–":fx(E.drop,1)+" mbar"],
+      ["Pipework retest",E.retestDrop==null?"–":fx(E.retestDrop,1)+" mbar"],
+      ["Smell of gas",radio("smell")==="yes"?"Yes":"No"],
+      ["Pre-test checks",qa(".pre").filter(function(c){return c.checked}).length+" of 4 confirmed"],
+      ["Stabilisation",(function(){var a=num($("s1").value),b=num($("s2").value);return isFinite(a)&&isFinite(b)?a+" → "+b+" mbar":"–"})()],
+      ["Stages confirmed",qa(".stg").filter(function(c){return c.checked}).length+" of 3"]
+    ];
+    $("sumList").innerHTML=items.map(function(i){return "<dt>"+esc(i[0])+"</dt><dd>"+esc(i[1])+"</dd>"}).join("");
+    var regLine = P.reg==="imperial" ? fx(P.pvFt3,3)+" ft³ on an imperial register" : fx(P.pvM3,5)+" m³ on a metric register";
+    if(radio("purgeq")==="no"){ $("purgeBox").innerHTML='<div class="banner info" style="margin-top:0"><div><strong>Purging not carried out</strong><p>Purge volume if needed later: '+fx(P.pvM3,5)+' m³ (1.5 × IV).</p></div></div>'; }
+    else $("purgeBox").innerHTML='<div class="totals" style="margin-top:0"><div class="tot key"><small>Purge volume (1.5 × IV, rounded up)</small><b>'+fx(P.pvM3,5)+' m³</b></div><div class="tot"><small>In litres</small><b>'+fx(P.pvL,1)+' L</b></div><div class="tot"><small>In ft³</small><b>'+fx(P.pvFt3,3)+' ft³</b></div><div class="tot"><small>Meter register</small><b style="font-size:15px">'+(P.reg==="imperial"?"Imperial":"Metric")+'</b></div></div>'+
+      '<div class="banner info"><div><strong>'+esc(P.method.split(":")[0])+'</strong><p>'+esc(cap(P.method.split(":").slice(1).join(":").trim()))+' Target: '+esc(regLine)+'.</p></div></div>';
+
+    // step ticks
+    qa("ol.steps button").forEach(function(b){var n=+b.dataset.go; b.classList.toggle("done", (n===1&&S.ivL>0)||(n===3&&E.status!=="pending"&&E.drop!=null));});
+    save();
+    return {S:S,E:E,P:P,items:items};
+  }
+  function update(){ render(); }
+
+  // ---------- Layout ----------
+  function applyLayout(){ document.body.classList.toggle("full", radio("layout")==="full"); }
+  qa('input[name="layout"]').forEach(function(r){ r.addEventListener("change",function(){ applyLayout(); save(); }); });
+
+  // ---------- Timer (let-by 1 min, stabilise 1 min, test 2 min) ----------
+  var STAGES=[60,60,120], stage=0, left=STAGES[0], tick=null;
+  function drawTimer(){
+    var m=Math.floor(left/60), sec=left%60; $("tClock").textContent=m+":"+(sec<10?"0":"")+sec;
+    $("tClock").classList.toggle("done", left===0);
+    qa(".tstages span").forEach(function(el,i){ el.classList.toggle("on", i===stage&&left>0); el.classList.toggle("fin", i<stage||(i===stage&&left===0)); });
+    $("tStart").textContent = tick? "Pause" : (left===STAGES[stage]? "Start" : (left===0? "Done" : "Resume"));
+  }
+  function stop(){ if(tick){ clearInterval(tick); tick=null; } }
+  $("tStart").addEventListener("click",function(){
+    if(tick){ stop(); drawTimer(); return; }
+    if(left===0) return;
+    tick=setInterval(function(){ left--; if(left<=0){ left=0; stop(); try{ navigator.vibrate&&navigator.vibrate([200,100,200]); }catch(e){} } drawTimer(); },1000);
+    drawTimer();
+  });
+  $("tNext").addEventListener("click",function(){ stop(); if(stage<2){ stage++; left=STAGES[stage]; } drawTimer(); });
+  $("tReset").addEventListener("click",function(){ stop(); stage=0; left=STAGES[0]; drawTimer(); });
+  drawTimer();
+
+  // ---------- Navigation ----------
+  function go(n){
+    qa(".step").forEach(function(s){s.hidden=s.id!=="step"+n});
+    qa("ol.steps button").forEach(function(b){ if(+b.dataset.go===n) b.setAttribute("aria-current","step"); else b.removeAttribute("aria-current"); });
+    render(); window.scrollTo({top:0,behavior:"smooth"});
+  }
+  qa("[data-go]").forEach(function(b){b.addEventListener("click",function(){go(+b.dataset.go)})});
+
+  // ---------- Save / restore draft (this device only) ----------
+  var KEY="fcta-tightness-draft-v1", restoring=false;
+  function collect(){
+    var d={gas:radio("gas"),fit:radio("fit"),ttype:radio("ttype"),smell:radio("smell"),premises:radio("premises"),reason:radio("reason"),purgeq:radio("purgeq"),layout:radio("layout"),pipes:[],checks:{}};
+    ["meter","meterCustom","register","fitKnown","gauge","tp","lb1","lb2","s1","s2","t1","t2","r1","r2","jAddr","jDate","jEng","jId","jRef"].forEach(function(id){d[id]=$(id).value});
+    ["scopeOk","pc1","pc2","pc3","pc4","sg1","sg2","sg3"].forEach(function(id){d.checks[id]=$(id).checked});
+    d.gaugeIdx=$("gauge").selectedIndex; d.tpTouched=!!$("tp").dataset.touched;
+    qa(".pipe").forEach(function(r){d.pipes.push({type:r.querySelector(".ptype").value,len:r.querySelector(".plen").value,lpm:r.querySelector(".pcust").value})});
+    return d;
+  }
+  function save(){ if(restoring) return; try{localStorage.setItem(KEY,JSON.stringify(collect())); $("savedNote").textContent="Draft saved on this device";}catch(e){} }
+  function restore(){
+    var d=null; try{d=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){}
+    restoring=true;
+    if(d){
+      ["gas","fit","ttype","smell","premises","reason","purgeq","layout"].forEach(function(n){var r=q('input[name="'+n+'"][value="'+d[n]+'"]'); if(r) r.checked=true;});
+      ["meter","meterCustom","register","fitKnown","tp","lb1","lb2","s1","s2","t1","t2","r1","r2","jAddr","jDate","jEng","jId","jRef"].forEach(function(id){ if(d[id]!=null) $(id).value=d[id]; });
+      if(d.checks) Object.keys(d.checks).forEach(function(id){ if($(id)) $(id).checked=!!d.checks[id]; });
+      if(d.gaugeIdx!=null) $("gauge").selectedIndex=d.gaugeIdx;
+      if(d.tpTouched) $("tp").dataset.touched="1";
+      (d.pipes&&d.pipes.length?d.pipes:[{type:"cu22",len:"",lpm:""}]).forEach(addPipe);
+    } else { addPipe({type:"cu22",len:"",lpm:""}); addPipe({type:"cu15",len:"",lpm:""}); }
+    if(!$("jDate").value){ var t=new Date(); $("jDate").value=t.toISOString().slice(0,10); }
+    restoring=false; applyLayout(); render();
+  }
+  document.addEventListener("input",function(e){ if(e.target.id==="tp") $("tp").dataset.touched="1"; update(); });
+  document.addEventListener("change",function(e){ if(e.target.name==="gas"){ delete $("tp").dataset.touched; } update(); });
+
+  // ---------- Actions ----------
+  $("pdfBtn").addEventListener("click",function(){ render(); window.print(); });
+  $("newBtn").addEventListener("click",function(){
+    try{localStorage.removeItem(KEY)}catch(e){}
+    ["meterCustom","fitKnown","lb1","lb2","s1","s2","t1","t2","r1","r2","jAddr","jEng","jId","jRef"].forEach(function(id){$(id).value=""});
+    ["scopeOk","pc1","pc2","pc3","pc4","sg1","sg2","sg3"].forEach(function(id){$(id).checked=false});
+    $("pipes").innerHTML=""; delete $("tp").dataset.touched; addPipe({type:"cu22",len:"",lpm:""}); go(1);
+  });
+  function summaryText(){
+    var R=render(), lines=["FC Training Academy · Tightness & Purge Record (IGEM/UP/1B Ed.4)",
+      "Job ref: "+($("jRef").value||"–"),"Site: "+($("jAddr").value||"–"),"Date: "+($("jDate").value||"–"),"Engineer: "+($("jEng").value||"–")+($("jId").value?" ("+$("jId").value+")":""),
+      "Result: "+$("vText").textContent+" - "+$("vWhy").textContent].concat(R.items.map(function(i){return i[0]+": "+i[1]}))
+      .concat(["Purge volume: "+fx(R.P.pvM3,5)+" m³ ("+fx(R.P.pvFt3,3)+" ft³)", R.P.method]);
+    return lines.join("\n");
+  }
+  $("shareBtn").addEventListener("click",function(){
+    var text=summaryText();
+    if(navigator.share){ navigator.share({title:"Tightness test record",text:text}).catch(function(){}); }
+    else { try{navigator.clipboard.writeText(text).then(function(){$("shareBtn").textContent="Copied";setTimeout(function(){$("shareBtn").textContent="Share"},1500)})}catch(e){prompt("Copy this summary:",text)} }
+  });
+  $("copyBtn").addEventListener("click",function(){
+    var text=summaryText(), btn=$("copyBtn");
+    function done(){btn.textContent="Copied";setTimeout(function(){btn.textContent="Copy summary"},1500)}
+    try{navigator.clipboard.writeText(text).then(done,function(){prompt("Copy this summary:",text)})}catch(e){prompt("Copy this summary:",text)}
+  });
+
+  restore();
+})();
+</script>
+<footer class="fc-legal"><p>For training and reference only. Check every result against the current standard, the manufacturer's instructions and your own readings. The engineer carrying out the work is responsible for the result.</p><p>&copy; 2026 FC Training Academy. All rights reserved. This page, its layout and its written content belong to FC Training Academy and may not be copied, reproduced, framed or redistributed without written permission.</p><p>References to IGEM, British Standards, the Gas Safety (Installation and Use) Regulations and the LCL Awards Gas Safety Training Manual are for study only. Those documents remain the copyright of their owners and are not reproduced here.</p></footer>
+</body>
+</html>

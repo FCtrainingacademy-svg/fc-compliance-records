@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Service & CP12 Checklist | FC Training Academy</title>
+<meta name="description" content="Free boiler service and landlord gas safety check (CP12) checklist from FC Training Academy, with readings, pass/fail and a visit summary.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* ---- Brand: change these two lines to match the FC Training Academy site ---- */
+:root{ --brand:#0E5A86; --brand-2:#D9951A; }
+
+:root{
+  --bg:#f2f5f8; --surface:#ffffff; --sunk:#e8edf2; --ink:#16202b; --soft:#56616f; --line:#d3dbe4;
+  --brand-soft:#e1ecf5;
+  --ok:#17784a; --ok-bg:#e2f3ea; --bad:#b3261e; --bad-bg:#fbe8e6; --warn:#8a5a00; --warn-bg:#fcf0d6;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--brand:#5BA8DA;--brand-2:#F0B44A;--bg:#0E151B;--surface:#16212A;--sunk:#111A21;--ink:#E5ECF1;--soft:#93A3B0;--line:#26343F;--brand-soft:#12293A;--ok:#6FD3A0;--ok-bg:#12301F;--bad:#FF8A7E;--bad-bg:#3A1A18;--warn:#F3BC5C;--warn-bg:#3A2A10;color-scheme:dark}}
+:root[data-theme="dark"]{--brand:#5BA8DA;--brand-2:#F0B44A;--bg:#0E151B;--surface:#16212A;--sunk:#111A21;--ink:#E5ECF1;--soft:#93A3B0;--line:#26343F;--brand-soft:#12293A;--ok:#6FD3A0;--ok-bg:#12301F;--bad:#FF8A7E;--bad-bg:#3A1A18;--warn:#F3BC5C;--warn-bg:#3A2A10;color-scheme:dark}
+input,select,.seg label,.iconbtn,.btn{background:var(--surface)}
+.btn.primary{background:var(--brand);color:#fff}.btn.accent{background:var(--brand-2);color:#fff}.btn.link{background:none}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:'Source Sans 3',system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.5;
+  padding:0 16px calc(48px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:860px;margin:0 auto}
+header.tool{padding-block:28px 18px}
+.kicker{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin:0 0 6px}
+h1{font-family:'Barlow Semi Condensed',system-ui,sans-serif;font-weight:700;font-size:clamp(28px,5vw,38px);line-height:1.1;margin:0 0 8px;text-wrap:balance}
+.lede{color:var(--soft);margin:0;max-width:62ch}
+/* steps */
+ol.steps{list-style:none;margin:22px 0 18px;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;counter-reset:s}
+ol.steps li button{width:100%;text-align:left;border:none;background:var(--surface);border-top:4px solid var(--line);padding:10px 10px 12px;cursor:pointer;font:inherit;color:var(--soft);border-radius:0 0 8px 8px}
+ol.steps li button b{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+ol.steps li button span{font-weight:600;font-size:15px;color:var(--ink)}
+ol.steps li button[aria-current="step"]{border-top-color:var(--brand);color:var(--brand)}
+ol.steps li button.done{border-top-color:var(--ok)}
+@media(max-width:560px){ol.steps li button span{font-size:13px}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px}
+.card h2{font-family:'Barlow Semi Condensed',sans-serif;font-size:21px;margin:0 0 4px}
+.card .hint{color:var(--soft);font-size:14.5px;margin:0 0 14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:600px){.grid2,.grid3{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label,.legend{font-size:13.5px;font-weight:600;color:var(--soft)}
+input,select{font:16px 'Source Sans 3',sans-serif;padding:10px 11px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);width:100%;min-width:0}
+input.num{font-family:var(--mono)}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 45%,transparent);outline-offset:1px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg label{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer;font-weight:600;font-size:15px;color:var(--ink);background:#fff}
+.seg input{width:auto;accent-color:var(--brand)}
+.seg label:has(input:checked){border-color:var(--brand);background:var(--brand-soft)}
+/* pipe table */
+.pipes{display:flex;flex-direction:column;gap:8px}
+.pipe{display:grid;grid-template-columns:1.6fr 1fr .9fr auto;gap:8px;align-items:end}
+.pipe .vol{font-family:var(--mono);font-size:13.5px;color:var(--soft);padding-bottom:11px;white-space:nowrap}
+.pipe .custom{grid-column:1/-1}
+@media(max-width:600px){.pipe{grid-template-columns:1fr 1fr;} .pipe .vol{grid-column:1/2}}
+.iconbtn{border:1px solid var(--line);background:#fff;border-radius:8px;width:42px;height:42px;cursor:pointer;font-size:20px;color:var(--soft)}
+.btn{font:700 15px 'Source Sans 3',sans-serif;border-radius:9px;padding:11px 18px;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.accent{background:var(--brand-2);border-color:var(--brand-2);color:#fff}
+.btn.link{border:none;background:none;color:var(--brand);padding:6px 0}
+.nav{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:6px}
+/* summary strip */
+.totals{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+@media(max-width:600px){.totals{grid-template-columns:1fr 1fr}}
+.tot{background:var(--sunk);border-radius:8px;padding:10px}
+.tot small{display:block;font-size:12px;color:var(--soft);font-weight:600}
+.tot b{font-family:var(--mono);font-size:17px;font-variant-numeric:tabular-nums}
+.tot.key{background:var(--brand-soft)}
+.tot.key b{color:var(--brand)}
+.banner{border-radius:10px;padding:12px 14px;font-weight:600;margin-top:12px;display:flex;gap:10px;align-items:flex-start}
+.banner.ok{background:var(--ok-bg);color:var(--ok)}
+.banner.bad{background:var(--bad-bg);color:var(--bad)}
+.banner.warn{background:var(--warn-bg);color:var(--warn)}
+.banner.info{background:var(--brand-soft);color:var(--brand)}
+.banner p{margin:0;font-weight:400;color:var(--ink);font-size:14.5px}
+.banner strong{display:block}
+ol.proc{margin:0;padding-left:20px}
+ol.proc li{margin-bottom:6px}
+ol.proc li b{font-family:var(--mono);font-size:14px}
+table.lim{width:100%;border-collapse:collapse;font-size:14.5px}
+table.lim td,table.lim th{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}
+table.lim th{font-size:12.5px;color:var(--soft);text-transform:uppercase;letter-spacing:.04em}
+table.lim tr.hit td{background:var(--brand-soft);font-weight:700}
+table.lim td:last-child{font-family:var(--mono)}
+.review dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0}
+.review dt{color:var(--soft);font-size:14px}
+.review dd{margin:0;font-weight:600;font-family:var(--mono);font-size:14.5px}
+.review .verdict{font-family:'Barlow Semi Condensed',sans-serif;font-size:28px;margin:6px 0 2px}
+.review .verdict.ok{color:var(--ok)} .review .verdict.bad{color:var(--bad)} .review .verdict.warn{color:var(--warn)}
+.foot{font-size:13px;color:var(--soft);margin-top:18px}
+.foot a{color:var(--brand)}
+.saved{font-size:12.5px;color:var(--soft)}
+.print-only{display:none}
+.layout-toggle{display:flex;flex-direction:column;gap:6px;margin:4px 0 18px}
+.confirm{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:14.5px;background:var(--sunk);border-radius:8px;padding:10px 12px;cursor:pointer}
+.confirm input,.checks input{width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:var(--brand)}
+.checks{display:flex;flex-direction:column;gap:8px}
+.checks label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.timer{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.tstages{display:flex;gap:6px;flex-wrap:wrap}
+.tstages span{font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--sunk);color:var(--soft)}
+.tstages span.on{background:var(--brand);color:#fff}
+.tstages span.fin{background:var(--ok-bg);color:var(--ok)}
+.tclock{font-family:var(--mono);font-size:44px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+.tclock.done{color:var(--ok)}
+.tbtns{display:flex;gap:8px;flex-wrap:wrap}
+body.full ol.steps{display:none}
+body.full .step{display:block!important}
+body.full .step .nav{display:none}
+body.full #step4 .nav{display:flex}
+body.full .step+ .step{margin-top:26px}
+body.full .step::before{display:block;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin:0 0 8px}
+body.full #step1::before{content:"01 · Job and installation"}
+body.full #step2::before{content:"02 · Test setup"}
+body.full #step3::before{content:"03 · Readings and checks"}
+body.full #step4::before{content:"04 · Result"}
+[hidden]{display:none!important}
+@media print{
+  body{background:#fff;padding:0}
+  ol.steps,.nav,.noprint,.iconbtn,.btn{display:none!important}
+  .step[hidden]{display:none!important}
+  #step4{display:block!important}
+  .card{border:1px solid #bbb;break-inside:avoid}
+  .print-only{display:block}
+}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
+
+/* FC watermark + legal */
+body{position:relative}
+body::before{content:"";position:fixed;inset:0;background-image:url(data:image/png;base64,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);background-size:170px 170px;background-repeat:space;opacity:.07;pointer-events:none;z-index:0}
+body>*{position:relative;z-index:1}
+.fc-legal{width:100%;max-width:860px;margin:28px auto 0;border-top:1px solid rgba(120,130,140,.35);padding-top:14px;font-size:12.5px;line-height:1.55;color:inherit;opacity:.75;display:flex;flex-direction:column;gap:6px}
+.fc-legal p{margin:0}
+@media print{body::before{position:absolute;opacity:.08;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+.item{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item .t{font-weight:600} .item .r{font-family:var(--mono);font-size:12px;color:var(--soft)}
+.pf{display:flex;gap:4px}
+.pf label{border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-weight:700;font-size:14px;cursor:pointer;background:var(--surface);color:var(--soft)}
+.pf input{position:absolute;opacity:0;pointer-events:none}
+.pf label:has(input[value=pass]:checked){background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.pf label:has(input[value=fail]:checked){background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
+.pf label:has(input[value=na]:checked){background:var(--sunk);color:var(--ink);border-color:var(--soft)}
+.pf label:has(input:focus-visible){outline:3px solid var(--brand)}
+@media(max-width:560px){.item{grid-template-columns:1fr}}
+.appl{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.appl h3{margin:0 0 8px;font-family:'Barlow Semi Condensed',sans-serif;font-size:19px;display:flex;justify-content:space-between;align-items:center}
+.ratio{font-family:var(--mono);font-weight:700}
+.count{font-weight:600;color:var(--soft)}
+</style></head><body>
+<div class="wrap">
+<header class="tool"><p class="kicker">FC Training Academy · Free engineer tool</p><h1>Service &amp; CP12 Checklist</h1>
+<p class="lede">Work through the visit, mark each check pass, fail or not applicable, record your readings and create a summary at the end.</p></header>
+
+<div class="card"><h2>Visit</h2>
+ <div class="field" style="margin-bottom:12px"><span class="legend">Checklist type</span>
+  <div class="seg"><label><input type="radio" name="mode" value="service" checked> Boiler service</label><label><input type="radio" name="mode" value="cp12"> Landlord gas safety check (CP12)</label></div></div>
+ <div class="grid3"><div class="field"><label for="vEng">Engineer / learner</label><input id="vEng"></div>
+ <div class="field"><label for="vAddr">Address</label><input id="vAddr"></div>
+ <div class="field"><label for="vDate">Date</label><input id="vDate" type="date"></div></div>
+ <div class="grid3" style="margin-top:12px"><div class="field"><label for="vReg">Gas Safe registration no.</label><input id="vReg"></div>
+ <div class="field cpOnly"><label for="vLand">Landlord / agent name</label><input id="vLand"></div>
+ <div class="field cpOnly"><label for="vLandAddr">Landlord / agent address</label><input id="vLandAddr"></div></div>
+</div>
+
+<section id="svc">
+ <div class="card"><h2>Appliance</h2><div class="grid3">
+  <div class="field"><label for="aMake">Make and model</label><input id="aMake" placeholder="e.g. Worcester Greenstar 4000"></div>
+  <div class="field"><label for="aLoc">Location</label><input id="aLoc" placeholder="e.g. Kitchen"></div>
+  <div class="field"><label for="aFlue">Flue type</label><select id="aFlue"><option>Room-sealed (fanned)</option><option>Open-flued</option><option>Flueless</option></select></div></div></div>
+ <div class="card"><h2>Service checks <span class="count" id="svcCount"></span></h2><div id="svcList"></div></div>
+</section>
+
+<section id="cp" hidden>
+ <div class="card"><h2>Appliances</h2><p class="hint">Add each gas appliance in the property.</p><div id="apps"></div>
+  <button class="btn link" id="addApp" type="button">+ Add another appliance</button></div>
+ <div class="card"><h2>Installation checks <span class="count" id="cpCount"></span></h2><div id="cpList"></div></div>
+</section>
+
+<div class="card"><h2>Readings</h2>
+ <div class="grid3">
+  <div class="field"><label for="rMeter">Meter operating pressure (mbar)</label><input id="rMeter" class="num" inputmode="decimal"></div>
+  <div class="field"><label for="rInlet">Appliance inlet working pressure (mbar)</label><input id="rInlet" class="num" inputmode="decimal"></div>
+  <div class="field"><label for="rRate">Heat input (kW)</label><input id="rRate" class="num" inputmode="decimal"></div>
+  <div class="field"><label for="rCO">CO (ppm)</label><input id="rCO" class="num" inputmode="decimal"></div>
+  <div class="field"><label for="rCO2">CO₂ (%)</label><input id="rCO2" class="num" inputmode="decimal"></div>
+  <div class="field"><span class="legend">CO/CO₂ ratio</span><div class="ratio" id="rRatio" style="padding:10px 0">–</div></div>
+ </div>
+ <div id="pressMsg"></div>
+</div>
+
+<div id="failBox"></div>
+
+<div class="card"><h2>Summary</h2><p class="hint" id="sumLine"></p>
+ <div class="field"><label for="notes">Notes, defects and advice given</label><textarea id="notes" rows="3" style="font:16px 'Source Sans 3',sans-serif;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)"></textarea></div>
+ <div class="nav" style="margin-top:12px"><button class="btn" id="newBtn" type="button">Start a new visit</button>
+  <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="shareBtn" type="button">Share</button><button class="btn" id="copyBtn" type="button">Copy summary</button><button class="btn accent" id="pdfBtn" type="button">Save as PDF</button></span></div>
+</div>
+<p class="foot">A memory aid for training and site use. It is not a gas safety record: the record must also carry the engineer's signature and everything GSIUR Reg 36(3) requires. Complete your landlord gas safety record and service paperwork as required by GSIUR Reg 36, Benchmark and your company. Follow the manufacturer's instructions and current standards. LCL page numbers are from the LCL printed manual book (Domestic, Issue 5.3). Built by <a href="https://fctrainingacademy.com">FC Training Academy</a>, Ilford · 0203 883 2009.</p>
+</div>
+<script>
+(function(){
+"use strict";
+var SERVICE=[["Visual check: appliance safe to touch (voltage indicator) and secure", "A13"], ["Location, clearances and access to manufacturer's instructions", "J2–J3"], ["Isolated, locked off and proven dead (GS38 indicator proved before and after); spur and fuse rating checked", "A13"], ["Flue: visual inspection, route, terminal and joints", "F17–F23; F30–F34"], ["Room-sealed: flue integrity check (O₂/CO₂ at the air intake test point, BS 7967)", "C12–C14; F20"], ["Open-flued: flue flow and spillage tests", "F14–F15"], ["Ventilation satisfactory (compartment / room as required)", "G2–G12"], ["Gas tightness test completed", "E2–E6"], ["Operating pressure at the meter", "B3; L2–L9"], ["Working pressure at the appliance inlet", "B3; C9"], ["Gas rate / heat input checked (where required)", "C10–C11"], ["Burner, heat exchanger and electrodes inspected/cleaned", "J10"], ["Condensate trap and pipe checked and refilled", "J4–J8"], ["Case seal and seals checked (room-sealed)", "F20; J10"], ["Expansion vessel and system pressure checked", "J10"], ["Magnetic filter cleaned / inhibitor checked", "J10"], ["Safety devices operate correctly", "H2–H15"], ["Combustion analysis completed (BS 7967)", "C12–C14"], ["CO alarm present and working", "C18–C20"], ["Customer shown controls and told about servicing", "I2"], ["Benchmark / service record completed", "A9–A12; I2"]], CP12=[["Gas tightness test of the installation", "E2–E6"], ["Operating pressure at the meter", "B3; L2–L9"], ["ECV accessible, operates and is labelled", "P16; L4"], ["Main protective bonding present (advise if missing)", "D22; L4"], ["CO alarms where required (Smoke & CO Alarm Regs)", "C18–C20"], ["Defects recorded and warning notices issued where needed", "A3–A8"], ["Landlord gas safety record completed and copy for tenant", "A8–A9; P28–P32"]], AC=[["Location suitable", "J2–J3; K2; O7"], ["Flue: visual check; open-flued: flue flow and spillage tests (required)", "F3–F35"], ["Ventilation satisfactory", "G2–G12"], ["Working pressure or heat input", "C9–C11"], ["Safety devices operate", "H2–H15"], ["Combustion satisfactory", "C12–C14"]];
+var $=function(i){return document.getElementById(i)}, qa=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function num(v){v=parseFloat(String(v||"").replace(",","."));return isFinite(v)?v:NaN}
+var seq=0;
+function item(name,label,ref){ return '<div class="item" data-label="'+esc(label)+'"><div><div class="t">'+esc(label)+'</div><div class="r">LCL '+esc(ref)+'</div></div><div class="pf" role="radiogroup" aria-label="'+esc(label)+'">'+
+  ["pass","fail","na"].map(function(v){return '<label><input type="radio" name="'+name+'" value="'+v+'">'+(v==="pass"?"Pass":v==="fail"?"Fail":"N/A")+'</label>'}).join("")+'</div></div>'; }
+$("svcList").innerHTML=SERVICE.map(function(x,i){return item("s"+i,x[0],x[1])}).join("");
+$("cpList").innerHTML=CP12.map(function(x,i){return item("c"+i,x[0],x[1])}).join("");
+function addApp(){
+  var id=++seq, d=document.createElement("div"); d.className="appl"; d.dataset.id=id;
+  d.innerHTML='<h3>Appliance '+id+'<button type="button" class="iconbtn" aria-label="Remove appliance">×</button></h3><div class="grid3">'+
+   '<div class="field"><label>Type</label><select class="aType"><option>Boiler</option><option>Cooker / hob</option><option>Gas fire</option><option>Water heater</option><option>Warm air unit</option><option>Other</option></select></div>'+
+   '<div class="field"><label>Location</label><input class="aLoc"></div>'+
+   '<div class="field"><label>Flue type</label><select class="aFlue"><option>Room-sealed</option><option>Open-flued</option><option>Flueless</option></select></div></div>'+
+   AC.map(function(x,i){return item("a"+id+"_"+i,x[0],x[1])}).join("")+
+   '<div class="grid2" style="margin-top:8px"><div class="field"><label>Safe to use?</label><select class="aSafe"><option value="">–</option><option>Yes</option><option>No</option></select></div>'+
+   '<div class="field"><label>GIUSP classification</label><select class="aClass"><option>None</option><option>At Risk (AR)</option><option>Immediately Dangerous (ID)</option></select></div></div>'+
+   '<div class="grid2" style="margin-top:8px"><div class="field"><label>Defects found</label><input class="aDef"></div><div class="field"><label>Remedial action taken</label><input class="aRem"></div></div>';
+  $("apps").appendChild(d);
+  d.querySelector(".iconbtn").onclick=function(){ if(qa(".appl").length>1){ d.remove(); render(); } };
+}
+$("addApp").onclick=function(){addApp(); render();};
+addApp();
+function mode(){ return document.querySelector('input[name=mode]:checked').value; }
+function results(scope){ return qa(".item",scope).map(function(it){ var c=it.querySelector("input:checked"); return {label:it.dataset.label,v:c?c.value:null}; }); }
+function render(){
+  var m=mode(); $("svc").hidden=m!=="service"; $("cp").hidden=m!=="cp12"; qa(".cpOnly").forEach(function(e){e.hidden=m!=="cp12"});
+  var scope=m==="service"?$("svc"):$("cp"), R=results(scope);
+  var done=R.filter(function(r){return r.v}).length, fails=R.filter(function(r){return r.v==="fail"});
+  ($(m==="service"?"svcCount":"cpCount")).textContent="· "+done+" of "+R.length+" done";
+  var co=num($("rCO").value), co2=num($("rCO2").value);
+  $("rRatio").textContent=(isFinite(co)&&isFinite(co2)&&co2>0)?(co/(co2*10000)).toFixed(4):"–";
+  var mp=num($("rMeter").value), ip=num($("rInlet").value);
+  $("pressMsg").innerHTML=(isFinite(mp)&&isFinite(ip))?(mp-ip>1?'<div class="banner warn"><div><strong>Pressure loss '+(mp-ip).toFixed(1)+' mbar</strong><p>More than 1 mbar between the meter and the appliance (BS 6891, natural gas, all appliances at full rate). Check pipe sizing and for restrictions.</p></div></div>':'<div class="banner ok"><div><strong>Pressure loss '+(mp-ip).toFixed(1)+' mbar – within 1 mbar</strong></div></div>'):"";
+  var classes=m==="cp12"?qa(".aClass").map(function(s){return s.value}):[];
+  var id=classes.indexOf("Immediately Dangerous (ID)")>-1, ar=classes.indexOf("At Risk (AR)")>-1;
+  $("failBox").innerHTML=(fails.length||id||ar)?'<div class="card" style="border-color:var(--bad)"><h2 style="color:var(--bad)">Unsafe or failed items</h2>'+
+    (fails.length?'<ul>'+fails.map(function(f){return "<li>"+esc(f.label)+"</li>"}).join("")+'</ul>':'')+
+    '<p class="hint" style="margin:8px 0 0">Classify using GIUSP (IGEM/G/11). <b>ID:</b> with permission, disconnect, label, issue a warning notice and record it; if refused, contact the gas emergency service. RIDDOR report by the registered business where it applies (Reg 11(2)). <b>AR:</b> with permission, turn off, label, issue a warning notice and record it; if permission is refused, record it and advise. Learners: only under the direct supervision of a Gas Safe registered engineer. LCL manual A3–A8.</p></div>':"";
+  $("sumLine").textContent=done+" of "+R.length+" checks marked · "+fails.length+" failed"+(m==="cp12"?" · "+qa(".appl").length+" appliance(s)":"");
+  return {m:m,R:R,fails:fails};
+}
+document.addEventListener("change",render); document.addEventListener("input",render);
+function text(){
+  var S=render(), L=["FC Training Academy · "+(S.m==="service"?"Boiler service":"Landlord gas safety check")+" checklist","Date: "+($("vDate").value||"–"),"Address: "+($("vAddr").value||"–"),"Engineer: "+($("vEng").value||"–")+($("vReg").value?" · Gas Safe "+$("vReg").value:"")];
+  if(S.m==="cp12") L.push("Landlord/agent: "+($("vLand").value||"–")+" · "+($("vLandAddr").value||"–"));
+  if(S.m==="service") L.push("Appliance: "+($("aMake").value||"–")+" · "+($("aLoc").value||"–")+" · "+$("aFlue").value);
+  L.push(""); S.R.forEach(function(r){L.push((r.v==="pass"?"PASS":r.v==="fail"?"FAIL":r.v==="na"?"N/A ":"––  ")+"  "+r.label)});
+  if(S.m==="cp12") qa(".appl").forEach(function(a,i){ L.push("","Appliance "+(i+1)+": "+a.querySelector(".aType").value+" · "+(a.querySelector(".aLoc").value||"–")+" · "+a.querySelector(".aFlue").value+" · Safe: "+(a.querySelector(".aSafe").value||"–")+" · "+a.querySelector(".aClass").value+(a.querySelector(".aDef").value?" · Defects: "+a.querySelector(".aDef").value:"")+(a.querySelector(".aRem").value?" · Action: "+a.querySelector(".aRem").value:""));
+    results(a).forEach(function(r){L.push("   "+(r.v||"–")+"  "+r.label)}); });
+  L.push("","Readings: meter "+($("rMeter").value||"–")+" mbar · inlet "+($("rInlet").value||"–")+" mbar · "+($("rRate").value||"–")+" kW · CO "+($("rCO").value||"–")+" ppm · CO2 "+($("rCO2").value||"–")+"% · ratio "+$("rRatio").textContent);
+  if($("notes").value) L.push("Notes: "+$("notes").value);
+  return L.join("\n");
+}
+$("copyBtn").onclick=function(){ var t=text(); try{navigator.clipboard.writeText(t).then(function(){$("copyBtn").textContent="Copied";setTimeout(function(){$("copyBtn").textContent="Copy summary"},1500)})}catch(e){prompt("Copy:",t)} };
+$("shareBtn").onclick=function(){ var t=text(); if(navigator.share) navigator.share({title:"Visit checklist",text:t}).catch(function(){}); else $("copyBtn").click(); };
+$("pdfBtn").onclick=function(){ render(); window.print(); };
+$("newBtn").onclick=function(){ qa("input[type=radio]").forEach(function(r){ if(r.name!=="mode") r.checked=false; }); qa("input:not([type=radio]),textarea").forEach(function(i){ if(i.id!=="vDate") i.value=""; }); $("apps").innerHTML=""; seq=0; addApp(); render(); window.scrollTo({top:0}); };
+$("vDate").value=new Date().toISOString().slice(0,10);
+render();
+})();
+</script>
+<footer class="fc-legal"><p>For training and reference only. Check every result against the current standard, the manufacturer's instructions and your own readings. The engineer carrying out the work is responsible for the result.</p><p>&copy; 2026 FC Training Academy. All rights reserved. This page, its layout and its written content belong to FC Training Academy and may not be copied, reproduced, framed or redistributed without written permission.</p><p>References to IGEM, British Standards, the Gas Safety (Installation and Use) Regulations and the LCL Awards Gas Safety Training Manual are for study only. Those documents remain the copyright of their owners and are not reproduced here.</p></footer>
+</body></html>
