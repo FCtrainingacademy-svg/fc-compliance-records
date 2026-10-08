@@ -118,6 +118,22 @@ footer{margin-top:32px;font-size:13px;color:var(--muted);display:grid;gap:4px}
 .hist tr:last-child td{border-bottom:0}
 .linkbtn{background:none;border:0;color:var(--flue);font-weight:600;cursor:pointer;padding:0}
 .saving{font-size:13px;color:var(--muted)}
+.gopts{display:grid;gap:8px}
+.gopt{display:flex;gap:12px;align-items:flex-start;text-align:left;border:2px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--paper);color:var(--ink);font:inherit;cursor:pointer}
+.gopt:hover:not(:disabled){border-color:var(--flue);background:var(--flue-soft)}
+.gopt:focus-visible{outline:2px solid var(--flame);outline-offset:2px}
+.gopt:disabled{cursor:default}
+.gopt .l{font-family:var(--f-mono);color:var(--muted);flex:none}
+.gopt.right{border-color:var(--ok);background:var(--ok-bg)}
+.gopt.wrong{border-color:var(--bad);background:var(--bad-bg)}
+.fb{border-radius:8px;padding:12px 14px;background:var(--sunk);display:grid;gap:6px}
+.fb b.ok{color:var(--ok)} .fb b.bad{color:var(--bad)}
+.fb .r{font-family:var(--f-mono);font-size:13px;color:var(--flue)}
+.gk{font-size:30px !important}
+.boards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:12px}
+.boards h3{font-size:15px;padding:12px 14px 0;margin:0}
+.boards .hist{margin-top:0}
+.boards td.me{font-weight:700}
 </style>
 </head><body>
 <div class="wm" aria-hidden="true"></div>
@@ -181,7 +197,7 @@ async function showInvite(token){
 /* ---------- home ---------- */
 async function home(){
   try { ME = await api("GET","/api/learn/me"); } catch(x){ return showLogin(PREVIEW ? "Preview needs you to be signed in to the LMS as Manager or Admin in this browser. Sign in to the LMS, then press Preview learner portal again." : undefined); }
-  chrome(true,false); htitle.textContent = "Learner Portal"; X = null;
+  chrome(true,false); htitle.textContent = "Learner Portal"; X = null; G = null; clearInterval(gtick); homeBtn.textContent = "My exams";
   const best = {}; ME.attempts.forEach(a => { if (best[a.mock]==null || a.pct > best[a.mock]) best[a.mock] = a.pct; });
   const cards = ME.mocks.map(m => `<div class="mock"><div class="k">${esc(m.id)}</div><h2 style="font-size:20px">Mock exam ${esc(m.id)}</h2>
     <div class="meta">${m.count} questions · ${m.minutes} minutes · all CCN1 sections</div>
@@ -194,6 +210,10 @@ async function home(){
     <p>Practise for your CCN1 / ACS assessment. Each mock covers every section of the CCN1 Practical Performance Criteria. Your tutor can see your scores so they can help with the areas you find hardest.</p></section>
     <div class="mocks">${cards}</div>
     <h2 id="resources" style="font-size:20px;margin-top:28px;scroll-margin-top:80px">Resources</h2><div id="res"><p style="color:var(--muted)">Loading…</p></div>
+    <h2 style="font-size:20px;margin-top:28px">Games</h2>
+    <p style="margin:6px 0 0;color:var(--muted)">Quick rounds built on the mock questions. Play for fun, learn from every answer.</p>
+    <div class="mocks">${GAMES.map(g => `<div class="mock"><div class="k gk">${g.icon}</div><h2 style="font-size:20px">${esc(g.name)}</h2><div class="meta">${esc(g.meta)}</div><button class="btn primary" data-game="${g.mode}">${esc(g.btn)}</button></div>`).join("")}</div>
+    <div id="board"></div>
     <h2 style="font-size:20px;margin-top:28px">Your results</h2>${hist}
     <div class="how"><h3>How it works</h3><ul>
       <li>One answer per question. Your answers save as you go, so you can close the page and come back before the time runs out.</li>
@@ -203,6 +223,7 @@ async function home(){
       <p style="margin:10px 0 0"><button class="linkbtn" id="chpw">Change my password</button></p></div>${footer}`;
   const btnLabel = x => { if (!x.file) return "Open website ↗"; const e = (x.file.name.split(".").pop()||"").toLowerCase(); return e==="html"||e==="htm" ? "Read online →" : e==="pdf" ? "Open PDF" : "Open file"; };
   const fileKind = f => { const e = (f.name.split(".").pop()||"").toUpperCase(); return (e==="HTML"||e==="HTM"?"Read online":e==="PDF"?"PDF document":e==="DOC"||e==="DOCX"?"Word document":e==="XLS"||e==="XLSX"?"Spreadsheet":e==="PPT"||e==="PPTX"?"Slides":/PNG|JPE?G|WEBP|GIF/.test(e)?"Image":"File"); };
+  loadBoard();
   try { const R = await api("GET","/api/learn/resources"); const box = document.getElementById("res"); if (!box) return;
     if (!R.items.length){ box.innerHTML = `<p style="color:var(--muted)">Your tutor hasn't added any resources yet.</p>`; return; }
     const groups = {}; R.items.forEach(x => (groups[x.group || "General"] = groups[x.group || "General"] || []).push(x));
@@ -293,6 +314,81 @@ document.addEventListener("click", async e => {
 });
 function alertBox(m){ app.insertAdjacentHTML("afterbegin", `<p class="err" style="margin-top:16px">${esc(m)}</p>`); }
 document.addEventListener("change", e => { if (e.target.name==="opt" && X && X.qs){ X.ans[X.i] = +e.target.value; renderQ(); queueSave(); const f = document.getElementById("opt-"+e.target.value); if (f) f.focus(); } });
+
+/* ---------- games ---------- */
+const GAMES = [
+  { mode: "practice", icon: "15", name: "Warm-up", meta: "15 random questions · no clock · the answer and why after every question", btn: "Play warm-up" },
+  { mode: "challenge", icon: "⏱", name: "Beat the clock", meta: "15 questions on the clock · get all 15 right to make the leaderboard", btn: "Play beat the clock" },
+  { mode: "streak", icon: "🔥", name: "Streak", meta: "How many in a row? One wrong answer and it's over", btn: "Play streak" }];
+let G = null, gtick = null;
+const fmtMs = ms => { const t = Math.round((ms||0)/1000); return String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); };
+async function loadBoard(){
+  const box = document.getElementById("board"); if (!box) return;
+  try { const B = await api("GET","/api/learn/game/board");
+    const row = (cells) => `<tr>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+    const t1 = B.fastest.length ? B.fastest.map((r,i)=>row([i+1, esc(r.name), `<span class="mono">${fmtMs(r.ms)}</span>`])).join("") : `<tr><td colspan="3" style="color:var(--muted)">No perfect runs yet. Be the first.</td></tr>`;
+    const t2 = B.streak.length ? B.streak.map((r,i)=>row([i+1, esc(r.name), `<span class="mono">${r.score}</span>`])).join("") : `<tr><td colspan="3" style="color:var(--muted)">No streaks yet.</td></tr>`;
+    const mine = [B.mine && B.mine.best_ms!=null ? `your fastest perfect run <b class="mono">${fmtMs(B.mine.best_ms)}</b>` : "", B.mine && B.mine.best_streak ? `your best streak <b class="mono">${B.mine.best_streak}</b>` : ""].filter(Boolean).join(" · ");
+    box.innerHTML = `<div class="boards"><div class="hist"><h3>Fastest perfect runs</h3><table><thead><tr><th>#</th><th>Name</th><th>Time</th></tr></thead><tbody>${t1}</tbody></table></div>
+      <div class="hist"><h3>Longest streaks</h3><table><thead><tr><th>#</th><th>Name</th><th>Streak</th></tr></thead><tbody>${t2}</tbody></table></div></div>
+      ${mine?`<p style="margin:8px 0 0;color:var(--muted)">Your best: ${mine}</p>`:""}`;
+  } catch(x){ box.innerHTML = ""; }
+}
+async function startGame(mode){
+  const g = await api("POST","/api/learn/game/start",{ mode });
+  G = { id: g.id, mode: g.mode, qs: g.questions, total: g.total, i: 0, score: 0, fb: null, busy: false, t0: Date.now() };
+  chrome(true,true); homeBtn.textContent = "Leave game"; clearInterval(gtick);
+  if (G.mode === "challenge"){ timerEl.hidden = false; timerEl.classList.remove("low"); const tk = () => { timerEl.textContent = fmtMs(Date.now()-G.t0); }; tk(); gtick = setInterval(tk, 250); }
+  else timerEl.hidden = true;
+  htitle.textContent = GAMES.find(x=>x.mode===G.mode).name; renderG();
+}
+function renderG(){
+  const q = G.qs[G.i], fb = G.fb;
+  const prog = G.mode==="streak" ? `Streak: <b>${G.score}</b>` : `Question ${G.i+1} of ${G.total}${G.mode==="practice"?` · ${G.score} right`:""}`;
+  app.innerHTML = `<div class="qcard"><div class="qhead"><span class="qnum">${prog}</span><span class="pill">${esc(q.sec||"")}</span></div>
+    <p class="qtext">${esc(q.q)}</p>
+    <div class="gopts">${q.opts.map((o,j)=>{ let c=""; if (fb){ if (j===fb.right) c=" right"; else if (j===fb.a) c=" wrong"; }
+      return `<button class="gopt${c}" data-ga="${j}" ${fb||G.busy?"disabled":""}><span class="l">${LETTERS[j]}</span><span>${esc(o)}</span></button>`; }).join("")}</div>
+    ${fb?`<div class="fb"><p style="margin:0">${fb.correct?`<b class="ok">Correct.</b>`:`<b class="bad">Not quite.</b> The answer is ${LETTERS[fb.right]}.`}</p><p style="margin:0">${esc(fb.e)}</p><span class="r">Read: ${esc(fb.r)}</span></div>
+      <div class="nav"><span></span><button class="btn primary" data-gnext>${fb.over?"See result":"Next question"}</button></div>`:""}
+  </div>${footer}`;
+  window.scrollTo(0,0);
+  const first = app.querySelector(fb?"[data-gnext]":".gopt"); if (first) first.focus({ preventScroll: true });
+}
+async function answerG(a){
+  if (!G || G.busy || G.fb) return; G.busy = true;
+  try {
+    const r = await api("POST","/api/learn/game/"+G.id+"/answer",{ i: G.i, a });
+    G.busy = false;
+    if (G.mode === "challenge"){ if (r.done) return finishG(); G.i++; return renderG(); }
+    G.score = r.score; G.fb = { a, right: r.right, correct: r.correct, e: r.e, r: r.r, over: r.over }; renderG();
+  } catch(x){ G.busy = false; throw x; }
+}
+async function finishG(){
+  clearInterval(gtick); const res = await api("POST","/api/learn/game/"+G.id+"/finish"); const mode = G.mode; G = null;
+  chrome(true,true); homeBtn.textContent = "My exams"; timerEl.hidden = true; htitle.textContent = "Game over";
+  const perfect = res.score === res.total;
+  let head, sub;
+  if (mode==="challenge"){ head = `${res.score}/${res.total}`; sub = perfect ? `Perfect run in <b class="mono">${fmtMs(res.ms)}</b>.${res.rank?` You're number <b>${res.rank}</b> on the leaderboard.`:""}` : `Time <span class="mono">${fmtMs(res.ms)}</span>. Get all ${res.total} right to make the leaderboard.`; }
+  else if (mode==="streak"){ head = `${res.score}`; sub = res.score ? `in a row before the first wrong answer.` : `Unlucky – try again.`; }
+  else { head = `${res.score}/${res.total}`; sub = `right in this warm-up.`; }
+  const rv = res.review.slice(0, res.answered).map((q,i)=>({q,i,ok:q.given===q.correct})).sort((a,b)=>a.ok-b.ok);
+  app.innerHTML = `<div class="score"><span class="pill">${esc(GAMES.find(x=>x.mode===mode).name)}</span><div class="big">${head}</div><p>${sub}</p>
+    <div class="nav" style="margin-top:8px"><button class="btn" id="tohome">Back to portal</button><button class="btn primary" data-game="${mode}">Play again</button></div></div>
+    <div class="review">${rv.map(({q,i,ok}) => `<div class="rv${ok?"":" x"}"><p class="q"><span class="mono" style="color:var(--muted)">${i+1}.</span> ${esc(q.q)}</p>
+      <p class="a">${ok?`<b class="ok">Correct:</b> ${esc(q.opts[q.correct])}`:`<b class="bad">Your answer:</b> ${q.given==null?"not answered":esc(q.opts[q.given])}<br><b class="ok">Correct answer:</b> ${esc(q.opts[q.correct])}`}</p>
+      <p class="e">${esc(q.e)}</p><p class="r">Read: ${esc(q.r)}</p></div>`).join("")}</div>${footer}`;
+  window.scrollTo(0,0);
+}
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t) return;
+  try {
+    if (t.dataset.game){ t.disabled = true; return await startGame(t.dataset.game); }
+    if (t.dataset.ga!=null) return await answerG(+t.dataset.ga);
+    if (t.hasAttribute("data-gnext") && G){ if (G.fb && G.fb.over) return await finishG(); G.i++; G.fb = null; return renderG(); }
+  } catch(x){ if (x.status===401) return showLogin("Please sign in again."); t.disabled = false; alertBox(x.message); }
+});
+document.addEventListener("keydown", e => { if (!G || G.fb || G.busy) return; const k = e.key.toUpperCase(); const j = "ABCD".indexOf(k); if (j>-1 && /^[a-dA-D]$/.test(e.key) && !e.ctrlKey && !e.metaKey && document.activeElement.tagName!=="INPUT") answerG(j).catch(()=>{}); });
 
 async function boot(){
   const inv = new URLSearchParams(location.search).get("invite");

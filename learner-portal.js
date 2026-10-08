@@ -34,6 +34,10 @@ module.exports = function learnerPortal(app, d) {
         paper JSONB NOT NULL, answers JSONB, score INT, total INT, pct INT, by_section JSONB,
         started_at TIMESTAMPTZ NOT NULL DEFAULT now(), due_at TIMESTAMPTZ NOT NULL, finished_at TIMESTAMPTZ);
       CREATE INDEX IF NOT EXISTS exam_attempts_learner ON exam_attempts (learner_id);
+      CREATE TABLE IF NOT EXISTS game_runs (id BIGSERIAL PRIMARY KEY, learner_id TEXT NOT NULL, name TEXT, mode TEXT NOT NULL,
+        paper JSONB NOT NULL, answers JSONB NOT NULL DEFAULT '[]', score INT NOT NULL DEFAULT 0, total INT NOT NULL,
+        ms INT, preview BOOLEAN NOT NULL DEFAULT FALSE, started_at TIMESTAMPTZ NOT NULL DEFAULT now(), finished_at TIMESTAMPTZ);
+      CREATE INDEX IF NOT EXISTS game_runs_board ON game_runs (mode, finished_at);
     `);
   }
 
@@ -197,6 +201,64 @@ module.exports = function learnerPortal(app, d) {
       items: a.paper.map((p, i) => { const q = BANK.mocks[a.mock][p.q]; const opts = p.o.map(j => q.o[j]); const correct = p.o.indexOf(0);
         return { s: q.s, q: q.q, opts, correct, given: a.answers ? a.answers[i] : null, e: q.e, r: q.r }; }) };
   }
+
+  // ---------- games (built on the mock question bank) ----------
+  // Practice: 15 questions, answer and explanation after each. Challenge: 15 shuffled questions on the clock,
+  // feedback only at the end, perfect runs go on the board by time. Streak: keep going until the first wrong answer.
+  const GAME = { practice: 15, challenge: 15, streak: 40 };
+  const qpool = () => { const p = []; Object.keys(BANK.mocks).forEach(m => BANK.mocks[m].forEach((_, i) => p.push({ m, qi: i }))); return p; };
+  const gq = p => BANK.mocks[p.m][p.qi];
+  const shortName = n => { const w = String(n || 'Learner').trim().split(/\s+/); return w[0] + (w.length > 1 ? ' ' + w[w.length - 1][0] + '.' : ''); };
+  const gameQs = paper => paper.map(p => { const q = gq(p); return { s: q.s, sec: BANK.sections[q.s], q: q.q, opts: p.o.map(i => q.o[i]) }; });
+  const gameReview = (paper, answers) => paper.map((p, i) => { const q = gq(p); return { s: q.s, q: q.q, opts: p.o.map(j => q.o[j]), correct: p.o.indexOf(0), given: answers[i] == null ? null : answers[i], e: q.e, r: q.r }; });
+  app.post('/api/learn/game/start', lauth, express.json(), async (req, res) => {
+    const mode = String((req.body || {}).mode || ''); if (!GAME[mode]) return res.status(400).json({ error: 'Unknown game.' });
+    const all = shuffle(qpool()); const paper = all.slice(0, Math.min(GAME[mode], all.length)).map(p => ({ m: p.m, qi: p.qi, o: shuffle([0, 1, 2, 3]) }));
+    if (!paper.length) return res.status(503).json({ error: 'Questions are not available yet.' });
+    await pool.query(`UPDATE game_runs SET finished_at=now() WHERE learner_id=$1 AND finished_at IS NULL`, [req.learner.id]);
+    const r = await pool.query(`INSERT INTO game_runs (learner_id, name, mode, paper, total, preview) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+      [req.learner.id, shortName(req.learner.name), mode, JSON.stringify(paper), paper.length, !!req.learner.preview]);
+    res.json({ id: r.rows[0].id, mode, total: paper.length, questions: gameQs(paper) });
+  });
+  async function finishRun(g) {
+    const u = await pool.query(`UPDATE game_runs SET finished_at=now(), ms=GREATEST(0, (EXTRACT(EPOCH FROM (now()-started_at))*1000)::int) WHERE id=$1 AND finished_at IS NULL RETURNING *`, [g.id]);
+    return u.rows[0] || g;
+  }
+  app.post('/api/learn/game/:id/answer', lauth, express.json(), async (req, res) => {
+    const r = await pool.query(`SELECT * FROM game_runs WHERE id=$1 AND learner_id=$2`, [req.params.id, req.learner.id]); let g = r.rows[0];
+    if (!g) return res.status(404).json({ error: 'Game not found.' });
+    if (g.finished_at) return res.status(409).json({ error: 'This game has finished.' });
+    const i = +req.body.i, a = +req.body.a;
+    if (i !== g.answers.length || i >= g.total || ![0, 1, 2, 3].includes(a)) return res.status(400).json({ error: 'Answer the questions in order.' });
+    const ok = g.paper[i].o[a] === 0; const answers = g.answers.concat([a]);
+    const u = await pool.query(`UPDATE game_runs SET answers=$1, score=score+$2 WHERE id=$3 AND jsonb_array_length(answers)=$4 RETURNING *`, [JSON.stringify(answers), ok ? 1 : 0, g.id, i]);
+    if (!u.rowCount) return res.status(409).json({ error: 'Already answered.' }); g = u.rows[0];
+    const over = answers.length >= g.total || (g.mode === 'streak' && !ok);
+    if (over && g.mode !== 'challenge') g = await finishRun(g);
+    if (g.mode === 'challenge') return res.json({ ok: true, done: answers.length >= g.total });
+    const q = gq(g.paper[i]);
+    res.json({ correct: ok, right: g.paper[i].o.indexOf(0), e: q.e, r: q.r, score: g.score, over });
+  });
+  app.post('/api/learn/game/:id/finish', lauth, async (req, res) => {
+    const r = await pool.query(`SELECT * FROM game_runs WHERE id=$1 AND learner_id=$2`, [req.params.id, req.learner.id]); let g = r.rows[0];
+    if (!g) return res.status(404).json({ error: 'Game not found.' });
+    if (!g.finished_at) g = await finishRun(g);
+    let rank = null;
+    if (g.mode === 'challenge' && g.score === g.total && !g.preview) {
+      const b = await pool.query(`SELECT COUNT(*)::int AS n FROM game_runs WHERE mode='challenge' AND finished_at IS NOT NULL AND NOT preview AND score=total AND ms < $1`, [g.ms]);
+      rank = b.rows[0].n + 1;
+    }
+    res.json({ mode: g.mode, score: g.score, total: g.total, answered: g.answers.length, ms: g.ms, rank, review: gameReview(g.paper, g.answers) });
+  });
+  app.get('/api/learn/game/board', lauth, async (req, res) => {
+    const fast = await pool.query(`SELECT name, ms, finished_at FROM (SELECT DISTINCT ON (learner_id) learner_id, name, ms, finished_at FROM game_runs
+      WHERE mode='challenge' AND finished_at IS NOT NULL AND NOT preview AND score=total AND ms IS NOT NULL ORDER BY learner_id, ms) t ORDER BY ms LIMIT 10`);
+    const streak = await pool.query(`SELECT name, score, finished_at FROM (SELECT DISTINCT ON (learner_id) learner_id, name, score, finished_at FROM game_runs
+      WHERE mode='streak' AND finished_at IS NOT NULL AND NOT preview AND score > 0 ORDER BY learner_id, score DESC, finished_at) t ORDER BY score DESC, finished_at LIMIT 10`);
+    const mine = await pool.query(`SELECT MIN(ms) FILTER (WHERE mode='challenge' AND score=total AND finished_at IS NOT NULL) AS best_ms,
+      MAX(score) FILTER (WHERE mode='streak' AND finished_at IS NOT NULL) AS best_streak FROM game_runs WHERE learner_id=$1`, [req.learner.id]);
+    res.json({ fastest: fast.rows, streak: streak.rows, mine: mine.rows[0] });
+  });
 
   return { migrate };
 };
