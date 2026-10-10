@@ -134,6 +134,15 @@ footer{margin-top:32px;font-size:13px;color:var(--muted);display:grid;gap:4px}
 .boards h3{font-size:15px;padding:12px 14px 0;margin:0}
 .boards .hist{margin-top:0}
 .boards td.me{font-weight:700}
+.sow{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-top:12px;display:grid;gap:10px}
+.sow select{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--paper);color:var(--ink);font:inherit;width:100%;max-width:560px}
+.sow .wk{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--flame)}
+.sow h3{font-size:18px;margin:0}
+.sow dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0;font-size:15px}
+.sow dt{color:var(--muted)} .sow dd{margin:0}
+.sow .acts{display:flex;gap:8px;flex-wrap:wrap}
+.sow .acts .btn{font-weight:700;background:var(--flue-soft);color:var(--flue);border:2px solid var(--flue);transition:background .15s,color .15s}
+.sow .acts .btn:hover,.sow .acts .btn:focus-visible{background:var(--flue);color:var(--flue-ink)}
 </style>
 </head><body>
 <div class="wm" aria-hidden="true"></div>
@@ -209,7 +218,7 @@ async function home(){
     <h1>Hello ${esc(ME.learner.name.split(" ")[0])}</h1>
     <p>Practise for your CCN1 / ACS assessment. Each mock covers every section of the CCN1 Practical Performance Criteria. Your tutor can see your scores so they can help with the areas you find hardest.</p></section>
     <div class="mocks">${cards}</div>
-    <h2 id="resources" style="font-size:20px;margin-top:28px;scroll-margin-top:80px">Resources</h2><div id="res"><p style="color:var(--muted)">Loading…</p></div>
+    <h2 id="resources" style="font-size:20px;margin-top:28px;scroll-margin-top:80px">Resources</h2><div id="sowbox"></div><div id="res"><p style="color:var(--muted)">Loading…</p></div>
     <h2 style="font-size:20px;margin-top:28px">Games</h2>
     <p style="margin:6px 0 0;color:var(--muted)">Quick rounds built on the mock questions. Play for fun, learn from every answer.</p>
     <div class="mocks">${GAMES.map(g => `<div class="mock"><div class="k gk">${g.icon}</div><h2 style="font-size:20px">${esc(g.name)}</h2><div class="meta">${esc(g.meta)}</div><button class="btn primary" data-game="${g.mode}">${esc(g.btn)}</button></div>`).join("")}</div>
@@ -224,7 +233,8 @@ async function home(){
   const btnLabel = x => { if (!x.file) return "Open website ↗"; const e = (x.file.name.split(".").pop()||"").toLowerCase(); return e==="html"||e==="htm" ? "Read online →" : e==="pdf" ? "Open PDF" : "Open file"; };
   const fileKind = f => { const e = (f.name.split(".").pop()||"").toUpperCase(); return (e==="HTML"||e==="HTM"?"Read online":e==="PDF"?"PDF document":e==="DOC"||e==="DOCX"?"Word document":e==="XLS"||e==="XLSX"?"Spreadsheet":e==="PPT"||e==="PPTX"?"Slides":/PNG|JPE?G|WEBP|GIF/.test(e)?"Image":"File"); };
   loadBoard();
-  try { const R = await api("GET","/api/learn/resources"); const box = document.getElementById("res"); if (!box) return;
+  renderSow(null);
+  try { const R = await api("GET","/api/learn/resources"); renderSow(R.items); const box = document.getElementById("res"); if (!box) return;
     if (!R.items.length){ box.innerHTML = `<p style="color:var(--muted)">Your tutor hasn't added any resources yet.</p>`; return; }
     const groups = {}; R.items.forEach(x => (groups[x.group || "General"] = groups[x.group || "General"] || []).push(x));
     box.innerHTML = Object.keys(groups).map(g => `<h3 style="font-size:15px;margin:12px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${esc(g)}</h3><div class="mocks" style="margin-top:0">${groups[g].map(x => `<a class="mock res" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><h2 style="font-size:18px">${esc(x.title)}</h2>${x.note?`<div class="meta">${esc(x.note)}</div>`:""}${x.file?"":`<span class="meta" style="word-break:break-all">${esc(x.url.replace(/^https:\/\//,"").split("/")[0])}</span>`}<span class="rbtn">${esc(btnLabel(x))}</span></a>`).join("")}</div>`).join("");
@@ -315,6 +325,29 @@ document.addEventListener("click", async e => {
 function alertBox(m){ app.insertAdjacentHTML("afterbegin", `<p class="err" style="margin-top:16px">${esc(m)}</p>`); }
 document.addEventListener("change", e => { if (e.target.name==="opt" && X && X.qs){ X.ans[X.i] = +e.target.value; renderQ(); queueSave(); const f = document.getElementById("opt-"+e.target.value); if (f) f.focus(); } });
 
+const SOW=[{"w": 1, "t": "Induction: Health & Safety legislation, PPE and CSCS card requirements", "lcl": "A2; A13–A14", "s": [1], "n": "t1"}, {"w": 2, "t": "Gas Safety legislation: GSIUR requirements and responsibilities", "lcl": "P2–P34; A2–A3; A8", "s": [1], "n": "t1"}, {"w": 3, "t": "Gas Safety: Emergency procedures, properties of gas and combustion principles", "lcl": "A3–A4; C2–C6", "s": [2, 3], "n": "t2"}, {"w": 4, "t": "Gas Safety: Emergency procedures and hazard identification", "lcl": "A3–A8", "s": [2, 8], "n": "t3"}, {"w": 5, "t": "Tightness Testing: Introduction to procedures, equipment selection and standards", "lcl": "B2–B3; E2–E3", "s": [6], "n": "t4"}, {"w": 6, "t": "Tightness Testing: Procedures and allowable limits", "lcl": "E3–E6", "s": [6], "n": "t4"}, {"w": 7, "t": "Tightness Testing: Identifying faults and non-standard installations", "lcl": "E4–E6; E9", "s": [6], "n": "t4"}, {"w": 8, "t": "Purging: Principles, calculations and safe procedures", "lcl": "E6–E8", "s": [6], "n": "t5"}, {"w": 9, "t": "Tightness Testing: Advanced scenarios and medium pressure systems", "lcl": "E5; E9; L7", "s": [6], "n": "t4"}, {"w": 10, "t": "Pipework: Installation principles, pipe sizing and jointing methods", "lcl": "D2–D10", "s": [5], "n": "t6"}, {"w": 11, "t": "Pipework: Installation requirements within building structures", "lcl": "D13–D19", "s": [5], "n": "t6"}, {"w": 12, "t": "Pipework: Regulations, positioning and installation constraints", "lcl": "D10–D13; D19–D23; P21–P23", "s": [5], "n": "t6"}, {"w": 13, "t": "Gas Safety: Combustion principles and appliance operation", "lcl": "C4–C9", "s": [3], "n": "t2"}, {"w": 14, "t": "Gas Safety: Carbon monoxide awareness and detection", "lcl": "C16–C22", "s": [3], "n": "t7"}, {"w": 15, "t": "Combustion Performance Analysis: Principles and procedures", "lcl": "C12–C13", "s": [3], "n": "t8"}, {"w": 16, "t": "Combustion Performance Analysis: Equipment use and interpretation", "lcl": "C13–C14", "s": [3], "n": "t8"}, {"w": 17, "t": "Ventilation: Principles and calculation of air requirements", "lcl": "G2–G4", "s": [4], "n": "t9"}, {"w": 18, "t": "Ventilation: Open flue and room-sealed appliances", "lcl": "G5–G6", "s": [4], "n": "t9"}, {"w": 19, "t": "Ventilation: Advanced scenarios and multi-appliance installations", "lcl": "G7–G10", "s": [4], "n": "t9"}, {"w": 20, "t": "Ventilation: Regulatory requirements and system considerations", "lcl": "G2; G11–G12; A12", "s": [4], "n": "t9"}, {"w": 21, "t": "Flueing Principles: Introduction, standards and suitability of existing systems", "lcl": "F3–F8", "s": [12], "n": "t10"}, {"w": 22, "t": "Flueing Principles: Components, materials and system construction", "lcl": "F5; F9–F12", "s": [12], "n": "t10"}, {"w": 23, "t": "Flueing Principles: Open flue systems and installation requirements", "lcl": "F4–F8", "s": [12], "n": "t10"}, {"w": 24, "t": "Flueing Principles: Fan-assisted and shared flue systems", "lcl": "F13; F23–F28", "s": [12], "n": "t10"}, {"w": 25, "t": "Flueing Principles: Room-sealed systems and appliance compatibility", "lcl": "F17–F22", "s": [12], "n": "t10"}, {"w": 26, "t": "Flueing Principles: Design limitations, installation considerations and voids", "lcl": "F26; F29–F35", "s": [12], "n": "t10"}, {"w": 27, "t": "Flue Testing: Flow testing procedures and methods", "lcl": "F14", "s": [12], "n": "t11"}, {"w": 28, "t": "Flue Testing: Spillage testing and environmental influences", "lcl": "F15", "s": [12], "n": "t11"}, {"w": 29, "t": "Flue Inspection: Visual inspection, compliance and safety checks", "lcl": "F4–F8; F26", "s": [12], "n": "t10"}, {"w": 30, "t": "Flueing Principles: Advanced systems, sealing methods and compliance", "lcl": "F28–F35", "s": [12], "n": "t10"}, {"w": 31, "t": "Controls: Appliance operation, pressure systems and safety monitoring", "lcl": "H2–H5", "s": [11], "n": "t12"}, {"w": 32, "t": "Controls: Gas appliance control systems and operational requirements", "lcl": "H5–H11", "s": [11], "n": "t12"}, {"w": 33, "t": "Controls: Installation, isolation and replacement", "lcl": "H11–H15", "s": [11], "n": "t12"}, {"w": 34, "t": "Gas Rate and Operating Pressure: Measurement and compliance", "lcl": "B3; C9–C11; C15–C16", "s": [7], "n": "t13"}, {"w": 35, "t": "Unsafe Situations: Identification, classification and labelling", "lcl": "A3–A7", "s": [8], "n": "t3"}, {"w": 36, "t": "Unsafe Situations: Reporting requirements and regulatory compliance", "lcl": "A4; A8–A9", "s": [8], "n": "t3"}, {"w": 37, "t": "Gas Installation: Emergency control valves and positioning requirements", "lcl": "P16; L2–L4", "s": [9], "n": "t14"}, {"w": 38, "t": "Pipework: Multi-occupancy and protected environments", "lcl": "D17–D18; K8", "s": [5], "n": "t6"}, {"w": 39, "t": "Gas Pressure: Measurement, standards and compliance", "lcl": "B3; L5–L9", "s": [7], "n": "t14"}, {"w": 40, "t": "Heating Systems: Types, components and system operation", "lcl": "J2–J4; J11–J12", "s": [11], "n": "t15"}, {"w": 41, "t": "Appliance Installation: Pre-installation requirements and site survey", "lcl": "J2–J8; F30–F34", "s": [4, 12], "n": "t15"}, {"w": 42, "t": "Appliance Installation: Commissioning procedures and checks", "lcl": "I2; J10", "s": [7, 11, 12], "n": "t15"}, {"w": 43, "t": "Servicing: Inspection and pre-service procedures", "lcl": "J10; C12–C14", "s": [3, 7], "n": "t15"}, {"w": 44, "t": "Servicing: Maintenance procedures and combustion analysis", "lcl": "J10; C12–C14; F20", "s": [3, 7], "n": "t15"}, {"w": 45, "t": "Fault-Finding: Electrical systems and sequence of operation", "lcl": "J13; H10–H15", "s": [11], "n": "t15"}, {"w": 46, "t": "Electrical Safety: Safe isolation procedures", "lcl": "A13", "s": [11], "n": "t16"}, {"w": 47, "t": "Tightness Testing: Fault identification and gas escape detection", "lcl": "E2–E6; A3–A4", "s": [6, 2], "n": "t4"}, {"w": 48, "t": "Tightness Testing: Advanced fault diagnosis and system isolation", "lcl": "E4–E9", "s": [6], "n": "t4"}, {"w": 49, "t": "Gas Safety: Re-establishing gas supply and post-work checks", "lcl": "P24–P26; I2; E6–E7", "s": [6, 9], "n": "t5"}, {"w": 50, "t": "Assessment Preparation: Oral questioning, knowledge consolidation and portfolio", "lcl": "A9–A12", "s": [], "n": "t17"}, {"w": 51, "t": "Assessment: Centre-based assessment and competency evaluation", "lcl": "All sections", "s": [], "n": "t17"}, {"w": 52, "t": "Portfolio Completion: Review, verification and sign-off", "lcl": "A9–A12", "s": [], "n": "t17"}, {"w": 53, "t": "ACS Preparation: Revision and mock assessments", "lcl": "All sections", "s": [], "n": "t18"}, {"w": 54, "t": "ACS Assessment: Final examinations and assessment documentation", "lcl": "All sections", "s": [], "n": "t18"}];
+const SOW_PHASES=[{"a": 1, "b": 34, "t": "Phase 1 · Foundation and core technical development"}, {"a": 35, "b": 48, "t": "Phase 2 · Advanced technical training and assessment"}, {"a": 49, "b": 54, "t": "Phase 3 · Portfolio, ACS and EPA preparation"}];
+const NOTE_TOPICS = {t1:"Gas safety law (GSIUR)",t2:"Properties of gas and combustion",t3:"Unsafe situations, emergencies and RIDDOR",t4:"Tightness testing",t5:"Purging",t6:"Pipework and pipe sizing",t7:"Carbon monoxide and CO alarms",t8:"Combustion performance analysis",t9:"Ventilation",t10:"Chimneys and flues",t11:"Flue flow and spillage testing",t12:"Controls and safety devices",t13:"Gas rate and heat input",t14:"Pressures, meters and ECVs",t15:"Boilers: install, commission, service, fault find",t16:"Safe electrical isolation",t17:"Your MLP portfolio",t18:"Other appliances and ACS"};
+let SOW_RES = null;
+function sowWeek(){ let w = 1; try { w = +localStorage.getItem("fc-sow-week") || 1; } catch(e){} return Math.min(54, Math.max(1, w)); }
+function sowSecs(list){ return [...new Set(list.flatMap(x => x.s))]; }
+function renderSow(items){
+  if (items) SOW_RES = items; const box = document.getElementById("sowbox"); if (!box) return;
+  const w = sowWeek(), W = SOW.find(x => x.w === w), ph = SOW_PHASES.find(p => w >= p.a && w <= p.b);
+  const notes = (SOW_RES || []).find(x => x.file && /Revision Notes/i.test(x.title));
+  const upto = SOW.filter(x => x.w <= w), wkS = W.s.length ? W.s : sowSecs(upto), upS = sowSecs(upto);
+  box.innerHTML = `<h3 style="font-size:15px;margin:12px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Study by SOW week</h3>
+   <div class="sow"><label for="sowsel" style="font-weight:600;font-size:14px">Which week are you on?</label>
+    <select id="sowsel">${SOW_PHASES.map(p => `<optgroup label="${esc(p.t)}">${SOW.filter(x => x.w >= p.a && x.w <= p.b).map(x => `<option value="${x.w}"${x.w===w?" selected":""}>Week ${x.w} – ${esc(x.t)}</option>`).join("")}</optgroup>`).join("")}</select>
+    <div><div class="wk">Week ${w} · ${esc(ph.t)}</div><h3>${esc(W.t)}</h3></div>
+    <dl><dt>Read in the LCL manual</dt><dd class="mono">${esc(W.lcl)}</dd>
+     <dt>Revision notes</dt><dd>${notes ? `<a href="${esc(notes.url)}#${W.n}" target="_blank" rel="noopener" style="color:var(--flue);font-weight:600">${esc(NOTE_TOPICS[W.n])} →</a>` : esc(NOTE_TOPICS[W.n])}</dd></dl>
+    <div class="acts"><button class="btn primary" data-game="practice" data-secs="${wkS.join(",")}" data-label="SOW week ${w}">Practise week ${w}</button>
+     <button class="btn primary" data-game="practice" data-secs="${upS.join(",")}" data-label="SOW weeks 1–${w}">Practise weeks 1–${w}</button>
+     <button class="btn" data-game="streak" data-secs="${upS.join(",")}" data-label="SOW weeks 1–${w}">Streak: weeks 1–${w}</button></div>
+    <p style="margin:0;font-size:13px;color:var(--muted)">${W.s.length ? "" : "This week has no single topic, so practice uses everything covered so far. "}Practice by week doesn't go on the leaderboards.</p></div>`;
+  document.getElementById("sowsel").onchange = e => { try { localStorage.setItem("fc-sow-week", e.target.value); } catch(x){} renderSow(); };
+}
 /* ---------- games ---------- */
 const GAMES = [
   { mode: "practice", icon: "15", name: "Warm-up", meta: "15 random questions · no clock · the answer and why after every question", btn: "Play warm-up" },
@@ -334,13 +367,14 @@ async function loadBoard(){
       ${mine?`<p style="margin:8px 0 0;color:var(--muted)">Your best: ${mine}</p>`:""}`;
   } catch(x){ box.innerHTML = ""; }
 }
-async function startGame(mode){
-  const g = await api("POST","/api/learn/game/start",{ mode });
-  G = { id: g.id, mode: g.mode, qs: g.questions, total: g.total, i: 0, score: 0, fb: null, busy: false, t0: Date.now() };
+async function startGame(mode, secs, label){
+  const body = { mode }; if (secs){ body.sections = secs.split(",").filter(Boolean); body.label = label; }
+  const g = await api("POST","/api/learn/game/start", body);
+  G = { id: g.id, mode: g.mode, scope: g.scope, secs, label, qs: g.questions, total: g.total, i: 0, score: 0, fb: null, busy: false, t0: Date.now() };
   chrome(true,true); homeBtn.textContent = "Leave game"; clearInterval(gtick);
   if (G.mode === "challenge"){ timerEl.hidden = false; timerEl.classList.remove("low"); const tk = () => { timerEl.textContent = fmtMs(Date.now()-G.t0); }; tk(); gtick = setInterval(tk, 250); }
   else timerEl.hidden = true;
-  htitle.textContent = GAMES.find(x=>x.mode===G.mode).name; renderG();
+  htitle.textContent = G.scope || GAMES.find(x=>x.mode===G.mode).name; renderG();
 }
 function renderG(){
   const q = G.qs[G.i], fb = G.fb;
@@ -365,7 +399,7 @@ async function answerG(a){
   } catch(x){ G.busy = false; throw x; }
 }
 async function finishG(){
-  clearInterval(gtick); const res = await api("POST","/api/learn/game/"+G.id+"/finish"); const mode = G.mode; G = null;
+  clearInterval(gtick); const res = await api("POST","/api/learn/game/"+G.id+"/finish"); const mode = G.mode, gsecs = G.secs || "", glabel = G.label || ""; G = null;
   chrome(true,true); homeBtn.textContent = "My exams"; timerEl.hidden = true; htitle.textContent = "Game over";
   const perfect = res.score === res.total;
   let head, sub;
@@ -373,8 +407,8 @@ async function finishG(){
   else if (mode==="streak"){ head = `${res.score}`; sub = res.score ? `in a row before the first wrong answer.` : `Unlucky – try again.`; }
   else { head = `${res.score}/${res.total}`; sub = `right in this warm-up.`; }
   const rv = res.review.slice(0, res.answered).map((q,i)=>({q,i,ok:q.given===q.correct})).sort((a,b)=>a.ok-b.ok);
-  app.innerHTML = `<div class="score"><span class="pill">${esc(GAMES.find(x=>x.mode===mode).name)}</span><div class="big">${head}</div><p>${sub}</p>
-    <div class="nav" style="margin-top:8px"><button class="btn" id="tohome">Back to portal</button><button class="btn primary" data-game="${mode}">Play again</button></div></div>
+  app.innerHTML = `<div class="score"><span class="pill">${esc(res.scope || GAMES.find(x=>x.mode===mode).name)}</span><div class="big">${head}</div><p>${sub}</p>${res.scope?`<p style="font-size:14px">Practice by week – not on the leaderboard.</p>`:""}
+    <div class="nav" style="margin-top:8px"><button class="btn" id="tohome">Back to portal</button><button class="btn primary" data-game="${mode}" data-secs="${esc(gsecs)}" data-label="${esc(glabel)}">Play again</button></div></div>
     <div class="review">${rv.map(({q,i,ok}) => `<div class="rv${ok?"":" x"}"><p class="q"><span class="mono" style="color:var(--muted)">${i+1}.</span> ${esc(q.q)}</p>
       <p class="a">${ok?`<b class="ok">Correct:</b> ${esc(q.opts[q.correct])}`:`<b class="bad">Your answer:</b> ${q.given==null?"not answered":esc(q.opts[q.given])}<br><b class="ok">Correct answer:</b> ${esc(q.opts[q.correct])}`}</p>
       <p class="e">${esc(q.e)}</p><p class="r">Read: ${esc(q.r)}</p></div>`).join("")}</div>${footer}`;
@@ -383,7 +417,7 @@ async function finishG(){
 document.addEventListener("click", async e => {
   const t = e.target.closest("button"); if (!t) return;
   try {
-    if (t.dataset.game){ t.disabled = true; return await startGame(t.dataset.game); }
+    if (t.dataset.game){ t.disabled = true; return await startGame(t.dataset.game, t.dataset.secs, t.dataset.label); }
     if (t.dataset.ga!=null) return await answerG(+t.dataset.ga);
     if (t.hasAttribute("data-gnext") && G){ if (G.fb && G.fb.over) return await finishG(); G.i++; G.fb = null; return renderG(); }
   } catch(x){ if (x.status===401) return showLogin("Please sign in again."); t.disabled = false; alertBox(x.message); }
