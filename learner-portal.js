@@ -132,7 +132,7 @@ module.exports = function learnerPortal(app, d) {
     const a = await pool.query(`SELECT id, mock, score, total, pct, finished_at FROM exam_attempts WHERE learner_id=$1 AND finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT 30`, [req.learner.id]);
     const open = await pool.query(`SELECT id, mock, due_at FROM exam_attempts WHERE learner_id=$1 AND finished_at IS NULL AND due_at > now() ORDER BY started_at DESC LIMIT 1`, [req.learner.id]);
     res.json({ learner: { name: req.learner.name, cohort: req.learner.cohort, email: req.learner.email, preview: !!req.learner.preview },
-      mocks: Object.keys(BANK.mocks).map(k => ({ id: k, count: BANK.mocks[k].length, minutes: MINUTES })), attempts: a.rows, open: open.rows[0] || null });
+      mocks: Object.keys(BANK.mocks).map(k => ({ id: k, count: BANK.mocks[k].length, minutes: MINUTES })), topics: SEC_ORDER.filter(k => BANK.sections[k]).map(k => ({ s: k, name: BANK.sections[k], n: Object.values(BANK.mocks).reduce((t, m) => t + m.filter(q => String(q.s) === k).length, 0) })), attempts: a.rows, open: open.rows[0] || null });
   });
   app.get('/api/learn/resources', lauth, async (req, res) => {
     const r = await pool.query(`SELECT data FROM docs WHERE col='config' AND id='learner-resources'`);
@@ -160,11 +160,14 @@ module.exports = function learnerPortal(app, d) {
       'Cache-Control': 'private, max-age=600', 'X-Content-Type-Options': 'nosniff' });
     res.send(f.data);
   });
+  // Mock papers are laid out topic by topic in Scheme of Work order (ATS Ilford V1.2); questions are shuffled within each topic.
+  const SEC_ORDER = ['1', '2', '3', '8', '6', '5', '4', '12', '11', '7', '9'];
+  const secRank = s => { const i = SEC_ORDER.indexOf(String(s)); return i < 0 ? 99 : i; };
   const paperFor = a => a.paper.map(p => { const q = BANK.mocks[a.mock][p.q]; return { s: q.s, sec: BANK.sections[q.s], q: q.q, opts: p.o.map(i => q.o[i]) }; });
   app.post('/api/learn/start/:mock', lauth, async (req, res) => {
     const qs = BANK.mocks[req.params.mock]; if (!qs) return res.status(404).json({ error: 'No such mock.' });
     await pool.query(`UPDATE exam_attempts SET finished_at=now() WHERE learner_id=$1 AND finished_at IS NULL AND due_at <= now()`, [req.learner.id]);
-    const paper = shuffle(qs.map((_, i) => i)).map(q => ({ q, o: shuffle([0, 1, 2, 3]) }));
+    const paper = shuffle(qs.map((_, i) => i)).sort((x, y) => secRank(qs[x].s) - secRank(qs[y].s)).map(q => ({ q, o: shuffle([0, 1, 2, 3]) }));
     const r = await pool.query(`INSERT INTO exam_attempts (learner_id, mock, paper, answers, due_at) VALUES ($1,$2,$3,$4, now() + ($5 || ' minutes')::interval) RETURNING *`,
       [req.learner.id, req.params.mock, JSON.stringify(paper), JSON.stringify(Array(paper.length).fill(null)), String(MINUTES + 1)]);
     const a = r.rows[0]; res.json({ id: a.id, mock: a.mock, due: a.due_at, questions: paperFor(a), answers: a.answers });

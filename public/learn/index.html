@@ -71,6 +71,16 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .nav{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:6px;margin-top:14px}
 .cell{border:1px solid var(--line);background:var(--paper);border-radius:6px;padding:6px 0;text-align:center;font-family:var(--f-mono);font-size:13px;cursor:pointer}
+.topx{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-top:14px}
+.topx h3{font-size:16px;margin:0} .topx p{margin:4px 0 10px;color:var(--muted);font-size:14px}
+.tlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.tbtn{display:flex;align-items:center;gap:10px;text-align:left;font:inherit;font-size:14.5px;font-weight:600;padding:9px 12px;border-radius:8px;border:2px solid var(--flue);background:var(--flue-soft);color:var(--flue);cursor:pointer}
+.tbtn:hover,.tbtn:focus-visible{background:var(--flue);color:var(--flue-ink)}
+.tbtn .tn{display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:6px;background:var(--flue);color:var(--flue-ink);font-size:12.5px}
+.tbtn:hover .tn,.tbtn:focus-visible .tn{background:var(--flue-ink);color:var(--flue)}
+.tbtn:disabled{opacity:.6;cursor:wait}
+.gtop{grid-column:1/-1;font-size:12.5px;font-weight:600;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:.04em}
+.gtop:first-child{margin-top:0}
 .cell.done{background:var(--flue);border-color:var(--flue);color:var(--flue-ink)}
 .cell.cur{outline:2px solid var(--flame);outline-offset:1px}
 .cell.flag{box-shadow:inset 0 -4px 0 var(--flame)}
@@ -209,7 +219,7 @@ async function home(){
   chrome(true,false); htitle.textContent = "Learner Portal"; X = null; G = null; clearInterval(gtick); homeBtn.textContent = "My exams";
   const best = {}; ME.attempts.forEach(a => { if (best[a.mock]==null || a.pct > best[a.mock]) best[a.mock] = a.pct; });
   const cards = ME.mocks.map(m => `<div class="mock"><div class="k">${esc(m.id)}</div><h2 style="font-size:20px">Mock exam ${esc(m.id)}</h2>
-    <div class="meta">${m.count} questions · ${m.minutes} minutes · all CCN1 sections</div>
+    <div class="meta">${m.count} questions · ${m.minutes} minutes · every topic, in Scheme of Work order</div>
     <div class="best">${best[m.id]!=null?`Your best: <b class="mono">${best[m.id]}%</b>`:`<span style="color:var(--muted)">Not attempted yet</span>`}</div>
     ${ME.open && ME.open.mock===m.id?`<button class="btn primary" data-resume="${ME.open.id}">Continue mock ${esc(m.id)}</button>`:`<button class="btn primary" data-start="${esc(m.id)}">Start mock ${esc(m.id)}</button>`}</div>`).join("");
   const hist = ME.attempts.length ? `<div class="hist"><table><thead><tr><th>Date</th><th>Mock</th><th>Score</th><th></th></tr></thead><tbody>${ME.attempts.map(a => `<tr><td>${fmtDate(a.finished_at)}</td><td>${esc(a.mock)}</td><td class="mono">${a.score}/${a.total} · ${a.pct}%</td><td><button class="linkbtn" data-view="${a.id}">Review</button></td></tr>`).join("")}</tbody></table></div>`
@@ -218,6 +228,7 @@ async function home(){
     <h1>Hello ${esc(ME.learner.name.split(" ")[0])}</h1>
     <p>Practise for your CCN1 / ACS assessment. Each mock covers every section of the CCN1 Practical Performance Criteria. Your tutor can see your scores so they can help with the areas you find hardest.</p></section>
     <div class="mocks">${cards}</div>
+    ${(ME.topics||[]).length?`<div class="topx"><h3>Practise one topic</h3><p>Questions on a single topic, in Scheme of Work order. Instant feedback after each answer.</p><div class="tlist">${ME.topics.map((t,k) => `<button class="tbtn" data-game="practice" data-secs="${esc(t.s)}" data-label="${esc(t.name)}"><span class="tn mono">${k+1}</span>${esc(t.name)}</button>`).join("")}</div></div>`:""}
     <h2 id="resources" style="font-size:20px;margin-top:28px;scroll-margin-top:80px">Resources</h2><div id="sowbox"></div><div id="res"><p style="color:var(--muted)">Loading…</p></div>
     <h2 style="font-size:20px;margin-top:28px">Games</h2>
     <p style="margin:6px 0 0;color:var(--muted)">Quick rounds built on the mock questions. Play for fun, learn from every answer.</p>
@@ -256,7 +267,9 @@ function queueSave(){ clearTimeout(saveT); savingEl.hidden = false; savingEl.tex
   saveT = setTimeout(async () => { try { await api("PUT",`/api/learn/attempt/${X.id}/answers`,{ answers: X.ans }); savingEl.textContent = "Saved"; } catch(x){ savingEl.textContent = x.status===401 ? "Signed out" : "Not saved – check connection"; } }, 400); }
 function renderQ(){
   const q = X.qs[X.i], n = X.qs.length, answered = X.ans.filter(a => a!=null).length;
-  app.innerHTML = `<div class="qcard"><div class="qhead"><span class="qnum">Question ${X.i+1} of ${n}</span><span class="pill">${esc(q.sec)}</span></div>
+  const tops = []; X.qs.forEach((x,j) => { if (!tops.length || tops[tops.length-1].s !== x.s) tops.push({ s: x.s, sec: x.sec, js: [] }); tops[tops.length-1].js.push(j); });
+  const ti = tops.findIndex(t => t.js.includes(X.i));
+  app.innerHTML = `<div class="qcard"><div class="qhead"><span class="qnum">Question ${X.i+1} of ${n}</span><span class="pill">Topic ${ti+1} of ${tops.length} · ${esc(q.sec)}</span></div>
     <p class="qtext" id="qtext">${esc(q.q)}</p>
     <div class="opts" role="radiogroup" aria-labelledby="qtext">${q.opts.map((o,j) => `<label class="opt${X.ans[X.i]===j?" sel":""}"><input type="radio" name="opt" id="opt-${j}" value="${j}" ${X.ans[X.i]===j?"checked":""}><span class="l">${LETTERS[j]}</span><span>${esc(o)}</span></label>`).join("")}</div>
     <div class="nav"><button class="btn" id="prev" ${X.i===0?"disabled":""}>Previous</button>
@@ -264,7 +277,7 @@ function renderQ(){
       ${X.i<n-1?`<button class="btn primary" id="next">Next</button>`:`<button class="btn primary" id="sub">Finish and mark</button>`}</div>
     ${X.confirm?`<div class="confirm"><p>${n-answered} question${n-answered===1?"":"s"} unanswered. Mark the exam anyway?</p><button class="btn primary" id="sure">Mark now</button><button class="btn" id="back">Keep going</button></div>`:""}
   </div>
-  <div class="grid" aria-label="Question navigator">${X.qs.map((_,j)=>`<button class="cell${X.ans[j]!=null?" done":""}${j===X.i?" cur":""}${X.flag[j]?" flag":""}" data-go="${j}" aria-label="Question ${j+1}">${j+1}</button>`).join("")}</div>
+  <div class="grid" aria-label="Question navigator">${tops.map((t,k) => `<div class="gtop">${k+1}. ${esc(t.sec)}</div>` + t.js.map(j=>`<button class="cell${X.ans[j]!=null?" done":""}${j===X.i?" cur":""}${X.flag[j]?" flag":""}" data-go="${j}" aria-label="Question ${j+1}, ${esc(t.sec)}">${j+1}</button>`).join("")).join("")}</div>
   <p class="legend">${answered} of ${n} answered · filled = answered · orange underline = flagged</p>
   <div class="nav" style="margin-top:10px"><span></span><button class="btn" id="sub2">Finish and mark</button></div>`;
 }
@@ -275,14 +288,16 @@ async function finish(force){
   try { const r = await api("POST",`/api/learn/attempt/${X.id}/finish`,{ answers: X.ans }); showReview(r.review, force==="time"); }
   catch(x){ X.finishing = false; app.insertAdjacentHTML("afterbegin",`<p class="err" style="margin-top:16px">${esc(x.message)}</p>`); }
 }
+const SEC_ORDER = ['1','2','3','8','6','5','4','12','11','7','9'];
+const secRank = s => { const i = SEC_ORDER.indexOf(String(s)); return i < 0 ? 99 : i; };
 function showReview(rv, timedOut, filter){
   chrome(true,false); homeBtn.hidden = false; htitle.textContent = "Mock exam " + rv.mock; X = { review: rv, filter: filter || "wrong", timedOut };
-  const n = rv.total, secs = Object.keys(rv.sections).filter(k => rv.by_section && rv.by_section[k]).map(k => { const b = rv.by_section[k], p = Math.round(b.r/b.t*100);
+  const n = rv.total, secs = Object.keys(rv.sections).filter(k => rv.by_section && rv.by_section[k]).sort((a,b) => secRank(a) - secRank(b)).map(k => { const b = rv.by_section[k], p = Math.round(b.r/b.t*100);
     return `<div class="sec"><span class="n">${esc(rv.sections[k])}</span><span class="v">${b.r}/${b.t}</span><span class="meter"><i style="width:${Math.max(p,3)}%;background:${p===100?"var(--ok)":p>=60?"var(--flame)":"var(--bad)"}"></i></span></div>`; }).join("");
   const list = rv.items.map((q,i) => ({q,i,ok:q.given===q.correct})).filter(x => X.filter==="all" || !x.ok);
   app.innerHTML = `<div class="score"><span class="pill">Mock exam ${esc(rv.mock)} result${timedOut?" · time ran out":""}</span>
     <div class="big mono">${rv.pct}%</div><p>${rv.score} of ${n} correct. ${rv.pct===100?"Every answer right. Try another mock.":"Go through every wrong answer below and read the standard listed before trying again."}</p></div>
-    <div class="secs"><h3 style="font-size:16px">Score by section</h3>${secs}</div>
+    <div class="secs"><h3 style="font-size:16px">Score by topic</h3>${secs}</div>
     <div class="filters"><button class="chip" aria-pressed="${X.filter==="wrong"}" data-f="wrong">Wrong answers (${n-rv.score})</button><button class="chip" aria-pressed="${X.filter==="all"}" data-f="all">All questions</button>
       <span style="flex:1"></span><button class="btn" data-start="${esc(rv.mock)}">Retake mock ${esc(rv.mock)}</button><button class="btn primary" id="tohome">My exams</button></div>
     <div class="review">${list.map(({q,i,ok}) => `<div class="rv${ok?"":" x"}"><p class="q"><span class="mono" style="color:var(--muted)">${i+1}.</span> ${esc(q.q)}</p>
