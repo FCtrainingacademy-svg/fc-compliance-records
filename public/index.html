@@ -185,6 +185,20 @@ const PROGRAMMES=["L3 Gas Engineering Operative apprenticeship","MLP (Managed Le
 const LSTATUS=["Active","Break in learning","Completed","Withdrawn"];
 const USTAT={ns:"Not started",ip:"In progress",sub:"Evidence submitted",so:"Signed off"};
 const ATT={P:"Present",L:"Late",A:"Absent",AA:"Authorised absence"};
+/* 53-week MLP → ACS scheme of work (one full day a week). Week n = the learner's nth training day. */
+const SOW=["Induction: Health & Safety, PPE and CSCS", "Gas Safety Legislation: GSIUR", "Gas Emergencies, Properties of Gas and Combustion", "Emergency Procedures and Hazard Identification", "Tightness Testing: Procedures, Equipment and Standards", "Tightness Testing: Procedures and Allowable Limits", "Tightness Testing: Faults and Non-Standard Installations", "Purging: Principles, Calculations and Safe Procedures", "Tightness Testing: Advanced Scenarios and Medium Pressure Systems", "Pipework: Installation Principles, Pipe Sizing and Jointing Methods", "Pipework: Installation Requirements within Building Structures", "Pipework: Regulations, Positioning and Installation Constraints", "Combustion Principles and Appliance Operation", "Carbon Monoxide Awareness and Detection", "CPA: Principles and Procedures", "CPA: Equipment Use and Interpretation", "Ventilation: Principles and Air Requirements", "Ventilation: Open-Flued and Room-Sealed Appliances", "Ventilation: Advanced Scenarios and Multi-Appliance Installations", "Ventilation: Regulatory Requirements and System Considerations", "Flueing Principles: Introduction, Standards and Suitability of Existing Systems", "Flueing Principles: Components, Materials and System Construction", "Flueing Principles: Open Flue Systems and Installation Requirements", "Flueing Principles: Fan-Assisted and Shared Flue Systems", "Room-Sealed Systems and Appliance Compatibility", "Design Limitations, Installation Considerations and Voids", "Flue Flow Testing Procedures and Methods", "Spillage Testing and Environmental Influences", "Flue Inspection: Visual Inspection, Compliance and Safety Checks", "Advanced Flue Systems, Sealing Methods and Regulatory Compliance", "Controls: Appliance operation, pressure systems and safety monitoring", "Controls: Gas appliance control systems and operational requirements", "Controls: Installation, isolation and replacement", "Gas Rate and Operating Pressure: Measurement and compliance", "Unsafe Situations: Identification, classification and labelling", "Unsafe Situations: Reporting requirements and regulatory compliance", "Emergency Control Valves and Positioning", "Pipework in Multi-occupancy and Protected Environments", "Gas Pressure: Measurement, Standards and Compliance", "Heating Systems: Types, Components and Operation", "Appliance Installation: Pre-installation and Site Survey", "Appliance Installation: Commissioning Procedures and Checks", "Servicing: Inspection and pre-service procedures", "Servicing: Maintenance procedures and combustion analysis", "Fault-Finding: Electrical systems and sequence of operation", "Electrical Safety: Safe isolation procedures", "Tightness Testing: Fault identification and gas escape detection", "Tightness Testing: Advanced fault diagnosis and system isolation", "Re-establishing Gas Supply and Post-Work Checks", "Assessment Preparation: Oral Questioning and Portfolio Development", "Centre-Based Assessment and Competency Evaluation", "Portfolio Completion: Review, Verification and Sign-Off", "ACS Preparation: Revision, Mock Assessments and ACS Readiness"];
+let CLOSED_MEMO=null;
+/* A date where every learner marked has "Authorised absence" = centre closed (holiday / bank holiday); it doesn't count as a SOW week. */
+function closedDays(){if(CLOSED_MEMO&&CLOSED_MEMO.att===S.att)return CLOSED_MEMO.set;const by={};
+  for(const m in S.att){const r=(S.att[m]&&S.att[m].r)||{};for(const lid in r)for(const d in r[lid]){const k=m+"-"+d;(by[k]=by[k]||[]).push(r[lid][d])}}
+  const set=new Set(Object.keys(by).filter(k=>by[k].length>=2&&by[k].every(c=>c==="AA")));CLOSED_MEMO={att:S.att,set};return set}
+function sessionPlan(lid){const closed=closedDays(),rows=[];
+  for(const m in S.att){const r=S.att[m].r&&S.att[m].r[lid];if(r)for(const d in r)rows.push({date:m+"-"+d,c:r[d]})}
+  rows.sort((a,b)=>a.date.localeCompare(b.date));let wk=0;
+  for(const x of rows){if(closed.has(x.date)){x.closed=true;continue}wk++;x.wk=wk;x.topic=wk<=SOW.length?SOW[wk-1]:"Beyond week 53: catch-up / ACS preparation"}
+  const held=rows.filter(x=>!x.closed),n=c=>held.filter(x=>x.c===c).length,P=n("P"),L=n("L"),A=n("A"),AA=n("AA");
+  return {rows,held:held.length,P,L,A,AA,missed:held.filter(x=>x.c==="A"||x.c==="AA"),pct:held.length-AA?Math.round((P+L)/(held.length-AA)*100):null}}
+const ATT_PILL={P:["ok","Present"],L:["soon","Late"],A:["overdue","Absent"],AA:["missing","Authorised absence"]};
 const TEMPLATES={
   "Gas trainer / assessor":[
     ["Gas Safe registration","Gas Safe registration",12],["ACS core (CCN1)","ACS certificate",60],["ACS appliance categories","ACS certificate",60],
@@ -314,7 +328,6 @@ function learnerCard(l){
 function vLearner(l){
   const a=attendance(l.id),exp=otjExpected(l),log=otjLogged(l.id),p=unitProgress(l);
   const ents=otjEntries(l.id).map((e,i)=>({...e,i})).sort((x,y)=>(y.d||"").localeCompare(x.d||""));
-  const att=[];for(const m in S.att){const r=S.att[m].r&&S.att[m].r[l.id];if(r)for(const d in r)att.push([m+"-"+d,r[d]])}att.sort((x,y)=>y[0].localeCompare(x[0]));
   return `<div class="detail"><div><button class="btn sm back" data-act="back">← All learners</button></div>
   <div class="section-head"><div><h2>${esc(l.name)}</h2><p>${esc(l.programme||"")}${l.cohort?" · Cohort "+esc(l.cohort):""}</p></div>${S.writable?`<div class="bar">${/^https:\/\//.test(l.ecordia||"")?`<a class="btn primary" href="${esc(l.ecordia)}" target="_blank" rel="noopener">Open in Ecordia ↗</a>`:""}<button class="btn" data-act="edit-learner" data-id="${l.id}">Edit details</button></div>`:(/^https:\/\//.test(l.ecordia||"")?`<a class="btn primary" href="${esc(l.ecordia)}" target="_blank" rel="noopener">Open in Ecordia ↗</a>`:"")}</div>
   <div class="stat3"><div class="stat"><div class="big">${p}%</div><div class="lbl">Course progress · ${signedOff(l)} of ${S.units.length} units signed off</div></div>
@@ -335,9 +348,26 @@ function vLearner(l){
   <div class="panel"><h3>Off-the-job training log</h3>
   ${S.writable?`<form class="bar" data-submit="otj" style="margin-bottom:10px"><input type="date" id="otj-d" value="${todayISO()}" required aria-label="Date" style="border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--surface)"><input type="number" id="otj-h" min="0.25" step="0.25" placeholder="Hours" required aria-label="Hours" style="width:90px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--surface)"><input type="text" id="otj-a" placeholder="Activity, e.g. pipework practical in centre" required aria-label="Activity" style="flex:1 1 220px;min-width:0;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--surface)"><button class="btn primary sm">Log hours</button></form>`:""}
   ${ents.length?`<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Hours</th><th>Activity</th><th></th></tr></thead><tbody>${ents.slice(0,60).map(e=>`<tr><td class="mono">${fmt(e.d)}</td><td class="mono">${esc(e.h)}</td><td>${esc(e.a)}</td><td>${S.writable?`<button class="btn sm danger" data-act="rm-otj" data-i="${e.i}" aria-label="Remove entry">Remove</button>`:""}</td></tr>`).join("")}</tbody></table></div>${ents.length>60?`<p class="muted" style="font-size:13px">Showing latest 60 of ${ents.length}. Export CSV for the full log.</p>`:""}`:`<div class="empty">No off-the-job hours logged yet.</div>`}</div>
-  <div class="panel"><h3>Attendance history</h3>${att.length?`<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Mark</th></tr></thead><tbody>${att.slice(0,40).map(([d,c])=>`<tr><td class="mono">${fmt(d)}</td><td>${esc(ATT[c]||c)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No attendance marked yet. Use the <b>Register</b> tab on training days.</div>`}</div>
+  ${attendancePanel(l)}
   </div>`
 }
+
+function attendancePanel(l){const a=sessionPlan(l.id);
+  if(!a.rows.length)return `<div class="panel"><h3>Attendance</h3><div class="empty">No attendance marked yet. Use the <b>Register</b> tab on training days.</div></div>`;
+  const tile=(big,lbl,st)=>`<div class="stat"><div class="big"${st?` style="color:var(--${st})"`:""}>${big}</div><div class="lbl">${lbl}</div></div>`;
+  const first=a.rows.find(x=>!x.closed),last=[...a.rows].reverse().find(x=>!x.closed);
+  const missedRows=a.missed.map(x=>`<tr><td class="mono" style="white-space:nowrap">${fmt(x.date)}</td><td class="mono">Wk ${x.wk}</td><td style="min-width:220px">${esc(x.topic)}</td><td>${pill(ATT_PILL[x.c][0],x.c==="A"?"Absent":"Authorised")}</td></tr>`).join("");
+  const all=[...a.rows].reverse().map(x=>x.closed?`<tr class="muted"><td class="mono" style="white-space:nowrap">${fmt(x.date)}</td><td>—</td><td>Centre closed / holiday (not a SOW week)</td><td></td></tr>`
+    :`<tr><td class="mono" style="white-space:nowrap">${fmt(x.date)}</td><td class="mono">Wk ${x.wk}</td><td style="min-width:220px">${esc(x.topic)}</td><td>${pill(ATT_PILL[x.c][0],ATT_PILL[x.c][1])}</td></tr>`).join("");
+  return `<div class="panel"><h3>Attendance</h3>
+  <p class="muted" style="margin:0 0 10px;font-size:13px">${a.held} training days from ${fmt(first&&first.date)} to ${fmt(last&&last.date)}. Each training day is one week of the 53-week MLP → ACS scheme of work, in order. Days when the whole group was off (holidays, bank holidays) are left out.</p>
+  <div class="stat3" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+    ${tile(a.pct==null?"—":a.pct+"%","Attendance (authorised absence not counted against)",a.pct==null?"":a.pct>=90?"green":a.pct>=75?"amber":"red")}
+    ${tile(a.P+a.L+" / "+a.held,"Days attended")}${tile(a.L,"Of those, late","amber")}${tile(a.A,"Days absent","red")}${tile(a.AA,"Authorised absence")}</div>
+  <h3 style="margin:16px 0 6px;font-size:15px">Lessons missed${a.missed.length?` <span class="muted" style="font-weight:400">· ${a.missed.length} to catch up</span>`:""}</h3>
+  ${a.missed.length?`<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>SOW</th><th>Lesson missed</th><th>Reason</th></tr></thead><tbody>${missedRows}</tbody></table></div>`:`<div class="empty">No lessons missed.</div>`}
+  <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600">Full attendance record (${a.rows.length} days)</summary>
+  <div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>Date</th><th>SOW</th><th>Lesson</th><th>Mark</th></tr></thead><tbody>${all}</tbody></table></div></details></div>`}
 
 /* register */
 function vRegister(){
