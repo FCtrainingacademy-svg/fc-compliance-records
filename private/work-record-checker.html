@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>MLP Work Record Checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: tabbed work-record forms (same boxes/order as the portfolio templates) + sticky outcome panel; each box shows its own check status */
+:root{
+  --bg:#eef1f3; --panel:#ffffff; --fg:#1c2630; --muted:#5b6977; --line:#d3dade;
+  --head:#dcebdc; --head-fg:#24452a; --brand:#2c5e3a; --brand-fg:#ffffff; --field:#f8faf9;
+  --ok:#1d7a46; --ok-bg:#e3f4ea; --warn:#8a5a00; --warn-bg:#fff2d6; --bad:#b3261e; --bad-bg:#fbe7e5;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161a; --panel:#1a2127; --fg:#e3e9ec; --muted:#9aa8b2; --line:#2d3840;
+  --head:#22362a; --head-fg:#cfe8d3; --brand:#3f7f52; --brand-fg:#ffffff; --field:#141a1f;
+  --ok:#5fd08f; --ok-bg:#163525; --warn:#f2c46b; --warn-bg:#3a2e12; --bad:#ff8a80; --bad-bg:#3a1c1a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161a; --panel:#1a2127; --fg:#e3e9ec; --muted:#9aa8b2; --line:#2d3840;
+  --head:#22362a; --head-fg:#cfe8d3; --brand:#3f7f52; --brand-fg:#ffffff; --field:#141a1f;
+  --ok:#5fd08f; --ok-bg:#163525; --warn:#f2c46b; --warn-bg:#3a2e12; --bad:#ff8a80; --bad-bg:#3a1c1a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.5}
+.top{background:var(--brand);color:var(--brand-fg);padding:10px 16px}
+.top .in{max-width:1240px;margin:0 auto;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+.top b{font-weight:600;font-size:15px}.top span{font-size:12px;opacity:.85}
+.tabs{background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;padding:0 16px}
+.tabs .in{max-width:1240px;margin:0 auto;display:flex;gap:2px}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);font:500 13px var(--sans);padding:10px 12px;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--brand)}
+.tabs button .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:6px;vertical-align:1px;background:var(--line)}
+.tabs .dot.ok{background:var(--ok)}.tabs .dot.bad{background:var(--bad)}.tabs .dot.warn{background:var(--warn)}
+main{padding:16px;padding-block:16px 48px}
+.grid{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media (max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}}
+.form{display:grid;gap:12px;min-width:0}
+.titlebar{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+h1{font-size:18px;font-weight:600;margin:0;text-wrap:balance}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.seg button{border:0;background:var(--panel);color:var(--muted);font:500 12px var(--sans);padding:6px 10px;cursor:pointer}
+.seg button.on{background:var(--brand);color:var(--brand-fg)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.card>h2{margin:0;font-size:12.5px;font-weight:600;background:var(--head);color:var(--head-fg);padding:7px 12px;display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.card>h2 .tag{font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;opacity:.8}
+.body{padding:12px;display:grid;gap:10px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+label.f{display:grid;gap:3px;font-size:12px;color:var(--muted);min-width:0}
+input[type=text],input[type=number],select,textarea{width:100%;min-width:0;border:1px solid var(--line);border-radius:4px;background:var(--field);color:var(--fg);font:14px var(--sans);padding:6px 8px}
+input[type=number],.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+textarea{font:13px/1.55 var(--mono);min-height:96px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.ticks{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.ticks .lbl{font-size:12px;color:var(--muted);min-width:150px;font-weight:500}
+.ticks label{display:inline-flex;gap:5px;align-items:center;font-size:13px;cursor:pointer}
+.jobrow{display:grid;grid-template-columns:160px 1fr;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.jobrow:last-child{border-bottom:0}
+.jobrow>span{font-size:12px;color:var(--muted);font-weight:500}
+@media (max-width:560px){.jobrow{grid-template-columns:1fr}}
+.pill{display:inline-block;font:600 11px var(--sans);padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.bad{background:var(--bad-bg);color:var(--bad)}.pill.warn{background:var(--warn-bg);color:var(--warn)}.pill.mute{background:var(--field);color:var(--muted);border:1px solid var(--line)}
+.points{display:flex;flex-wrap:wrap;gap:5px}
+.points span{font-size:11.5px;padding:2px 7px;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
+.points span.hit{background:var(--ok-bg);color:var(--ok);border-color:transparent}
+.points span.miss{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.calc{border:1px solid var(--line);border-radius:5px;background:var(--field)}
+.calc summary{cursor:pointer;padding:8px 10px;font-weight:600;font-size:12.5px;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.calc .cb{padding:0 10px 10px;display:grid;gap:10px}
+.calc h3{margin:0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.calc .fields{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:460px;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.hint{font-size:12px;color:var(--muted)}
+.photos{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px 14px}
+.photos label{display:flex;gap:6px;align-items:flex-start;font-size:13px;cursor:pointer}
+.photos em{font-style:normal;font-size:11px;color:var(--bad);font-weight:600}
+.photos em.ifapp{color:var(--warn)}
+aside{position:sticky;top:env(safe-area-inset-top,0px);display:grid;gap:12px}
+@media (max-width:980px){aside{position:static}}
+.dec{font:600 18px var(--sans);padding:10px 12px;border-radius:5px;text-align:center}
+.dec.ok{background:var(--ok-bg);color:var(--ok)}.dec.bad{background:var(--bad-bg);color:var(--bad)}
+.counts{display:flex;gap:6px;flex-wrap:wrap}
+aside ul{margin:0;padding-left:18px;display:grid;gap:5px;font-size:13px}
+aside li.e::marker{color:var(--bad)}aside li.w::marker{color:var(--warn)}
+#fb{white-space:pre-wrap;font:12.5px/1.55 var(--mono);background:var(--field);border:1px solid var(--line);border-radius:4px;padding:10px;max-height:340px;overflow:auto}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:500 13px var(--sans);background:var(--brand);color:var(--brand-fg);border:0;border-radius:4px;padding:7px 12px;cursor:pointer}
+.btn.sec{background:var(--panel);color:var(--fg);border:1px solid var(--line)}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+@media (prefers-reduced-motion:no-preference){.pill,.points span{transition:background .15s,color .15s}}
+</style>
+
+<header class="top"><div class="in"><b>MLP Work Record Checker</b><span>Assessor practice tool · mirrors the DNGA2 work-record forms · not the portfolio system</span></div></header>
+<nav class="tabs" aria-label="Work record forms"><div class="in" id="tabs"></div></nav>
+<main><div class="grid">
+  <div class="form" id="form"></div>
+  <aside>
+    <div class="card"><h2>Assessment decision</h2><div class="body">
+      <div id="dec" class="dec ok">Accept</div>
+      <div class="counts" id="counts"></div>
+      <ul id="issues"></ul>
+    </div></div>
+    <div class="card"><h2>Assessor feedback (paste-ready)</h2><div class="body">
+      <div id="fb"></div>
+      <div class="btns"><button class="btn" id="copy" type="button">Copy feedback</button></div>
+    </div></div>
+    <div class="card"><h2>This form</h2><div class="body">
+      <div class="btns" id="formbtns"></div>
+      <div class="hint">Entries are kept in this browser only. Paste the learner's text from each portfolio box into the matching box here.</div>
+    </div></div>
+  </aside>
+</div></main>
+
+<script>
+/* ---------- key points per box (regex, case-insensitive) ---------- */
+const P={
+ elec:[["Isolated supply",/isolat|switch(ed)? off|fused (spur|connection)/],["Lock-off / fuse removed",/lock.?off|fuse (was )?removed|removed the .*fuse/],["Voltage indicator proved",/(prove|test)\w*.{0,40}(voltage|indicator|tester)|known live/],["Confirmed dead",/dead|no voltage|zero volt/],["Re-proved indicator",/(again|re-?prove)/],["Earth / bonding checked",/bond|earth/]],
+ unsafe:[["GIUSP / IGEM/G/11",/g\/11|unsafe situations procedure|giusp/],["States outcome",/no unsafe|at risk|immediately dangerous|riddor|identified/]],
+ desc:[["Appliance named",/[a-z]+ .{0,25}\d{2}\s?kw|boiler|cooker|hob/],["MIs referenced",/manufacturer|\bmis?\b/],["Standards referenced",/bs ?\d{4}|igem/]],
+ prep:[["Risk assessment",/risk assess/],["Clearances",/clearance/],["Bracket / jig fixed level",/bracket|jig|template/],["Meter / ECV checked",/meter|ecv/],["Wall suitability",/wall/]],
+ chimney:[["BS 5440",/5440/],["Terminal clearances",/terminal/],["Flue cut / length to MIs",/length|cut/],["Seals / collars / joints",/seal|collar|joint/]],
+ gaspipe:[["Copper / fittings",/copper|capillary|compression|solder/],["Clipped / supported",/clip|support/],["Gas isolated before work",/isolat/],["Leak check (LDF)",/ldf|leak detect/],["Tightness after",/tightness/]],
+ pipesize:[["BS 6891",/6891/],["Gas rate m³/h",/m³\/h|m3\/h|m3h/],["Equivalent length",/equivalent/],["Pressure loss",/pressure (loss|drop)/],["1 mbar max",/1 ?mbar/],["Conclusion",/adequate|suitable|correct size|acceptable/]],
+ condensate:[["Fall / gradient",/fall|drop|gradient/],["Termination",/terminat|drain|soakaway|stack/],["Clipped / supported",/clip|support/],["Pipe size / insulation",/\d{2} ?mm|insulat/]],
+ gasrate:[["Meter readings / timing",/initial|reading|second|revolution/],["× 3600",/3600/],["CV / 10.76",/10\.7|calorific|cv\b/],["Gross / net stated",/gross|net/],["Tolerance +5% / −10%",/5 ?%|10 ?%|tolerance/],["Pass / fail stated",/pass|fail|within/]],
+ combustion:[["BS 7967",/7967/],["Analyser calibrated / purged",/calibrat|fresh air|purge/],["CO ppm",/ppm/],["CO₂ %",/co2|co₂/],["Ratio",/ratio|0\.0\d/],["Against MI limits",/manufacturer|\bmis?\b|limit/]],
+ purge:[["IGEM/UP/1B",/up\/1b|up1b/],["Ventilation",/ventilat|window/],["Purge volume",/0\.0\d|volume/],["No ignition sources",/smok|naked|ignition|flame/],["Meter reading used",/meter|reading/]],
+ safegas:[["PPE",/ppe/],["Let-by test",/let.?by/],["Temperature stabilisation",/stabil/],["Tightness test",/tightness/],["No pressure drop",/no (pressure )?drop|no movement|no rise|steady|stable/],["ECV",/ecv|emergency control/]],
+ letby:[["Gauge checked",/gauge|manometer/],["Let-by 7–10 mbar",/let.?by/],["Stabilisation 1 min",/stabil/],["Tightness 2 min",/2 ?min|two minutes/],["No drop",/no (pressure )?drop|no movement|no rise|steady|stable/],["ECV",/ecv|emergency control/]],
+ controls:[["Flame supervision / FFD",/flame (failure|supervis)|ffd|ionisation|thermocouple/],["Gas valve / solenoid",/gas valve|solenoid/],["Thermostats / controls",/thermostat|control/],["PRV / pressure",/prv|pressure relief|pressure/],["Overheat / limit",/overheat|limit|high limit/]],
+ relight:[["Relit",/relit|relight/],["Visual / flame picture",/visual|flame/],["Safe operation",/safe/]],
+ commission:[["MIs followed",/manufacturer|\bmis?\b/],["Benchmark",/benchmark/],["Handover / customer",/customer|handover|demonstrat/],["Certificate / record",/certificate|record|warranty/],["Part L / J",/part (l|j)/]],
+ components:[["Burner",/burner/],["Heat exchanger",/heat.?exchanger/],["Condensate trap",/trap|condensate/],["Seals / gaskets",/seal|gasket/],["Fan",/fan/],["Injector",/injector/]],
+ chimneysvc:[["Flue integrity / route",/flue/],["Terminal",/terminal/],["Flue flow / spillage",/flow|spillage|smoke/],["Case seal",/case seal|casing/],["Combustion reading",/ppm|co2|ratio|analys/]],
+ fault:[["Symptom",/not (working|heating)|symptom|lockout|fault code|fail/],["Diagnosis / cause",/caus|diagnos|found|identified|test/],["Gas component named",/gas valve|ffd|thermocouple|solenoid|igniter|ignition|electrode|burner|injector|regulator/]],
+ rectify:[["Isolation",/isolat/],["Removed faulty part",/remov/],["Replaced / fitted",/replac|fit/],["Tightness after",/tightness|ldf|leak/],["MIs",/manufacturer|\bmis?\b/]],
+ recommission:[["Tightness",/tightness/],["Gas rate / pressure",/gas rate|pressure|m³\/h|kw/],["Combustion / safety checks",/combust|ppm|safety|ffd|flame/],["Customer / record",/customer|record|label|certificate/]],
+ cookprep:[["Risk assessment",/risk assess/],["Location / clearances",/clearance|location|curtain|window|corner/],["Stability bracket / chain",/stability|chain|bracket/],["Hose / connection",/bayonet|hose|flexible|rigid/]],
+ cookinst:[["Level / positioned",/level|position/],["Bayonet / hose length",/bayonet|hose/],["Stability device",/stability|chain|bracket/],["Burners / FFD checked",/burner|ffd|flame/]],
+ cooksvc:[["Burners cleaned / checked",/burner/],["Injectors",/injector/],["FFD / thermocouple",/ffd|flame failure|thermocouple/],["Ignition",/igni/],["Hose / bayonet",/hose|bayonet/],["Stability device",/stability|chain/]],
+ isolation:[["Isolated",/isolat|switch(ed)? off/],["Lock-off / unplugged",/lock|unplug|plug/],["Proved dead",/dead|voltage/]]
+};
+/* ---------- form templates ---------- */
+const FUEL=["Natural Gas","LPG"];
+const BOILER_APP=["Make","Model","Type","Serial No.","Appliance Classification","Rated Input","Operating/Burner Pressure","Inlet Pressure","Combustion Performance Reading"];
+const COOKER_APP=["Make","Model","Rated Input","Serial No","Operating/Burner Pressure"];
+const PIPE_APP=["Make","Model","Type","Serial No.","Appliance Classification","Rated Input"];
+const UNSAFE_OPTS=["At Risk","Immediately Dangerous","RIDDOR"];
+const FORMS=[
+{key:"bi",short:"Boiler install",title:"Boiler Installation & Commissioning Work Record",sites:["centre","onsite"],
+ job:[["Installation of",["Heat Only (Traditional Boiler)","System Boiler","Combination Boiler","Gas Pipework"]],["Fuel Type",FUEL],["Testing For",["Let By","Tightness","Standing Pressure","Working Pressure","Combustion Performance"]],["Testing for Correct",["Inlet pressure","Gas Rate"]]],
+ jobText:["Purging Volume"],app:BOILER_APP,
+ boxes:[["desc","Give a description of the works observed","req",P.desc],["unsafe","Unsafe Situations and Procedures (If Identified)","opt",P.unsafe,UNSAFE_OPTS],["elec","Electrical Safety Procedures","req",P.elec],["prep","Boiler Preparation prior to Installation (including Risk Assessment)","req",P.prep],["chimney","Chimney System Preparation and Installation","req",P.chimney,["Horizontal","Vertical","Twin Pipe","Extended","Plume Management Kit"]],["gaspipe","Gas Pipe Alterations/Install (new or existing)","req",P.gaspipe],["pipesize","Pipe Sizing Calculations","mand",P.pipesize,null,["pipesize"]],["condensate","Condensing Pipe Installation","req",P.condensate],["gasrate","Measured Gas Rating Procedures & Results (CALCULATIONS MANDATORY)","mand",P.gasrate,null,["gasrate"]],["combustion","Combustion Performance Checks and Results","mand",P.combustion,null,["combustion"]],["purge","Purging Procedures","req",P.purge],["safegas","Safe Gas Practices required for Boiler Installation","req",P.safegas,null,["tightness"]],["controls","Gas Safety Controls & Safety Devices Checks","req",P.controls],["relight","Relight and Visual Checks for Existing Appliances","req",P.relight],["commission","Commissioning, Handover & completion of Relevant Documentation","req",P.commission,["Part P","Part L","Part J"]]],
+ photos:{min:4,max:0,items:[["Boiler Preparation"],["Chimney Preparation/Install"],["Gas Pipe Alterations/Install"],["Condensing Pipe"],["Gas Rating"],["Combustion Performance"],["Safe Gas Practices"],["Gas Safety Controls & Safety Devices"],["Commissioning Documents","M"],["Electrical Safety"],["Unsafe Situation","A"],["Purging"]]}},
+{key:"bs",short:"Boiler service",title:"Boiler Service Work Record",sites:["centre","onsite"],
+ job:[["Service",["Heat Only (Traditional Boiler)","System Boiler","Combination"]],["Fuel Type",FUEL],["Testing For",["Let By","Tightness","Flue Flow","Spillage Test","Positive Pressure Casing"]],["Testing for Correct",["Inlet/Burner operating Pressure","Gas Rate"]]],
+ jobText:[],app:BOILER_APP,
+ boxes:[["desc","Give a description of the works observed / Unsafe Situations Procedures (If Identified)","req",P.desc.concat(P.unsafe),UNSAFE_OPTS],["elec","Electrical Safety Procedures","req",P.elec],["letby","Let-by and Tightness test (OPTIONAL)","opt",P.letby,null,["tightness"]],["components","Boiler and Component Checks i.e Burner, Injectors, Heat Exchanger, Condensing Trap etc.","req",P.components],["gasrate","Measured Gas Rating Procedures and Results (CALCULATIONS MANDATORY)","mand",P.gasrate,null,["gasrate"]],["chimneysvc","Chimney System Inspection and Performance (PERFORMANCE RESULTS MANDATORY)","mand",P.chimneysvc,["Open","Room Sealed (natural draught)","Fan Assisted","Balanced"],["combustion"]],["controls","Gas Safety Controls and Safety Devices Checks","req",P.controls]],
+ photos:{min:4,max:8,items:[["Let-by & Tightness Test","A"],["Gas Rating or Operating Pressure","M"],["Chimney System Inspection and Performance"],["Safety Controls Checks"],["Unsafe Situations","A"],["Boiler Component Checks"],["Safe Gas Practices"],["Service Report","M"],["Electrical Safety Checks"]]}},
+{key:"bf",short:"Boiler fault finding",title:"Boiler Fault Finding Work Record",sites:["centre","onsite"],
+ job:[["Appliance",["Heat Only (Traditional Boiler)","System Boiler","Combination Boiler"]],["Fuel Type",FUEL],["Recommissioning Test",["Let By","Tightness","Flue Flow","Spillage Test","Positive Pressure Casing"]],["Testing for Correct",["Inlet/Operating Pressure","Gas Rate"]]],
+ jobText:[],app:BOILER_APP,
+ boxes:[["unsafe","Description of works observed (fault must relate to gas controls/components) / Unsafe Situations","req",P.desc.concat(P.unsafe),UNSAFE_OPTS],["elec","Electrical Safety Procedures","req",P.elec],["safegas","Gas Safe Practices Conducted","req",P.safegas,null,["tightness"]],["fault","Fault Identified","req",P.fault],["rectify","Procedure to Rectify or Replace Faulty Gas Component","req",P.rectify],["recommission","Recommissioning Appliance","req",P.recommission,null,["gasrate","combustion"]]],
+ photos:{min:3,max:0,items:[["Identifying Fault"],["Rectifying Fault"],["Replacing Faulty Component"],["Recommissioning Appliance"],["Electrical Safety Procedures"],["Gas Safe Practices"],["Unsafe Situations","A"]]}},
+{key:"ci",short:"Cooker install",title:"Cooker Installation & Commissioning Work Record",sites:["centre","onsite"],
+ job:[["Installation of",["Free Standing Cooker","Gas Hob","Gas Pipework"]],["Connection",["Rigid Connection","Flexible Connection"]],["Fuel Type",FUEL],["Testing For",["Let By","Tightness Test","Standing Pressure","Working Pressure"]],["Testing for Correct",["Inlet/Burner Pressure","Gas Rate"]]],
+ jobText:["Purge Volume"],app:COOKER_APP,
+ boxes:[["elec","Electrical Safety Procedures","req",P.elec],["cookprep","Cooker Preparation and Location Checks (including Risk Assessments)","req",P.cookprep],["letby","Let-by and Tightness Test","mand",P.letby,null,["tightness"]],["gaspipe","Gas Pipe alterations/installation","req",P.gaspipe,["Copper","Compression Fittings","Formed Bend","Capillary Joint (OPTIONAL)"]],["pipesize","Pipe Size Calculations (OPTIONAL)","opt",P.pipesize,null,["pipesize"]],["purge","Purging Procedures (OPTIONAL)","opt",P.purge],["cookinst","Cooker or Gas Hob Installation","req",P.cookinst],["gasrate","Gas Rating/Operating Pressure (CALCULATIONS MANDATORY)","mand",P.gasrate,null,["gasrate"]],["safegas","Safe Gas Practices","req",P.safegas],["controls","Gas Safety Controls & Safety Devices Checks","req",P.controls],["commission","Commissioning, Handover, Completion of Appliance","req",P.commission]],
+ photos:{min:4,max:6,items:[["Free Standing Cooker or Gas Hob Preparation"],["Purging","O"],["Let-by & Tightness test","M"],["Free Standing Cooker or Gas Hob installation","M"],["Gas pipe installation","O"],["Gas Rating/Operating Pressure"],["Gas pipe alterations"],["Safe Gas Practices"],["Gas Safety Checks"],["Commissioning, Handover Document","M"],["Electrical Safety Procedures"]]}},
+{key:"cs",short:"Cooker service",title:"Cooker Service Work Record",sites:["centre","onsite"],
+ job:[["Servicing",["Free Standing Cooker","Gas Hob","Gas Pipework"]],["Connection",["Rigid Connection","Flexible Connection"]],["Fuel Type",FUEL],["Testing For",["Let By","Tightness","Standing Pressure","Working Pressure"]],["Testing for Correct",["Inlet/Burner Pressure","Gas Rate"]]],
+ jobText:[],app:COOKER_APP,
+ boxes:[["letby","Let-by and Tightness Test (OPTIONAL)","opt",P.letby,null,["tightness"]],["gasrate","Gas Rating/Operating Pressure","req",P.gasrate,null,["gasrate"]],["cooksvc","Service Procedures carried out on Free Standing Cooker or Hob","mand",P.cooksvc],["controls","Safety Controls and Devices Checked","req",P.controls]],
+ photos:{min:4,max:6,items:[["Let-by and tightness test","A"],["Cooker service","M"],["Gas Rating/Operating pressure"],["Safety Controls and Devices checked"],["Service Report"]]}},
+{key:"cf",short:"Cooker fault finding",title:"Cooker Fault Finding Work Record",sites:["centre","onsite"],
+ job:[["Fault Finding",["Free Standing Cooker","Gas Hob","Gas Pipework"]],["Fuel Type",FUEL],["Testing For",["Let By","Tightness","Standing Pressure","Working Pressure"]],["Testing for Correct",["Inlet/Burner Pressure","Gas Rate"]]],
+ jobText:["Purge Volume"],app:COOKER_APP,
+ boxes:[["fault","Fault Identified (must relate to a gas component)","req",P.fault],["isolation","Safe Isolation Procedures (IF APPLICABLE)","opt",P.isolation],["rectify","Procedure to Rectify or Replace Faulty Component","req",P.rectify],["recommission","Recommissioning Free Standing Cooker or Gas Hob","req",P.recommission,null,["tightness","gasrate"]]],
+ photos:{min:4,max:6,items:[["Fault Identified"],["Rectifying Component"],["Faulty Component"],["Replaced Component"],["Recommissioning Free Standing Cooker or Hob"],["Safe Isolation Procedures"]]}},
+{key:"pb",short:"Boiler pipework",title:"Onsite Boiler Pipework Work Record",sites:["onsite"],pipe:true,
+ job:[["Installation of",["Gas Pipework"]],["Fuel Type",FUEL],["Testing For",["Let By","Tightness","Standing Pressure","Working Pressure"]],["Details",["Commissioning of an Installation"]]],
+ jobText:["Installation/Purge Volume"],app:PIPE_APP,
+ boxes:[["letby","Let-by & Tightness Test","mand",P.letby,null,["tightness"]],["gaspipe","Gas pipe installation","req",P.gaspipe,["Copper","Capillary (MANDATORY)","Compression","Formed Bend"]],["pipesize","Pipe Sizing Calculations","mand",P.pipesize,null,["pipesize"]],["purge","Volume/Purging Procedure","req",P.purge],["safegas","Gas Safe Practices","req",P.safegas]],
+ photos:{min:6,max:10,items:[["Let-by & Tightness test","M"],["Removal of Meter","M"],["Installation of copper Gas pipe","M"],["Soldering capillary fitting","M"],["Installing compression fittings","M"],["Forming Bend"],["Volume/Purging","M"],["Any gas safe Practices"]]}},
+{key:"pc",short:"Cooker pipework",title:"Onsite Cooker Pipework Work Record",sites:["onsite"],pipe:true}
+];
+FORMS[7]=Object.assign({},FORMS[6],FORMS[7]);
+
+/* ---------- calculators ---------- */
+const CALC={
+ gasrate:{name:"Gas rate calculator",inputs:[["meter","Meter type","sel",["Metric (m³)","Imperial (ft³ dial)"]],["rated","Rated input","num","kW"],["basis","Rated input is","sel",["Gross","Net"]],["secs","Test time","num","s"],["r1","Initial reading","num","m³"],["r2","Final reading","num","m³"],["dial","Dial size (imperial)","num","ft³"],["revs","Revolutions (imperial)","num",""]],
+  learner:[["l_rate","Gas rate","num","m³/h or ft³/h"],["l_gross","Gross heat input","num","kW"],["l_cmp","Figure compared to tolerance","num","kW"],["l_res","Result","sel",["","Pass","Fail"]]],
+  def:{meter:"Metric (m³)",basis:"Gross",secs:120,dial:1,revs:1}},
+ pipesize:{name:"Pipe sizing calculator (BS 6891)",inputs:[["kw","Total heat input","num","kW"],["len","Pipe length","num","m"],["elb","Elbows","num","no."],["elbEq","Equiv. length per elbow","num","m"],["tee","Tees","num","no."],["teeEq","Equiv. length per tee","num","m"],["bend","Bends","num","no."],["bendEq","Equiv. length per bend","num","m"],["rate","Pressure loss from table","num","mbar/m"],["max","Max permitted loss","num","mbar"]],
+  learner:[["l_flow","Gas rate","num","m³/h"],["l_eq","Total equivalent length","num","m"],["l_loss","Pressure loss","num","mbar"],["l_res","Conclusion","sel",["","Adequate","Inadequate"]]],
+  def:{elbEq:0.5,teeEq:0.5,bendEq:0.3,max:1,elb:0,tee:0,bend:0}},
+ combustion:{name:"Combustion check (BS 7967)",inputs:[["co","CO reading","num","ppm"],["co2","CO₂ reading","num","%"],["coMax","MI max CO","num","ppm"],["co2Min","MI CO₂ min","num","%"],["co2Max","MI CO₂ max","num","%"],["ratioMax","Max ratio (from MI)","num",""]],
+  learner:[["l_ratio","Combustion ratio","num",""],["l_res","Result","sel",["","Pass","Fail"]]],
+  def:{ratioMax:0.004}},
+ tightness:{name:"Let-by & tightness check (IGEM/UP/1B)",inputs:[["lb","Let-by raised to","num","mbar"],["lbT","Let-by time","num","min"],["st","Stabilisation time","num","min"],["tp","Tightness test pressure","num","mbar"],["tt","Tightness test time","num","min"],["drop","Pressure drop","num","mbar"],["allow","Permitted drop","num","mbar"]],
+  learner:[["l_res","Learner's result","sel",["","Pass","Fail"]]],
+  def:{lbT:1,st:1,tt:2,drop:0,allow:0}}
+};
+const f=(x,d)=>isFinite(x)?(+x).toFixed(d):"—";
+const close=(a,b,t)=>isFinite(a)&&isFinite(b)&&Math.abs(a-b)<=t;
+function runCalc(type,v,boxLabel){
+ const n=k=>{const x=parseFloat(String(v[k]??"").replace(",","."));return x};
+ const rows=[],E=[],W=[];
+ const has=k=>v[k]!==undefined&&String(v[k]).trim()!=="";
+ if(type==="gasrate"){
+  const imp=(v.meter||"").startsWith("Imp");
+  const rated=n("rated"),secs=n("secs");
+  if(!isFinite(rated)||!isFinite(secs)||(imp?!isFinite(n("dial")):(!isFinite(n("r1"))||!isFinite(n("r2"))))) return {rows,E,W,empty:true};
+  let rate,gross,unit;
+  if(imp){rate=n("dial")*(n("revs")||1)*3600/secs;gross=rate*0.3047;unit="ft³/h";}
+  else{const cons=n("r2")-n("r1");rate=cons*3600/secs;gross=rate*10.76;unit="m³/h";rows.push(["Gas consumed","",f(cons,3)+" m³",null]);}
+  const net=gross/1.11, net_=v.basis==="Net", cmp=net_?net:gross, mx=rated*1.05, mn=rated*0.9, pass=cmp>=mn&&cmp<=mx;
+  const chk=(k,label,exp,tol,dp,u)=>{if(!has(k)){rows.push([label,"",f(exp,dp)+" "+u,null]);return;}const ok=close(n(k),exp,tol);rows.push([label,v[k]+" "+u,f(exp,dp)+" "+u,ok]);if(!ok)E.push(`${boxLabel}: ${label.toLowerCase()} given as ${v[k]} ${u}, correct is ${f(exp,dp)} ${u}.`);};
+  chk("l_rate","Gas rate",rate,Math.max(0.01,rate*0.01),3,unit);
+  chk("l_gross","Gross heat input",gross,0.15,1,"kW");
+  rows.push(["Net heat input","",f(net,1)+" kW",null]);
+  rows.push(["Tolerance band","",f(mn,2)+"–"+f(mx,2)+" kW",null]);
+  if(has("l_cmp")){const ok=close(n("l_cmp"),cmp,0.15);rows.push([`Figure compared (${net_?"net":"gross"})`,v.l_cmp+" kW",f(cmp,1)+" kW",ok]);
+   if(!ok){if(close(n("l_cmp"),net_?gross:net,0.15))E.push(`${boxLabel}: the ${net_?"gross":"net"} figure (${v.l_cmp} kW) has been compared against a ${net_?"net":"gross"} rated input. Compare like with like: ${f(cmp,1)} kW ${net_?"net":"gross"}.`);else E.push(`${boxLabel}: figure compared to tolerance should be ${f(cmp,1)} kW (${net_?"net":"gross"}).`);}}
+  else W.push(`${boxLabel}: state clearly which figure (gross or net) is compared against the rated input.`);
+  const want=pass?"Pass":"Fail";
+  if(has("l_res")){const ok=v.l_res===want;rows.push(["Result",v.l_res,want,ok]);if(!ok)E.push(`${boxLabel}: result should be ${want.toUpperCase()} (${f(cmp,1)} kW against ${f(mn,2)}–${f(mx,2)} kW).`);}
+  else rows.push(["Result","",want,null]);
+  if(!pass)E.push(`${boxLabel}: measured input ${f(cmp,1)} kW is outside tolerance. Appliance must not be left in use until investigated.`);
+  return {rows,E,W,summary:`${f(cmp,1)} kW ${net_?"net":"gross"} vs ${rated} kW rated (${((cmp-rated)/rated*100).toFixed(1)}%), ${want.toUpperCase()}`};
+ }
+ if(type==="pipesize"){
+  const kw=n("kw"),len=n("len"),rate=n("rate");
+  if(!isFinite(kw)||!isFinite(len)||!isFinite(rate))return {rows,E,W,empty:true};
+  const flow=kw/10.76, eq=len+(n("elb")||0)*(n("elbEq")||0)+(n("tee")||0)*(n("teeEq")||0)+(n("bend")||0)*(n("bendEq")||0), loss=eq*rate, max=n("max")||1, ok=loss<=max;
+  if(has("l_flow")){const o=close(n("l_flow"),flow,flow*0.015);rows.push(["Gas rate",v.l_flow+" m³/h",f(flow,3)+" m³/h",o?true:"w"]);if(!o)W.push(`${boxLabel}: gas rate given as ${v.l_flow} m³/h; ${kw} kW ÷ 10.76 = ${f(flow,3)} m³/h (1 kW ≈ 0.093 m³/h, not 0.095).`);}else rows.push(["Gas rate","",f(flow,3)+" m³/h",null]);
+  if(has("l_eq")){const o=close(n("l_eq"),eq,0.05);rows.push(["Equivalent length",v.l_eq+" m",f(eq,2)+" m",o?true:"w"]);if(!o)W.push(`${boxLabel}: equivalent length given as ${v.l_eq} m, ${f(eq,2)} m using the fitting allowances entered here. Check the allowance per fitting against the table the learner used.`);}else rows.push(["Equivalent length","",f(eq,2)+" m",null]);
+  if(has("l_loss")){const own=(has("l_eq")?n("l_eq"):eq)*rate;const o=close(n("l_loss"),own,0.01);rows.push(["Pressure loss",v.l_loss+" mbar",f(own,3)+" mbar",o]);if(!o)E.push(`${boxLabel}: pressure loss arithmetic is wrong: ${has("l_eq")?v.l_eq:f(eq,2)} m × ${rate} mbar/m = ${f(own,3)} mbar.`);}else rows.push(["Pressure loss","",f(loss,3)+" mbar",null]);
+  const want=ok?"Adequate":"Inadequate";
+  if(has("l_res")){const o=v.l_res===want;rows.push(["Conclusion",v.l_res,want+` (≤ ${max} mbar)`,o]);if(!o)E.push(`${boxLabel}: conclusion should be ${want.toLowerCase()} (${f(loss,3)} mbar against ${max} mbar max).`);}else rows.push(["Conclusion","",want,null]);
+  return {rows,E,W,summary:`${f(loss,3)} mbar over ${f(eq,2)} m, ${want.toLowerCase()}`};
+ }
+ if(type==="combustion"){
+  const co=n("co"),co2=n("co2");
+  if(!isFinite(co)||!isFinite(co2))return {rows,E,W,empty:true};
+  const ratio=co/(co2*10000),rm=n("ratioMax");
+  const okCo=!isFinite(n("coMax"))||co<=n("coMax"), okCo2=(!isFinite(n("co2Min"))||co2>=n("co2Min"))&&(!isFinite(n("co2Max"))||co2<=n("co2Max")), okR=!isFinite(rm)||ratio<=rm, pass=okCo&&okCo2&&okR;
+  rows.push(["CO",co+" ppm",isFinite(n("coMax"))?"≤ "+n("coMax")+" ppm":"MI limit not entered",isFinite(n("coMax"))?okCo:null]);
+  rows.push(["CO₂",co2+" %",(isFinite(n("co2Min"))?n("co2Min"):"?")+"–"+(isFinite(n("co2Max"))?n("co2Max"):"?")+" %",(isFinite(n("co2Min"))||isFinite(n("co2Max")))?okCo2:null]);
+  if(has("l_ratio")){const o=close(n("l_ratio"),ratio,Math.max(0.00006,ratio*0.06));rows.push(["Ratio",v.l_ratio,f(ratio,4),o]);if(!o)E.push(`${boxLabel}: combustion ratio given as ${v.l_ratio}; ${co} ÷ (${co2} × 10,000) = ${f(ratio,4)}.`);}else{rows.push(["Ratio","",f(ratio,4),null]);W.push(`${boxLabel}: combustion ratio not stated. ${co} ppm ÷ (${co2}% × 10,000) = ${f(ratio,4)}.`);}
+  const want=pass?"Pass":"Fail";
+  if(has("l_res")){const o=v.l_res===want;rows.push(["Result",v.l_res,want,o]);if(!o)E.push(`${boxLabel}: combustion result should be ${want.toUpperCase()}.`);}else rows.push(["Result","",want,null]);
+  if(!isFinite(n("coMax"))||!isFinite(n("co2Max")))W.push(`${boxLabel}: learner should quote the manufacturer's CO and CO₂ limits and compare readings against them.`);
+  if(!pass)E.push(`${boxLabel}: readings outside the limits entered. Appliance needs investigating (BS 7967).`);
+  return {rows,E,W,summary:`${co} ppm CO, ${co2}% CO₂, ratio ${f(ratio,4)}, ${want.toUpperCase()}`};
+ }
+ if(type==="tightness"){
+  const lb=n("lb"),tp=n("tp");
+  if(!isFinite(lb)&&!isFinite(tp))return {rows,E,W,empty:true};
+  const r=(label,val,exp,ok,msg)=>{rows.push([label,val,exp,ok]);if(ok===false)E.push(`${boxLabel}: ${msg}`);};
+  if(isFinite(lb))r("Let-by pressure",lb+" mbar","7–10 mbar",lb>=7&&lb<=10,`let-by test pressure given as ${lb} mbar; it should be raised to between 7 and 10 mbar.`);
+  if(isFinite(n("lbT")))r("Let-by time",n("lbT")+" min","1 min",n("lbT")>=1,"let-by test must be timed for 1 minute.");
+  if(isFinite(n("st")))r("Stabilisation",n("st")+" min","1 min",n("st")>=1,"temperature stabilisation must be at least 1 minute.");
+  if(isFinite(tp))r("Test pressure",tp+" mbar","19–21 mbar",tp>=19&&tp<=21,`tightness test pressure given as ${tp} mbar; test at 20 mbar.`);
+  if(isFinite(n("tt")))r("Test time",n("tt")+" min","2 min",n("tt")>=2,"tightness test must be timed for 2 minutes.");
+  const drop=n("drop"),allow=isFinite(n("allow"))?n("allow"):0;
+  if(isFinite(drop))r("Pressure drop",drop+" mbar","≤ "+allow+" mbar",drop<=allow,`pressure drop of ${drop} mbar exceeds the permitted drop.`);
+  const pass=!E.length;
+  if(has("l_res")){const want=(isFinite(drop)?drop<=allow:true)?"Pass":"Fail";r("Result",v.l_res,want,v.l_res===want,`result should be ${want.toUpperCase()}.`);}
+  return {rows,E,W,summary:pass?"Test values correct":"Test values need correcting"};
+ }
+}
+
+/* ---------- state ---------- */
+let S={};try{S=JSON.parse(localStorage.getItem("wrc-v1")||"{}")||{};}catch(e){S={};}
+const save=()=>{try{localStorage.setItem("wrc-v1",JSON.stringify(S));}catch(e){}};
+const EXAMPLE={site:"centre",h:{learner:"Example learner",centre:"FC Training Academy",lcl:"447",date:"09/08/2025",domestic:true},
+ job:{"Installation of|Combination Boiler":true,"Installation of|Gas Pipework":true,"Fuel Type|Natural Gas":true,"Testing For|Let By":true,"Testing For|Tightness":true,"Testing For|Standing Pressure":true,"Testing For|Working Pressure":true,"Testing For|Combustion Performance":true,"Testing for Correct|Inlet pressure":true,"Testing for Correct|Gas Rate":true,"Purging Volume":"0.010 m³"},
+ app:{"Make":"Biasi","Model":"M300V.2025","Type":"Condensing Combination","Serial No.":"N005530324","Appliance Classification":"C13","Rated Input":"25 kW","Operating/Burner Pressure":"N/A","Inlet Pressure":"20.1 mbar","Combustion Performance Reading":"0.0007"},
+ box:{desc:"I installed and commissioned a Biasi 25kW boiler, following the manufacturer's instructions and IGEM/G/11. During commissioning I checked gas tightness (IGEM/UP/1B), working pressure, gas rate, flue seals and terminal clearances (BS 5440-1), combustion readings (BS 7967) and safety devices. No unsafe situations were identified.",
+  elec:"Identify the boiler supply and check the fused spur. Isolate at the correct point, switch off, apply a lock-off device and warning label. Test my voltage indicator on a known live light switch, test the circuit is dead, then prove the indicator again. Once complete, inspect earth bonding to gas and water.",
+  prep:"Meter in same room for training. Dust sheets laid. Risk assessment covered manual handling, electrical isolation, gas safety and working at height. Manufacturer clearances verified. Wall checked for suitability; boiler jig fixed securely and level. Gas meter and ECV inspected before isolation.",
+  chimney:"Horizontal flue fitted in existing hole. Flue cut to length per MIs, sand and cement made good both sides, collars fitted. Terminal clearances met to BS 5440.",
+  gaspipe:"Copper pipe with compression and capillary joints, clipped and supported. Gas isolated at meter before soldering, electrics off, PPE worn, windows open. Joints tested with LDF.",
+  pipesize:"Pipe sizing – BS 6891\n1 kW (gross) requires approx. 0.095 m³/h\n25 kW × 0.095 = 2.375 m³/h\nPressure loss for 22 mm copper at 2.375 m³/h = 0.0565 mbar/m\nActual length 3.5 m, 3 × 90° elbows = 3 × 0.6 m = 1.8 m\nTotal equivalent length = 5.3 m\nPressure loss: 5.3 × 0.0565 = 0.299 mbar\nMax permitted 1 mbar – 0.299 < 1 mbar, pipe size adequate",
+  condensate:"Plastic pipe fitted with a significant drop to a suitable termination point, properly clipped. Same position as previous boiler.",
+  gasrate:"Manufacturer-rated gross heat input: 25 kW\nTest duration: 120 seconds\nInitial meter reading: 7.383 m³\nFinal meter reading: 7.463 m³\nGas consumed: 7.463 - 7.383 = 0.080 m³\nGas flow rate: 0.080 × 3600 ÷ 120 = 2.400\n2.400 × 10.76 = 25.8 kW\n25.8 ÷ 1.11 = 23.3 kW\nTolerance (+5% / -10%)\n+5%: 25 × 1.05 = 26.25 kW (maximum)\n-10%: 25 × 0.90 = 22.50 kW (minimum)\nResult: Pass",
+  combustion:"Analyser Anton Sprint Pro, calibrated, purged in fresh air for about a minute. Probe in flue test point. Results 60 PPM and 8.8% CO2. Within manufacturer's limits: CO less than 350 PPM, CO2 between 8.4% and 9%.",
+  purge:"Purging followed IGEM/UP/1B. Windows and doors opened for ventilation. Metric meter read 7.463, boiler run until 7.473 (0.010 m³ purge).",
+  safegas:"PPE worn throughout. Water gauge connected to meter test point. Raised to 8 mbar for let-by, ECV closed, timed 1 minute, no rise. Raised to 20 mbar for temperature stabilisation 1 minute, then tightness test 2 minutes, no drop. ECV closed before removing hose.",
+  controls:"ECV inspected, label visible. Gas valve seals tested with LDF. Gas solenoid valve shuts off supply instantly. Condensate trap removed and flushed.",
+  relight:"System pressure 1.0–1.5 bar. Magnetic filter fitted on return. CO alarm within 1 m tested. Existing appliances relit and visually inspected for correct flame and safe operation.",
+  commission:"Compliant with Part P, Part L and Part J. Boiler commissioned to MIs, system filled to 1.5 bar, radiators vented, inhibitor added, filter on CH return. Benchmark checklist completed, customer shown controls, warranty registered, certificate given."},
+ opts:{"chimney|Horizontal":true,"commission|Part P":true,"commission|Part L":true,"commission|Part J":true},
+ calc:{"gasrate|gasrate":{meter:"Metric (m³)",rated:25,basis:"Gross",secs:120,r1:7.383,r2:7.463,l_rate:2.4,l_gross:25.8,l_cmp:23.3,l_res:"Pass"},
+  "pipesize|pipesize":{kw:25,len:3.5,elb:3,elbEq:0.6,tee:0,teeEq:0.5,bend:0,bendEq:0.3,rate:0.0565,max:1,l_flow:2.375,l_eq:5.3,l_loss:0.299,l_res:"Adequate"},
+  "combustion|combustion":{co:60,co2:8.8,coMax:350,co2Min:8.4,co2Max:9,ratioMax:0.004,l_ratio:0.0007,l_res:"Pass"},
+  "safegas|tightness":{lb:8,lbT:1,st:1,tp:20,tt:2,drop:0,allow:0,l_res:"Pass"}},
+ photos:{"Boiler Preparation":true,"Chimney Preparation/Install":true,"Gas Pipe Alterations/Install":true,"Condensing Pipe":true,"Gas Rating":true,"Safe Gas Practices":true,"Gas Safety Controls & Safety Devices":true,"Electrical Safety":true}};
+function blank(fm){return {site:fm.sites[0],h:{},job:{},app:{},box:{},opts:{},calc:{},photos:{}};}
+FORMS.forEach(fm=>{if(!S[fm.key])S[fm.key]=fm.key==="bi"?JSON.parse(JSON.stringify(EXAMPLE)):blank(fm);});
+let cur="bi";try{const h=location.hash.slice(1);if(FORMS.some(x=>x.key===h))cur=h;}catch(e){}
+
+/* ---------- render ---------- */
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const id=s=>s.replace(/[^a-z0-9]+/gi,"_");
+function renderTabs(){
+ document.getElementById("tabs").innerHTML=FORMS.map(fm=>{const r=evaluate(fm);const st=r.blank?"":r.E.length?"bad":r.W.length?"warn":"ok";return `<button type="button" role="tab" aria-selected="${fm.key===cur}" data-tab="${fm.key}">${fm.short}<span class="dot ${st}"></span></button>`;}).join("");
+}
+function fieldIn(path,label,val,type,extra){const i="i_"+id(path);
+ if(type==="sel")return `<label class="f" for="${i}">${esc(label)}<select id="${i}" data-p="${esc(path)}">${extra.map(o=>`<option${o===val?" selected":""}>${esc(o)}</option>`).join("")}</select></label>`;
+ return `<label class="f" for="${i}">${esc(label)}${extra?` <span class="hint">(${esc(extra)})</span>`:""}<input id="${i}" type="${type==="num"?"number":"text"}" step="any" data-p="${esc(path)}" value="${esc(val)}"></label>`;}
+function render(){
+ const fm=FORMS.find(x=>x.key===cur), st=S[cur], onsite=st.site==="onsite";
+ let h=`<div class="titlebar"><h1>${onsite?"Learner's Onsite":"Centre"} Observation: ${esc(fm.title)}</h1>`;
+ if(fm.sites.length>1)h+=`<div class="seg" role="group" aria-label="Observation type">${fm.sites.map(s=>`<button type="button" data-site="${s}" class="${st.site===s?"on":""}">${s==="centre"?"Centre":"Onsite"}</button>`).join("")}</div>`;
+ h+=`</div>`;
+ // header
+ h+=`<section class="card"><h2>Learner &amp; ${onsite?"company":"centre"} details</h2><div class="body"><div class="fields">`;
+ h+=fieldIn("h.learner","Learner Name",st.h.learner||"","txt");
+ if(onsite){h+=fieldIn("h.company","Gas Safe Registered Company",st.h.company||"","txt")+fieldIn("h.town","Town",st.h.town||"","txt")+fieldIn("h.postcode","Postcode",st.h.postcode||"","txt","first part only");}
+ else{h+=fieldIn("h.centre","Centre",st.h.centre||"","txt")+fieldIn("h.lcl","LCL No",st.h.lcl||"","txt");}
+ h+=fieldIn("h.date","Date of Work (DD/MM/YYYY)",st.h.date||"","txt");
+ h+=`</div><div class="ticks"><label><input type="checkbox" data-p="h.domestic" ${st.h.domestic?"checked":""}> Premises type: Domestic</label></div></div></section>`;
+ // job details
+ h+=`<section class="card"><h2>Job details <span class="tag">tick boxes that describe the work</span></h2><div class="body"><div>`;
+ fm.job.forEach(([g,opts])=>{h+=`<div class="jobrow"><span>${esc(g)}</span><div class="ticks">${opts.map(o=>`<label><input type="checkbox" data-p="job.${esc(g)}|${esc(o)}" ${st.job[g+"|"+o]?"checked":""}> ${esc(o)}</label>`).join("")}</div></div>`;});
+ h+=`</div>${fm.jobText.length?`<div class="fields">${fm.jobText.map(t=>fieldIn("job."+t,t,st.job[t]||"","txt")).join("")}</div>`:""}</div></section>`;
+ // appliance
+ h+=`<section class="card"><h2>Appliance details</h2><div class="body"><div class="fields">${fm.app.map(a=>fieldIn("app."+a,a,st.app[a]||"","txt")).join("")}</div></div></section>`;
+ // boxes
+ fm.boxes.forEach(([k,label,lvl,pts,opts,calcs])=>{
+  const tag=lvl==="mand"?"Mandatory":lvl==="opt"?"Optional / if applicable":"";
+  h+=`<section class="card" id="box_${k}"><h2><span>${esc(label)}</span><span><span class="tag">${tag}</span> <span class="pill mute" id="st_${k}">—</span></span></h2><div class="body">`;
+  if(opts)h+=`<div class="ticks">${opts.map(o=>`<label><input type="checkbox" data-p="opts.${k}|${esc(o)}" ${st.opts[k+"|"+o]?"checked":""}> ${esc(o)}</label>`).join("")}</div>`;
+  h+=`<textarea id="t_${k}" data-p="box.${k}" aria-label="${esc(label)}" placeholder="Paste the learner's text for this box">${esc(st.box[k]||"")}</textarea>`;
+  h+=`<div class="points" id="pt_${k}"></div>`;
+  (calcs||[]).forEach(c=>{const C=CALC[c],key=k+"|"+c,v=Object.assign({},C.def,st.calc[key]||{});
+   h+=`<details class="calc" ${st.calc[key]?"open":""}><summary><span>${C.name}</span><span class="pill mute" id="cs_${id(key)}">enter figures</span></summary><div class="cb">`;
+   h+=`<h3>Figures from the evidence</h3><div class="fields">${C.inputs.map(([q,l,t,x])=>fieldIn(`calc.${key}.${q}`,l,v[q]??"",t,t==="sel"?x:x)).join("")}</div>`;
+   h+=`<h3>Learner's stated answers</h3><div class="fields">${C.learner.map(([q,l,t,x])=>fieldIn(`calc.${key}.${q}`,l,v[q]??"",t,t==="sel"?x:x)).join("")}</div>`;
+   h+=`<div class="scroll"><table><thead><tr><th>Check</th><th>Learner</th><th>Correct</th><th></th></tr></thead><tbody id="ct_${id(key)}"></tbody></table></div></div></details>`;});
+  h+=`</div></section>`;
+ });
+ // photos
+ const ph=fm.photos;
+ h+=`<section class="card"><h2><span>Tick evidence attached (min ${ph.min}${ph.max?", max "+ph.max:""} photos, learner must be in the photos)</span><span class="pill mute" id="st_photos">—</span></h2><div class="body"><div class="photos">`;
+ ph.items.forEach(([p,m])=>{h+=`<label><input type="checkbox" data-p="photos.${esc(p)}" ${st.photos[p]?"checked":""}> <span>${esc(p)} ${m==="M"?"<em>MANDATORY</em>":m==="A"?'<em class="ifapp">IF APPLICABLE</em>':m==="O"?'<em class="ifapp">OPTIONAL</em>':""}</span></label>`;});
+ h+=`</div></div></section>`;
+ if(onsite)h+=`<section class="card"><h2>Supervision declaration</h2><div class="body"><div class="hint">All tasks on this work record were carried out under supervision and in line with the relevant standards and regulations.</div><div class="fields">${fieldIn("h.supName","Supervising Gas Safe Registered Operative Name",st.h.supName||"","txt")+fieldIn("h.supLic","Licence No",st.h.supLic||"","txt")}</div></div></section>`;
+ document.getElementById("form").innerHTML=h;
+ document.getElementById("formbtns").innerHTML=`<span class="confirm" id="clr"><button class="btn sec" type="button" id="clearBtn">Clear this form</button></span>${cur==="bi"?'<button class="btn sec" type="button" id="exBtn">Load worked example</button>':""}`;
+ update();
+}
+/* ---------- evaluate ---------- */
+function evaluate(fm){
+ const st=S[fm.key],E=[],W=[],G=[],box={},calcs={};
+ const filled=Object.values(st.box).some(x=>x&&x.trim());
+ const onsite=st.site==="onsite";
+ // header
+ const need=[["learner","Learner name"],["date","Date of work"]].concat(onsite?[["company","Gas Safe registered company"],["town","Town"],["supName","Supervising operative name"],["supLic","Supervisor licence no."]]:[["centre","Centre"],["lcl","LCL No"]]);
+ need.forEach(([k,l])=>{if(!(st.h[k]||"").trim())W.push(`${l} not completed.`);});
+ if(st.h.date&&!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(st.h.date.trim()))W.push(`Date of work "${st.h.date}" is not in DD/MM/YYYY format.`);
+ fm.job.forEach(([g])=>{if(!Object.keys(st.job).some(k=>k.startsWith(g+"|")&&st.job[k]))W.push(`Job details: nothing ticked for "${g}".`);});
+ fm.app.forEach(a=>{if(!(st.app[a]||"").trim())W.push(`Appliance details: ${a} is blank${/Operating|Burner/.test(a)?" (enter N/A if not applicable)":""}.`);});
+ // boxes
+ fm.boxes.forEach(([k,label,lvl,pts,opts,cl])=>{
+  const t=(st.box[k]||"").toLowerCase(), short=label.split("(")[0].split(" i.e")[0].trim();
+  const hits=pts.map(([n,re])=>[n,re.test(t)]);
+  let s;
+  if(!t.trim()){s=lvl==="mand"?"bad":lvl==="opt"?"mute":"warn";if(lvl==="mand")E.push(`${short}: mandatory box is empty.`);else if(lvl==="req")W.push(`${short}: box is empty.`);}
+  else{const miss=hits.filter(x=>!x[1]).map(x=>x[0]);s=miss.length>Math.ceil(pts.length/2)?"warn":"ok";if(miss.length)W.push(`${short}: consider covering ${miss.join(", ").toLowerCase()}.`);else G.push(short);
+   if(t.trim().split(/\s+/).length<25&&lvl!=="opt")W.push(`${short}: very brief (under 25 words). Expand on what was done and why.`);}
+  if(opts&&t.trim()&&opts!==UNSAFE_OPTS&&!opts.some(o=>st.opts[k+"|"+o]))W.push(`${short}: none of the tick boxes (${opts.join(" / ")}) selected.`);
+  (cl||[]).forEach(c=>{const key=k+"|"+c,v=Object.assign({},CALC[c].def,st.calc[key]||{});const r=runCalc(c,v,short);calcs[key]=r;
+   if(!r.empty){E.push(...r.E);W.push(...r.W);if(r.E.length)s="bad";}
+   else if(lvl==="mand"&&t.trim()&&(c==="gasrate"||c==="pipesize"))W.push(`${short}: enter the learner's figures in the ${CALC[c].name.toLowerCase()} to verify the maths.`);});
+  box[k]={s,hits};
+ });
+ // cross checks
+ const gr=Object.entries(calcs).find(([k])=>k.endsWith("|gasrate"));
+ if(gr&&!gr[1].empty&&st.app["Rated Input"]){const ri=parseFloat(st.app["Rated Input"]);const v=Object.assign({},st.calc[gr[0]]||{});if(isFinite(ri)&&isFinite(parseFloat(v.rated))&&Math.abs(ri-parseFloat(v.rated))>0.05)W.push(`Rated input in appliance details (${st.app["Rated Input"]}) does not match the figure used in the gas rate (${v.rated} kW).`);}
+ const cb=Object.entries(calcs).find(([k])=>k.endsWith("|combustion"));
+ if(cb&&!cb[1].empty&&st.app["Combustion Performance Reading"]){const v=Object.assign({},st.calc[cb[0]]||{});const ratio=parseFloat(v.co)/(parseFloat(v.co2)*10000),rd=parseFloat(st.app["Combustion Performance Reading"]);if(isFinite(rd)&&isFinite(ratio)&&Math.abs(rd-ratio)>Math.max(0.00006,ratio*0.06))W.push(`Combustion reading in appliance details (${rd}) does not match ${v.co} ppm / ${v.co2}% (ratio ${ratio.toFixed(4)}).`);}
+ if(!Object.keys(st.job).some(k=>/Gas Rate/.test(k)&&st.job[k])&&(st.box.gasrate||"").trim())W.push(`Job details: "Gas Rate" not ticked although a gas rate is recorded.`);
+ // photos
+ const ph=fm.photos,ticked=ph.items.filter(([p])=>st.photos[p]).length;let ps="ok";
+ if(ticked<ph.min){E.push(`Photos: ${ticked} ticked, minimum is ${ph.min}.`);ps="bad";}
+ if(ph.max&&ticked>ph.max){W.push(`Photos: ${ticked} ticked, maximum is ${ph.max}.`);ps="warn";}
+ ph.items.forEach(([p,m])=>{if(m==="M"&&!st.photos[p]){E.push(`Photos: mandatory evidence "${p}" not ticked.`);ps="bad";}});
+ return {E,W,G,box,calcs,ps,ticked,blank:!filled};
+}
+function update(){
+ const fm=FORMS.find(x=>x.key===cur),r=evaluate(fm),st=S[cur];
+ const lbl={ok:"Covered",warn:"Check",bad:"Not met",mute:"Not used"};
+ fm.boxes.forEach(([k,label,lvl,pts])=>{const b=r.box[k],el=document.getElementById("st_"+k);if(!el)return;el.className="pill "+b.s;el.textContent=lbl[b.s];
+  document.getElementById("pt_"+k).innerHTML=(st.box[k]||"").trim()?b.hits.map(([n,h])=>`<span class="${h?"hit":"miss"}">${h?"✓":"?"} ${esc(n)}</span>`).join(""):pts.map(([n])=>`<span>${esc(n)}</span>`).join("");});
+ Object.entries(r.calcs).forEach(([key,c])=>{const s=document.getElementById("cs_"+id(key)),tb=document.getElementById("ct_"+id(key));if(!s)return;
+  if(c.empty){s.className="pill mute";s.textContent="enter figures";tb.innerHTML=`<tr><td colspan="4" class="hint">Enter the figures from the learner's evidence to check the working.</td></tr>`;return;}
+  s.className="pill "+(c.E.length?"bad":c.W.length?"warn":"ok");s.textContent=c.E.length?"Errors":c.W.length?"Check":"Correct";
+  tb.innerHTML=c.rows.map(([a,l,e,ok])=>`<tr><td>${esc(a)}</td><td class="n">${esc(l||"—")}</td><td class="n">${esc(e)}</td><td>${ok===true?'<span class="pill ok">Correct</span>':ok===false?'<span class="pill bad">Wrong</span>':ok==="w"?'<span class="pill warn">Check</span>':""}</td></tr>`).join("");});
+ const p=document.getElementById("st_photos");p.className="pill "+r.ps;p.textContent=r.ticked+" ticked";
+ const dec=document.getElementById("dec");dec.className="dec "+(r.E.length?"bad":"ok");dec.textContent=r.E.length?"Action Required":"Accept";
+ document.getElementById("counts").innerHTML=`<span class="pill bad">${r.E.length} must fix</span><span class="pill warn">${r.W.length} to check</span><span class="pill ok">${r.G.length} boxes covered</span>`;
+ document.getElementById("issues").innerHTML=r.E.map(x=>`<li class="e">${esc(x)}</li>`).join("")+r.W.slice(0,12).map(x=>`<li class="w">${esc(x)}</li>`).join("")+(r.W.length>12?`<li class="w">+${r.W.length-12} more in the feedback</li>`:"")||'<li>Everything checks out.</li>';
+ // feedback
+ const onsite=st.site==="onsite",calcSum=Object.entries(r.calcs).filter(([,c])=>!c.empty&&c.summary).map(([k,c])=>`${CALC[k.split("|")[1]].name.replace(/ \(.*\)/,"")}: ${c.summary}.`);
+ let fb=`${onsite?"Learner's onsite":"Centre"} observation – ${fm.title}${st.h.learner?" – "+st.h.learner:""}${st.h.date?" ("+st.h.date+")":""}\nDecision: ${r.E.length?"ACTION REQUIRED":"ACCEPTED"}\n`;
+ if(r.G.length)fb+=`\nWell evidenced: ${r.G.join("; ")}.\n`;
+ if(calcSum.length)fb+=`\nCalculations checked:\n- ${calcSum.join("\n- ")}\n`;
+ if(r.E.length)fb+=`\nPlease correct before resubmitting:\n- ${r.E.join("\n- ")}\n`;
+ if(r.W.length)fb+=`\nTo improve / check:\n- ${r.W.join("\n- ")}\n`;
+ if(!r.E.length&&!r.W.length)fb+=`\nAll boxes completed to the required standard with correct calculations and sufficient photo evidence. Well done.`;
+ document.getElementById("fb").textContent=fb.trim();
+ renderTabs();
+}
+/* ---------- events ---------- */
+function setPath(path,val){const st=S[cur];const [root,...rest]=path.split(".");
+ if(root==="calc"){const key=rest.slice(0,-1).join("."),q=rest[rest.length-1];(st.calc[key]=st.calc[key]||{})[q]=val;}
+ else st[root][rest.join(".")]=val;}
+document.addEventListener("input",e=>{const p=e.target.dataset&&e.target.dataset.p;if(!p)return;setPath(p,e.target.type==="checkbox"?e.target.checked:e.target.value);save();update();});
+document.addEventListener("change",e=>{const p=e.target.dataset&&e.target.dataset.p;if(!p||e.target.type!=="checkbox"&&e.target.tagName!=="SELECT")return;setPath(p,e.target.type==="checkbox"?e.target.checked:e.target.value);save();update();});
+document.addEventListener("click",async e=>{
+ const t=e.target.closest("button");if(!t)return;
+ if(t.dataset.tab){cur=t.dataset.tab;try{history.replaceState(null,"","#"+cur);}catch(x){}render();window.scrollTo(0,0);return;}
+ if(t.dataset.site){S[cur].site=t.dataset.site;save();render();return;}
+ if(t.id==="clearBtn"){document.getElementById("clr").innerHTML=`Clear everything on this form? <button class="btn" type="button" id="clearYes">Clear</button><button class="btn sec" type="button" id="clearNo">Cancel</button>`;return;}
+ if(t.id==="clearYes"){S[cur]=blank(FORMS.find(x=>x.key===cur));save();render();return;}
+ if(t.id==="clearNo"){render();return;}
+ if(t.id==="exBtn"){S.bi=JSON.parse(JSON.stringify(EXAMPLE));save();render();return;}
+ if(t.id==="copy"){const txt=document.getElementById("fb").textContent;try{await navigator.clipboard.writeText(txt);t.textContent="Copied";}catch(x){const r=document.createRange();r.selectNodeContents(document.getElementById("fb"));const s=getSelection();s.removeAllRanges();s.addRange(r);t.textContent="Selected, press Ctrl+C";}setTimeout(()=>t.textContent="Copy feedback",2000);}
+});
+render();
+</script>
+
+</html>

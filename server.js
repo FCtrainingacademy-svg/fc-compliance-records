@@ -351,6 +351,12 @@ app.get('/private/:f', auth, (req, res) => {
   res.sendFile(path.join(__dirname, 'private', req.params.f));
 });
 
+// MLP Work Record Checker (assessor tool) – staff only (needs an LMS sign-in).
+app.get('/checker', auth, (req, res) => {
+  res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, max-age=300', 'X-Robots-Tag': 'noindex' });
+  res.sendFile(path.join(__dirname, 'private', 'work-record-checker.html'));
+});
+
 // ---------- calendar feed (Manager subscribes once in Outlook / Google; it refreshes itself) ----------
 function addMonthsISO(iso, n) {
   if (!iso || !n) return ''; const [y, m, d] = iso.split('-').map(Number); const dt = new Date(Date.UTC(y, m - 1 + Number(n), 1));
