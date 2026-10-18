@@ -160,6 +160,18 @@ module.exports = function learnerPortal(app, d) {
       'Cache-Control': 'private, max-age=600', 'X-Content-Type-Options': 'nosniff' });
     res.send(f.data);
   });
+  // Learner tools: open only to signed-in learners (and staff signed in to the LMS). Not signed in → portal sign-in page.
+  const TOOLS = { 'service-cp12-checklist': 'service-cp12-checklist.html' };
+  // Old public address (/tools/...) now goes to the portal copy. Express matches with or without the trailing slash.
+  app.get('/tools/:t', (req, res, next) => TOOLS[req.params.t] ? res.redirect(302, '/learn/tools/' + req.params.t + '/') : next());
+  app.get('/learn/tools/:t', (req, res, next) => {
+    if (!TOOLS[req.params.t]) return res.status(404).send('Not found');
+    if (!req.path.endsWith('/')) return res.redirect(301, '/learn/tools/' + req.params.t + '/');
+    next();
+  }, fileAuth, (req, res) => {
+    res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex' });
+    res.sendFile(path.join(__dirname, 'private', TOOLS[req.params.t]));
+  });
   // Mock papers are laid out topic by topic in Scheme of Work order (ATS Ilford V1.2); questions are shuffled within each topic.
   const SEC_ORDER = ['1', '2', '3', '8', '6', '5', '4', '12', '11', '7', '9'];
   const secRank = s => { const i = SEC_ORDER.indexOf(String(s)); return i < 0 ? 99 : i; };

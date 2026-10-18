@@ -230,6 +230,8 @@ async function home(){
     <div class="mocks">${cards}</div>
     ${(ME.topics||[]).length?`<div class="topx"><h3>Practise one topic</h3><p>Questions on a single topic, in Scheme of Work order. Instant feedback after each answer.</p><div class="tlist">${ME.topics.map((t,k) => `<button class="tbtn" data-game="practice" data-secs="${esc(t.s)}" data-label="${esc(t.name)}"><span class="tn mono">${k+1}</span>${esc(t.name)}</button>`).join("")}</div></div>`:""}
     <h2 id="resources" style="font-size:20px;margin-top:28px;scroll-margin-top:80px">Resources</h2><div id="sowbox"></div><div id="res"><p style="color:var(--muted)">Loading…</p></div>
+    <h2 style="font-size:20px;margin-top:28px">Tools</h2>
+    <div class="mocks"><div class="mock"><div class="k gk">📋</div><h2 style="font-size:20px">Service &amp; CP12 Checklist</h2><div class="meta">Boiler service and landlord gas safety check, step by step, with readings, pass/fail and a visit summary.</div><a class="btn primary" href="/learn/tools/service-cp12-checklist/" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">Open checklist ↗</a></div></div>
     <h2 style="font-size:20px;margin-top:28px">Games</h2>
     <p style="margin:6px 0 0;color:var(--muted)">Quick rounds built on the mock questions. Play for fun, learn from every answer.</p>
     <div class="mocks">${GAMES.map(g => `<div class="mock"><div class="k gk">${g.icon}</div><h2 style="font-size:20px">${esc(g.name)}</h2><div class="meta">${esc(g.meta)}</div><button class="btn primary" data-game="${g.mode}">${esc(g.btn)}</button></div>`).join("")}</div>
