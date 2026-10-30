@@ -209,9 +209,12 @@ module.exports = function learnerPortal(app, d) {
     res.json({ items: items.map(x => { const f = resFile(x);
       return { title: String(x.title), url: f ? '/api/learn/file/' + f.id : String(x.url), file: f ? { name: String(f.name || ''), type: String(f.type || '') } : null, note: String(x.note || ''), group: String(x.group || '') }; }) });
   });
+  // A "Back to Learner Portal" bar added to the top of HTML resources and tools (they open in the same tab).
+  const BACK_BAR = '<a href="/learn/#resources" style="position:sticky;top:0;z-index:2147483647;display:block;margin:0;background:#0E5A86;color:#fff;font:600 15px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:13px 16px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.2)">&larr; Back to Learner Portal</a>';
+  const withBackBar = html => { html = String(html); const m = html.match(/<body[^>]*>/i); return m ? html.replace(m[0], m[0] + BACK_BAR) : BACK_BAR + html; };
   // Files attached to learner resources. Only files listed in the resources config can be opened.
   function resFile(x) { const f = x && x.file; return f && /^[0-9a-f]{32}$/.test(String(f.id || '')) ? f : null; }
-  // Resource files open in a new tab, which can't send the X-Preview header, so staff signed in to the LMS can open them directly.
+  // Resource files open as their own page, which can't send the X-Preview header, so staff signed in to the LMS can open them directly.
   const fileAuth = async (req, res, next) => { const pv = await staffPreview(req, true); if (pv) { req.learner = pv; return next(); }
     // Opened as a page (not by script) and not signed in: send them to the portal sign-in instead of showing an error.
     if (req.accepts(['html', 'json']) === 'html') { const j = res.json.bind(res); res.json = b => (res.statusCode === 401 ? (res.status(302), res.redirect('/learn/')) : j(b)); }
@@ -227,7 +230,7 @@ module.exports = function learnerPortal(app, d) {
     if (f.type === 'text/html') res.set({ 'Content-Security-Policy': HTML_CSP, 'Content-Type': 'text/html; charset=utf-8' });
     res.set({ 'Content-Type': f.type, 'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(f.name || id)}`,
       'Cache-Control': 'private, max-age=600', 'X-Content-Type-Options': 'nosniff' });
-    res.send(f.data);
+    res.send(f.type === 'text/html' ? withBackBar(Buffer.from(f.data).toString('utf8')) : f.data);
   });
   // Learner tools: open only to signed-in learners (and staff signed in to the LMS). Not signed in → portal sign-in page.
   const TOOLS = { 'service-cp12-checklist': 'service-cp12-checklist.html' };
@@ -239,7 +242,7 @@ module.exports = function learnerPortal(app, d) {
     next();
   }, fileAuth, (req, res) => {
     res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex' });
-    res.sendFile(path.join(__dirname, 'private', TOOLS[req.params.t]));
+    res.send(withBackBar(fs.readFileSync(path.join(__dirname, 'private', TOOLS[req.params.t]), 'utf8')));
   });
   // Mock papers are laid out topic by topic in Scheme of Work order (ATS Ilford V1.2); questions are shuffled within each topic.
   const SEC_ORDER = ['1', '2', '3', '8', '6', '5', '4', '12', '11', '7', '9'];
