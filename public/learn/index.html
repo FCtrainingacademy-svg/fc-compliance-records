@@ -194,16 +194,32 @@ function showLogin(msg){
     <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required></div>
     ${msg?`<p class="err" id="err">${esc(msg)}</p>`:`<p class="err" id="err" hidden></p>`}
     <button class="btn primary" type="submit">Sign in</button>
-    <p style="font-size:14px">No password yet, or forgotten it? Ask FC Training Academy to send you a new portal link.</p></form>${footer}`;
+    <p style="font-size:14px"><a href="#" id="forgot">Forgot password?</a></p>
+    <p style="font-size:14px">First time signing in? Use your email and the password <b>1234</b>.</p></form>${footer}`;
+  document.getElementById("forgot").onclick = e => { e.preventDefault(); showForgot(document.getElementById("em").value); };
   document.getElementById("login").onsubmit = async e => { e.preventDefault(); const err = document.getElementById("err");
     try { await api("POST","/api/learn/login",{ email: document.getElementById("em").value, password: document.getElementById("pw").value }); await boot(); }
     catch(x){ err.hidden = false; err.textContent = x.message; } };
 }
-async function showInvite(token){
+function showForgot(email){
+  chrome(false,false); htitle.textContent = "Learner Portal";
+  app.innerHTML = `<form class="auth" id="fg" novalidate><h1>Forgot password</h1><p>Enter the email address you gave FC Training Academy. We'll email you a link to set a new password.</p>
+    <div class="field"><label for="fe">Email</label><input id="fe" type="email" autocomplete="username" required value="${esc(email||"")}"></div>
+    <p class="err" id="err" hidden></p><p id="okmsg" hidden style="font-size:14px"></p>
+    <button class="btn primary" type="submit" id="fgb">Email me a reset link</button>
+    <p style="font-size:14px"><a href="#" id="back">Back to sign in</a></p></form>${footer}`;
+  document.getElementById("back").onclick = e => { e.preventDefault(); showLogin(); };
+  document.getElementById("fg").onsubmit = async e => { e.preventDefault(); const err = document.getElementById("err"), ok = document.getElementById("okmsg"), b = document.getElementById("fgb");
+    err.hidden = true; ok.hidden = true; b.disabled = true;
+    try { const r = await api("POST","/api/learn/forgot",{ email: document.getElementById("fe").value }); ok.hidden = false; ok.textContent = r.message; }
+    catch(x){ err.hidden = false; err.textContent = x.message; }
+    b.disabled = false; };
+}
+async function showInvite(token, reset){
   chrome(false,false);
   let info; try { info = await api("GET","/api/learn/invite/"+encodeURIComponent(token)); } catch(x){ history.replaceState(null,"","/learn/"); return showLogin(x.message); }
-  app.innerHTML = `<form class="auth" id="inv" novalidate><h1>Welcome${info.name?", "+esc(info.name.split(" ")[0]):""}</h1>
-    <p>Set a password for the FC Training Academy learner portal. Your username is <b>${esc(info.email)}</b>.</p>
+  app.innerHTML = `<form class="auth" id="inv" novalidate><h1>${reset?"Reset your password":"Welcome"+(info.name?", "+esc(info.name.split(" ")[0]):"")}</h1>
+    <p>${reset?"Choose a new password":"Set a password"} for the FC Training Academy learner portal. Your username is <b>${esc(info.email)}</b>.</p>
     <div class="field"><label for="p1">New password</label><input id="p1" type="password" autocomplete="new-password" required><span style="font-size:13px;color:var(--muted)">At least 10 characters, with letters and numbers.</span></div>
     <div class="field"><label for="p2">Type it again</label><input id="p2" type="password" autocomplete="new-password" required></div>
     <p class="err" id="err" hidden></p><button class="btn primary" type="submit">Set password and sign in</button></form>${footer}`;
@@ -442,7 +458,8 @@ document.addEventListener("click", async e => {
 document.addEventListener("keydown", e => { if (!G || G.fb || G.busy) return; const k = e.key.toUpperCase(); const j = "ABCD".indexOf(k); if (j>-1 && /^[a-dA-D]$/.test(e.key) && !e.ctrlKey && !e.metaKey && document.activeElement.tagName!=="INPUT") answerG(j).catch(()=>{}); });
 
 async function boot(){
-  const inv = new URLSearchParams(location.search).get("invite");
+  const q = new URLSearchParams(location.search), inv = q.get("invite"), rst = q.get("reset");
+  if (rst) return showInvite(rst, true);
   if (inv) return showInvite(inv);
   return home();
 }

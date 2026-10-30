@@ -18,10 +18,25 @@ function loadBank() {
 let BANK;
 try { BANK = loadBank(); } catch (e) { console.error('Mock exam bank could not be loaded (check EXAM_KEY):', e.message); BANK = { sections: {}, mocks: {} }; }
 const MINUTES = 45;
+// Learners who have never set their own password sign in with this default password.
+const DEFAULT_PW = '1234';
+const PORTAL_URL = String(process.env.PORTAL_URL || 'https://learners.fctrainingacademy.com').replace(/\/+$/, '');
+
+// Password reset emails go out over SMTP (e.g. info@fctrainingacademy.com on Microsoft 365).
+let mailer = null;
+function getMailer() {
+  if (mailer || !process.env.SMTP_USER || !process.env.SMTP_PASS) return mailer;
+  const nodemailer = require('nodemailer');
+  const port = Number(process.env.SMTP_PORT || 587);
+  mailer = nodemailer.createTransport({ host: process.env.SMTP_HOST || 'smtp.office365.com', port, secure: port === 465,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }, requireTLS: port === 587 });
+  return mailer;
+}
 
 module.exports = function learnerPortal(app, d) {
   const { HTML_CSP, pool, express, bcrypt, jwt, auth, notPending, needRole, pwOk, throttled, attempts, log, getSecret } = d;
   const cookieOpts = () => ({ httpOnly: true, sameSite: 'lax', secure: process.env.COOKIE_INSECURE !== '1', maxAge: 12 * 3600 * 1000, path: '/' });
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const sha = s => crypto.createHash('sha256').update(String(s)).digest('hex');
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -99,7 +114,7 @@ module.exports = function learnerPortal(app, d) {
   // ---------- learner side ----------
   app.get('/api/learn/invite/:token', async (req, res) => {
     const r = await pool.query(`SELECT learner_id, email FROM learner_logins WHERE invite_hash=$1 AND invite_expires > now() AND active`, [sha(req.params.token)]);
-    if (!r.rows[0]) return res.status(404).json({ error: 'This invite link has expired or was already used. Ask FC Training Academy for a new one.' });
+    if (!r.rows[0]) return res.status(404).json({ error: 'This link has expired or was already used. Use "Forgot password?" to get a new one, or ask FC Training Academy.' });
     const l = await learnerDoc(r.rows[0].learner_id); res.json({ email: r.rows[0].email, name: l ? l.name : '' });
   });
   app.post('/api/learn/invite/:token', express.json(), async (req, res) => {
@@ -110,11 +125,53 @@ module.exports = function learnerPortal(app, d) {
     if (!r.rows[0]) return res.status(404).json({ error: 'This invite link has expired or was already used.' });
     issue(res, r.rows[0]); res.json({ ok: true });
   });
+  async function findActiveLearner(email) {
+    const r = await pool.query(`SELECT id, data FROM docs WHERE col='learners' AND lower(trim(data->>'email'))=$1`, [email]);
+    const hits = r.rows.filter(x => (x.data.status || 'Active') === 'Active');
+    return hits.length === 1 ? { id: hits[0].id, name: hits[0].data.name } : null;
+  }
+  app.post('/api/learn/forgot', express.json(), async (req, res) => {
+    const email = String(req.body.email || '').trim().toLowerCase(); const key = 'F|' + req.ip;
+    const done = { ok: true, message: "If that email is registered for the learner portal, we've sent a link to reset your password. Check your inbox and junk folder. The link works for 1 hour." };
+    if (throttled(key)) return res.status(429).json({ error: 'Too many requests. Wait 15 minutes and try again.' });
+    attempts.get(key).push(Date.now());
+    if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) return res.status(400).json({ error: 'Enter the email address you gave FC Training Academy.' });
+    const m = getMailer();
+    if (!m) return res.status(503).json({ error: 'Password reset by email is not available yet. Ask FC Training Academy to send you a new portal link.' });
+    try {
+      const r = await pool.query(`SELECT learner_id, active FROM learner_logins WHERE email=$1`, [email]); const u = r.rows[0];
+      let lid = u && u.active ? u.learner_id : null;
+      if (!u) { const lr = await findActiveLearner(email); if (lr) lid = lr.id; }
+      const l = lid ? await learnerDoc(lid) : null;
+      if (!l || (l.status && l.status !== 'Active')) return res.json(done);
+      const token = crypto.randomBytes(24).toString('hex');
+      await pool.query(`INSERT INTO learner_logins (learner_id, email, invite_hash, invite_expires) VALUES ($1,$2,$3, now() + interval '1 hour')
+        ON CONFLICT (learner_id) DO UPDATE SET invite_hash=$3, invite_expires=now() + interval '1 hour' WHERE learner_logins.active`, [lid, email, sha(token)]);
+      const url = `${PORTAL_URL}/learn/?reset=${token}`; const first = String(l.name || '').split(' ')[0];
+      await m.sendMail({ from: process.env.MAIL_FROM || `FC Training Academy <${process.env.SMTP_USER}>`, to: email,
+        subject: 'Reset your FC Learner Portal password',
+        text: `Hi ${first || 'there'},\n\nSomeone asked to reset the password for your FC Training Academy learner portal account (${email}).\n\nReset it here (the link works once, for 1 hour):\n${url}\n\nIf you didn't ask for this, you can ignore this email. Your password won't change.\n\nFC Training Academy\n02038832009`,
+        html: `<p>Hi ${esc(first || 'there')},</p><p>Someone asked to reset the password for your FC Training Academy learner portal account (${esc(email)}).</p><p><a href="${url}" style="display:inline-block;padding:10px 18px;background:#0b5394;color:#fff;border-radius:6px;text-decoration:none">Reset my password</a></p><p style="font-size:13px;color:#555">The link works once, for 1 hour. If you didn't ask for this, ignore this email. Your password won't change.</p><p>FC Training Academy<br>02038832009</p>` });
+      await log({ email, name: l.name }, 'learner requested password reset email', 'learners', lid, l.name);
+    } catch (e) { console.error('forgot password', e.message); return res.status(500).json({ error: "We couldn't send the email just now. Try again later or contact FC Training Academy." }); }
+    res.json(done);
+  });
   app.post('/api/learn/login', express.json(), async (req, res) => {
     const email = String(req.body.email || '').trim().toLowerCase(); const key = 'L|' + req.ip + '|' + email;
     if (throttled(key)) return res.status(429).json({ error: 'Too many attempts. Wait 15 minutes and try again.' });
-    const r = await pool.query(`SELECT * FROM learner_logins WHERE email=$1`, [email]); const u = r.rows[0];
-    const ok = u && u.active && u.pass_hash && await bcrypt.compare(String(req.body.password || ''), u.pass_hash);
+    let r = await pool.query(`SELECT * FROM learner_logins WHERE email=$1`, [email]); let u = r.rows[0];
+    const pw = String(req.body.password || '');
+    // No password set yet (never signed in, or only invited): the default password works.
+    if (pw === DEFAULT_PW && (!u || (u.active && !u.pass_hash))) {
+      const lr = await findActiveLearner(email);
+      if (lr) {
+        r = await pool.query(`INSERT INTO learner_logins (learner_id, email, pass_hash) VALUES ($1,$2,$3)
+          ON CONFLICT (learner_id) DO UPDATE SET pass_hash=$3 WHERE learner_logins.active AND learner_logins.pass_hash IS NULL RETURNING *`,
+          [lr.id, email, await bcrypt.hash(DEFAULT_PW, 12)]).catch(() => ({ rows: [] }));
+        if (r.rows[0]) u = r.rows[0];
+      }
+    }
+    const ok = u && u.active && u.pass_hash && await bcrypt.compare(pw, u.pass_hash);
     const l = ok ? await learnerDoc(u.learner_id) : null;
     if (!ok || !l || (l.status && l.status !== 'Active')) { attempts.get(key).push(Date.now()); return res.status(401).json({ error: 'Email or password is not right.' }); }
     attempts.delete(key); await pool.query(`UPDATE learner_logins SET last_login=now() WHERE learner_id=$1`, [u.learner_id]);
@@ -123,7 +180,7 @@ module.exports = function learnerPortal(app, d) {
   app.post('/api/learn/logout', (req, res) => { res.clearCookie(LCOOKIE, { path: '/' }); res.json({ ok: true }); });
   app.post('/api/learn/password', lauth, express.json(), async (req, res) => {
     const r = await pool.query(`SELECT pass_hash FROM learner_logins WHERE learner_id=$1`, [req.learner.id]);
-    if (!await bcrypt.compare(String(req.body.current || ''), r.rows[0].pass_hash)) return res.status(400).json({ error: 'Your current password is not right.' });
+    if (!r.rows[0] || !r.rows[0].pass_hash || !await bcrypt.compare(String(req.body.current || ''), r.rows[0].pass_hash)) return res.status(400).json({ error: 'Your current password is not right.' });
     if (!pwOk(req.body.password)) return res.status(400).json({ error: 'Use at least 10 characters with letters and numbers.' });
     const u = await pool.query(`UPDATE learner_logins SET pass_hash=$1, token_version=token_version+1 WHERE learner_id=$2 RETURNING *`, [await bcrypt.hash(req.body.password, 12), req.learner.id]);
     issue(res, u.rows[0]); res.json({ ok: true });

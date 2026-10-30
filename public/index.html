@@ -953,7 +953,7 @@ function portalPanel(l){
   if(!P)return `<div class="panel"><h3>Learner portal &amp; mock exams</h3><div class="muted">Loading…</div></div>`;
   if(P.err)return `<div class="panel"><h3>Learner portal &amp; mock exams</h3><div class="muted">Couldn't load portal details.</div></div>`;
   const mgr=ON.me.role==="manager",a=P.access;
-  const status=!a?"No portal access yet":!a.active?"Access turned off":a.has_password?`Active · username ${esc(a.email)}${a.last_login?` · last signed in ${fmt(String(a.last_login).slice(0,10))}`:""}`:`Invite sent to ${esc(a.email)}, password not set yet`;
+  const status=!a?(l.email?`Not signed in yet · can sign in with ${esc(l.email)} and password 1234`:"No portal access yet · add an email address"):!a.active?"Access turned off":a.has_password?`Active · username ${esc(a.email)}${a.last_login?` · last signed in ${fmt(String(a.last_login).slice(0,10))}`:""}`:`Password not set yet · can sign in with ${esc(a.email)} and password 1234`;
   const best={};P.attempts.forEach(x=>{if(best[x.mock]==null||x.pct>best[x.mock])best[x.mock]=x.pct});
   const rows=P.attempts.map(x=>`<tr><td class="mono" style="white-space:nowrap">${fmt(String(x.finished_at).slice(0,10))}</td><td>Mock ${esc(x.mock)}</td><td class="mono">${x.score}/${x.total} · ${x.pct}%</td><td>${Object.entries(x.by_section||{}).filter(([k,b])=>b.r<b.t).map(([k,b])=>esc(P.sections[k])).slice(0,3).join(", ")||"—"}</td><td><button class="btn sm" data-prv="${x.id}">Review</button></td></tr>`).join("");
   return `<div class="panel"><h3>Learner portal &amp; mock exams</h3>
