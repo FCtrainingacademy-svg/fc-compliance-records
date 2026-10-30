@@ -119,6 +119,11 @@ footer{margin-top:32px;font-size:13px;color:var(--muted);display:grid;gap:4px}
 .field{display:grid;gap:5px}
 .field label{font-weight:600;font-size:14px}
 .field input{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--paper);color:var(--ink);font:inherit;width:100%}
+.pw-wrap{position:relative;display:block}
+.pw-wrap input{padding-right:46px}
+.pw-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;padding:8px;cursor:pointer;color:var(--muted);line-height:0;border-radius:6px}
+.pw-eye:hover{color:var(--ink)}
+.pw-eye:focus-visible{outline:2px solid var(--flame)}
 .field input:focus-visible{outline:2px solid var(--flame);outline-offset:1px}
 .err{color:var(--bad);font-weight:600;font-size:14px;margin:0}
 .hist{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);margin-top:14px;overflow-x:auto}
@@ -195,7 +200,7 @@ function showLogin(msg){
     ${msg?`<p class="err" id="err">${esc(msg)}</p>`:`<p class="err" id="err" hidden></p>`}
     <button class="btn primary" type="submit">Sign in</button>
     <p style="font-size:14px"><a href="#" id="forgot">Forgot password?</a></p>
-    <p style="font-size:14px">First time signing in? Use your email and the password <b>1234</b>.</p></form>${footer}`;
+</form>${footer}`;
   document.getElementById("forgot").onclick = e => { e.preventDefault(); showForgot(document.getElementById("em").value); };
   document.getElementById("login").onsubmit = async e => { e.preventDefault(); const err = document.getElementById("err");
     try { const r = await api("POST","/api/learn/login",{ email: document.getElementById("em").value, password: document.getElementById("pw").value }); if (r.must_change) return showFirstPassword(); await boot(); }
@@ -203,10 +208,13 @@ function showLogin(msg){
 }
 function showFirstPassword(){
   chrome(true,false); htitle.textContent = "Learner Portal";
-  app.innerHTML = `<form class="auth" id="fp" novalidate><h1>Choose your own password</h1><p>You signed in with the starter password. Before you use the portal, set a password only you know.</p>
-    <div class="field"><label for="p1">New password</label><input id="p1" type="password" autocomplete="new-password" required><span style="font-size:13px;color:var(--muted)">At least 10 characters, with letters and numbers.</span></div>
+  app.innerHTML = `<form class="auth" id="fp" novalidate><h1>Choose your own password</h1><p>You signed in with the starter password. Set a password only you know, or keep your existing password.</p>
+    <div class="field"><label for="p1">New password</label><input id="p1" type="password" autocomplete="new-password" required></div>
     <div class="field"><label for="p2">Type it again</label><input id="p2" type="password" autocomplete="new-password" required></div>
-    <p class="err" id="err" hidden></p><button class="btn primary" type="submit">Save password and continue</button></form>${footer}`;
+    <p class="err" id="err" hidden></p><button class="btn primary" type="submit">Save password and continue</button>
+    <button class="btn" type="button" id="keep">Keep existing password (1234)</button></form>${footer}`;
+  document.getElementById("keep").onclick = async () => { try { await api("POST","/api/learn/keep-password"); await boot(); }
+    catch(x){ if (x.status===401) return showLogin("Please sign in again."); const err = document.getElementById("err"); err.hidden = false; err.textContent = x.message; } };
   document.getElementById("fp").onsubmit = async e => { e.preventDefault(); const err = document.getElementById("err"); const a = document.getElementById("p1").value, b = document.getElementById("p2").value;
     if (a !== b){ err.hidden = false; err.textContent = "The two passwords don't match."; return; }
     try { await api("POST","/api/learn/password",{ current: "1234", password: a }); await boot(); }
@@ -231,7 +239,7 @@ async function showInvite(token, reset){
   let info; try { info = await api("GET","/api/learn/invite/"+encodeURIComponent(token)); } catch(x){ history.replaceState(null,"","/learn/"); return showLogin(x.message); }
   app.innerHTML = `<form class="auth" id="inv" novalidate><h1>${reset?"Reset your password":"Welcome"+(info.name?", "+esc(info.name.split(" ")[0]):"")}</h1>
     <p>${reset?"Choose a new password":"Set a password"} for the FC Training Academy learner portal. Your username is <b>${esc(info.email)}</b>.</p>
-    <div class="field"><label for="p1">New password</label><input id="p1" type="password" autocomplete="new-password" required><span style="font-size:13px;color:var(--muted)">At least 10 characters, with letters and numbers.</span></div>
+    <div class="field"><label for="p1">New password</label><input id="p1" type="password" autocomplete="new-password" required></div>
     <div class="field"><label for="p2">Type it again</label><input id="p2" type="password" autocomplete="new-password" required></div>
     <p class="err" id="err" hidden></p><button class="btn primary" type="submit">Set password and sign in</button></form>${footer}`;
   document.getElementById("inv").onsubmit = async e => { e.preventDefault(); const err = document.getElementById("err"); const a = document.getElementById("p1").value, b = document.getElementById("p2").value;
@@ -468,6 +476,19 @@ document.addEventListener("click", async e => {
 });
 document.addEventListener("keydown", e => { if (!G || G.fb || G.busy) return; const k = e.key.toUpperCase(); const j = "ABCD".indexOf(k); if (j>-1 && /^[a-dA-D]$/.test(e.key) && !e.ctrlKey && !e.metaKey && document.activeElement.tagName!=="INPUT") answerG(j).catch(()=>{}); });
 
+/* show / hide password eye on every password box */
+const EYE = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.9 17.9A10.4 10.4 0 0 1 12 19c-6.5 0-10-7-10-7a18.5 18.5 0 0 1 5.1-5.9M9.9 5.2A9.6 9.6 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-2.2 3.2M14.1 14.1a3 3 0 1 1-4.2-4.2"/><path d="M2 2l20 20"/></svg>';
+function addEyes(){
+  app.querySelectorAll('input[type=password]:not([data-eye])').forEach(inp => {
+    inp.dataset.eye = "1"; const w = document.createElement("span"); w.className = "pw-wrap"; inp.parentNode.insertBefore(w, inp); w.appendChild(inp);
+    const b = document.createElement("button"); b.type = "button"; b.className = "pw-eye"; b.innerHTML = EYE; b.setAttribute("aria-label","Show password"); b.setAttribute("aria-pressed","false");
+    b.onclick = () => { const show = inp.type === "password"; inp.type = show ? "text" : "password"; b.innerHTML = show ? EYE_OFF : EYE;
+      b.setAttribute("aria-label", show ? "Hide password" : "Show password"); b.setAttribute("aria-pressed", String(show)); inp.focus(); };
+    w.appendChild(b);
+  });
+}
+new MutationObserver(addEyes).observe(app, { childList: true, subtree: true });
 async function boot(){
   const q = new URLSearchParams(location.search), inv = q.get("invite"), rst = q.get("reset");
   if (rst) return showInvite(rst, true);

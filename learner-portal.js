@@ -20,6 +20,8 @@ try { BANK = loadBank(); } catch (e) { console.error('Mock exam bank could not b
 const MINUTES = 45;
 // Learners who have never set their own password sign in with this default password.
 const DEFAULT_PW = '1234';
+// Learner passwords: any password the learner likes (not empty).
+const lpwOk = p => typeof p === 'string' && p.length >= 1 && p.length <= 200;
 const PORTAL_URL = String(process.env.PORTAL_URL || 'https://learners.fctrainingacademy.com').replace(/\/+$/, '');
 
 // Password reset emails go out over SMTP (e.g. info@fctrainingacademy.com on Microsoft 365).
@@ -77,7 +79,8 @@ module.exports = function learnerPortal(app, d) {
       const p = jwt.verify(t, getSecret()); if (p.typ !== 'learner') throw 0;
       const r = await pool.query(`SELECT learner_id, email, active, token_version FROM learner_logins WHERE learner_id=$1`, [p.lid]);
       const u = r.rows[0]; if (!u || !u.active || u.token_version !== p.tv) return res.status(401).json({ error: 'signin' });
-      if (p.mc && req.path !== '/api/learn/password') return res.status(403).json({ error: 'change', email: u.email });
+      req.mustChange = !!p.mc;
+      if (p.mc && !['/api/learn/password', '/api/learn/keep-password'].includes(req.path)) return res.status(403).json({ error: 'change', email: u.email });
       const l = await learnerDoc(u.learner_id); if (!l || (l.status && l.status !== 'Active')) return res.status(401).json({ error: 'signin' });
       req.learner = { id: u.learner_id, email: u.email, name: l.name, cohort: l.cohort || '', programme: l.programme || '' }; next();
     } catch (e) { return res.status(401).json({ error: 'signin' }); }
@@ -121,7 +124,7 @@ module.exports = function learnerPortal(app, d) {
   });
   app.post('/api/learn/invite/:token', express.json(), async (req, res) => {
     const pw = req.body.password;
-    if (!pwOk(pw)) return res.status(400).json({ error: 'Use at least 10 characters with letters and numbers.' });
+    if (!lpwOk(pw)) return res.status(400).json({ error: 'Enter a password.' });
     const r = await pool.query(`UPDATE learner_logins SET pass_hash=$1, invite_hash=NULL, invite_expires=NULL, token_version=token_version+1, last_login=now()
       WHERE invite_hash=$2 AND invite_expires > now() AND active RETURNING *`, [await bcrypt.hash(pw, 12), sha(req.params.token)]);
     if (!r.rows[0]) return res.status(404).json({ error: 'This invite link has expired or was already used.' });
@@ -183,10 +186,16 @@ module.exports = function learnerPortal(app, d) {
   app.post('/api/learn/password', lauth, express.json(), async (req, res) => {
     const r = await pool.query(`SELECT pass_hash FROM learner_logins WHERE learner_id=$1`, [req.learner.id]);
     if (!r.rows[0] || !r.rows[0].pass_hash || !await bcrypt.compare(String(req.body.current || ''), r.rows[0].pass_hash)) return res.status(400).json({ error: 'Your current password is not right.' });
-    if (!pwOk(req.body.password)) return res.status(400).json({ error: 'Use at least 10 characters with letters and numbers.' });
+    if (!lpwOk(req.body.password)) return res.status(400).json({ error: 'Enter a new password.' });
     if (req.body.password === req.body.current) return res.status(400).json({ error: 'Choose a different password from your current one.' });
     const u = await pool.query(`UPDATE learner_logins SET pass_hash=$1, token_version=token_version+1 WHERE learner_id=$2 RETURNING *`, [await bcrypt.hash(req.body.password, 12), req.learner.id]);
     issue(res, u.rows[0]); res.json({ ok: true });
+  });
+  // After signing in with 1234 the learner can choose to keep it.
+  app.post('/api/learn/keep-password', lauth, async (req, res) => {
+    if (!req.mustChange) return res.json({ ok: true });
+    const r = await pool.query(`SELECT * FROM learner_logins WHERE learner_id=$1`, [req.learner.id]);
+    issue(res, r.rows[0]); res.json({ ok: true });
   });
   app.get('/api/learn/me', lauth, async (req, res) => {
     const a = await pool.query(`SELECT id, mock, score, total, pct, finished_at FROM exam_attempts WHERE learner_id=$1 AND finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT 30`, [req.learner.id]);
