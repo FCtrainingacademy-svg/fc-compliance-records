@@ -77,11 +77,13 @@ module.exports = function learnerPortal(app, d) {
       const p = jwt.verify(t, getSecret()); if (p.typ !== 'learner') throw 0;
       const r = await pool.query(`SELECT learner_id, email, active, token_version FROM learner_logins WHERE learner_id=$1`, [p.lid]);
       const u = r.rows[0]; if (!u || !u.active || u.token_version !== p.tv) return res.status(401).json({ error: 'signin' });
+      if (p.mc && req.path !== '/api/learn/password') return res.status(403).json({ error: 'change', email: u.email });
       const l = await learnerDoc(u.learner_id); if (!l || (l.status && l.status !== 'Active')) return res.status(401).json({ error: 'signin' });
       req.learner = { id: u.learner_id, email: u.email, name: l.name, cohort: l.cohort || '', programme: l.programme || '' }; next();
     } catch (e) { return res.status(401).json({ error: 'signin' }); }
   }
-  const issue = (res, u) => res.cookie(LCOOKIE, jwt.sign({ typ: 'learner', lid: u.learner_id, tv: u.token_version }, getSecret(), { expiresIn: '12h' }), cookieOpts());
+  // mc = signed in with the default password; they must choose their own before using the portal.
+  const issue = (res, u, mc) => res.cookie(LCOOKIE, jwt.sign({ typ: 'learner', lid: u.learner_id, tv: u.token_version, ...(mc ? { mc: 1 } : {}) }, getSecret(), { expiresIn: '12h' }), cookieOpts());
 
   // ---------- staff side ----------
   app.get('/api/portal/:lid', auth, notPending, needRole('manager', 'admin'), async (req, res) => {
@@ -175,13 +177,14 @@ module.exports = function learnerPortal(app, d) {
     const l = ok ? await learnerDoc(u.learner_id) : null;
     if (!ok || !l || (l.status && l.status !== 'Active')) { attempts.get(key).push(Date.now()); return res.status(401).json({ error: 'Email or password is not right.' }); }
     attempts.delete(key); await pool.query(`UPDATE learner_logins SET last_login=now() WHERE learner_id=$1`, [u.learner_id]);
-    issue(res, u); res.json({ ok: true });
+    const mc = pw === DEFAULT_PW; issue(res, u, mc); res.json({ ok: true, must_change: mc });
   });
   app.post('/api/learn/logout', (req, res) => { res.clearCookie(LCOOKIE, { path: '/' }); res.json({ ok: true }); });
   app.post('/api/learn/password', lauth, express.json(), async (req, res) => {
     const r = await pool.query(`SELECT pass_hash FROM learner_logins WHERE learner_id=$1`, [req.learner.id]);
     if (!r.rows[0] || !r.rows[0].pass_hash || !await bcrypt.compare(String(req.body.current || ''), r.rows[0].pass_hash)) return res.status(400).json({ error: 'Your current password is not right.' });
     if (!pwOk(req.body.password)) return res.status(400).json({ error: 'Use at least 10 characters with letters and numbers.' });
+    if (req.body.password === req.body.current) return res.status(400).json({ error: 'Choose a different password from your current one.' });
     const u = await pool.query(`UPDATE learner_logins SET pass_hash=$1, token_version=token_version+1 WHERE learner_id=$2 RETURNING *`, [await bcrypt.hash(req.body.password, 12), req.learner.id]);
     issue(res, u.rows[0]); res.json({ ok: true });
   });

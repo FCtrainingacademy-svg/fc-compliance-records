@@ -198,8 +198,19 @@ function showLogin(msg){
     <p style="font-size:14px">First time signing in? Use your email and the password <b>1234</b>.</p></form>${footer}`;
   document.getElementById("forgot").onclick = e => { e.preventDefault(); showForgot(document.getElementById("em").value); };
   document.getElementById("login").onsubmit = async e => { e.preventDefault(); const err = document.getElementById("err");
-    try { await api("POST","/api/learn/login",{ email: document.getElementById("em").value, password: document.getElementById("pw").value }); await boot(); }
+    try { const r = await api("POST","/api/learn/login",{ email: document.getElementById("em").value, password: document.getElementById("pw").value }); if (r.must_change) return showFirstPassword(); await boot(); }
     catch(x){ err.hidden = false; err.textContent = x.message; } };
+}
+function showFirstPassword(){
+  chrome(true,false); htitle.textContent = "Learner Portal";
+  app.innerHTML = `<form class="auth" id="fp" novalidate><h1>Choose your own password</h1><p>You signed in with the starter password. Before you use the portal, set a password only you know.</p>
+    <div class="field"><label for="p1">New password</label><input id="p1" type="password" autocomplete="new-password" required><span style="font-size:13px;color:var(--muted)">At least 10 characters, with letters and numbers.</span></div>
+    <div class="field"><label for="p2">Type it again</label><input id="p2" type="password" autocomplete="new-password" required></div>
+    <p class="err" id="err" hidden></p><button class="btn primary" type="submit">Save password and continue</button></form>${footer}`;
+  document.getElementById("fp").onsubmit = async e => { e.preventDefault(); const err = document.getElementById("err"); const a = document.getElementById("p1").value, b = document.getElementById("p2").value;
+    if (a !== b){ err.hidden = false; err.textContent = "The two passwords don't match."; return; }
+    try { await api("POST","/api/learn/password",{ current: "1234", password: a }); await boot(); }
+    catch(x){ if (x.status===401) return showLogin("Please sign in again."); err.hidden = false; err.textContent = x.message; } };
 }
 function showForgot(email){
   chrome(false,false); htitle.textContent = "Learner Portal";
@@ -231,7 +242,7 @@ async function showInvite(token, reset){
 
 /* ---------- home ---------- */
 async function home(){
-  try { ME = await api("GET","/api/learn/me"); } catch(x){ return showLogin(PREVIEW ? "Preview needs you to be signed in to the LMS as Manager or Admin in this browser. Sign in to the LMS, then press Preview learner portal again." : undefined); }
+  try { ME = await api("GET","/api/learn/me"); } catch(x){ if (x.status===403 && x.message==="change") return showFirstPassword(); return showLogin(PREVIEW ? "Preview needs you to be signed in to the LMS as Manager or Admin in this browser. Sign in to the LMS, then press Preview learner portal again." : undefined); }
   chrome(true,false); htitle.textContent = "Learner Portal"; X = null; G = null; clearInterval(gtick); homeBtn.textContent = "My exams";
   const best = {}; ME.attempts.forEach(a => { if (best[a.mock]==null || a.pct > best[a.mock]) best[a.mock] = a.pct; });
   const cards = ME.mocks.map(m => `<div class="mock"><div class="k">${esc(m.id)}</div><h2 style="font-size:20px">Mock exam ${esc(m.id)}</h2>
