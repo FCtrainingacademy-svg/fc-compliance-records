@@ -19,3 +19,9 @@ Multi-user web app for LCL centre LC 447: staff, centre checks, QMS documents, l
 - `PORTAL_URL` – optional, default `https://learners.fctrainingacademy.com` (used in reset links)
 
 Learners who have not set their own password sign in with their email and the default password `1234`. After that first sign-in they're asked to choose their own password (any password) or keep 1234. "Forgot password?" emails a one-time reset link valid for 1 hour. Without `SMTP_USER`/`SMTP_PASS` the forgot-password form tells learners to contact FC.
+
+### Job Desk link (FC Training onsite portfolio jobs)
+- `JOBDESK_KEY` – long random string (24+ characters). Set the **same value** as `LMS_KEY` on the Maintenance Job Desk.
+- The Job Desk reads active learners (name, phone, email, cohort, mentor) from `GET /api/jobdesk/learners` so it can send them FC Training jobs on WhatsApp.
+- When a learner finishes a training job, the Job Desk writes it back with `PUT /api/jobdesk/sitejob/:id`. It shows on the learner's page under **Onsite portfolio jobs**, counted against the 30-job target (boiler and cooker: 5 installs, 5 services, 4 fault finds, 1 pipework each).
+- Both calls need the header `x-jobdesk-key`. Without `JOBDESK_KEY` set they're switched off.

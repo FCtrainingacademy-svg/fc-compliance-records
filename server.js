@@ -20,7 +20,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process
 // Manager: changes everything directly, manages users, approves Admin requests.
 // Admin: views everything; every change is sent to the Manager for approval.
 const ROLES = ['manager', 'admin'];
-const COLLECTIONS = new Set(['staff', 'items', 'documents', 'learners', 'otj', 'attendance', 'audit', 'config', 'exams', 'ecordia']);
+const COLLECTIONS = new Set(['staff', 'items', 'documents', 'learners', 'otj', 'attendance', 'audit', 'config', 'exams', 'ecordia', 'sitejobs']);
 // Collections only the Manager can see or change (exam papers, model answers).
 const MANAGER_ONLY = new Set(['exams']);
 const isMgr = u => u && u.role === 'manager';
@@ -414,6 +414,39 @@ app.get('/cal/:token.ics', async (req, res) => {
     res.set({ 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'no-cache', 'Content-Disposition': 'inline; filename="fc-compliance.ics"' });
     res.send(await buildFeed());
   } catch (e) { console.warn('cal', e.message); res.status(500).send('Error'); }
+});
+
+// ---------- job desk link (FC Training onsite portfolio jobs) ----------
+// The Maintenance Job Desk reads active learners (to send them training jobs on WhatsApp) and
+// writes back each onsite job a learner completes. Protected by JOBDESK_KEY (same value on both apps).
+const SITE_APPLIANCES = ['boiler', 'cooker'], SITE_TYPES = ['install', 'service', 'fault', 'pipework'];
+function jobdeskAuth(req, res, next) {
+  const want = process.env.JOBDESK_KEY || '', got = String(req.get('x-jobdesk-key') || '');
+  if (want.length < 24) return res.status(503).json({ error: 'JOBDESK_KEY is not set on the LMS' });
+  if (got.length !== want.length || !crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want))) return res.status(401).json({ error: 'bad key' });
+  next();
+}
+const jdUser = { email: 'jobdesk', name: 'Job Desk' };
+app.get('/api/jobdesk/learners', jobdeskAuth, async (req, res) => {
+  const r = await pool.query(`SELECT id, data FROM docs WHERE col='learners'`);
+  const learners = r.rows.map(x => ({ id: x.id, ...x.data })).filter(l => (l.status || 'Active') === 'Active')
+    .map(l => ({ id: l.id, name: l.name || '', phone: l.phone || '', email: l.email || '', cohort: l.cohort || '', programme: l.programme || '', mentor: l.mentor || '', employer: l.employer || '' }));
+  res.json({ learners });
+});
+app.put('/api/jobdesk/sitejob/:id', jobdeskAuth, express.json({ limit: '200kb' }), async (req, res) => {
+  const id = String(req.params.id || '');
+  if (!/^[A-Za-z0-9_.:@+~-]{1,120}$/.test(id)) return res.status(400).json({ error: 'bad id' });
+  const b = req.body || {}, s = (v, n = 300) => String(v == null ? '' : v).slice(0, n);
+  const l = (await pool.query(`SELECT id FROM docs WHERE col='learners' AND id=$1`, [s(b.learnerId, 200)])).rows[0];
+  if (!l) return res.status(404).json({ error: 'learner not found' });
+  if (!SITE_APPLIANCES.includes(b.appliance) || !SITE_TYPES.includes(b.type)) return res.status(400).json({ error: 'appliance/type' });
+  const doc = { learnerId: l.id, ref: s(b.ref, 30), appliance: b.appliance, type: b.type, date: s(b.date, 30), postcode: s(b.postcode, 12),
+    supervisor: s(b.supervisor, 120), supervisorGasSafe: s(b.supervisorGasSafe, 20), description: s(b.description, 1000), findings: s(b.findings, 2000),
+    checklist: Array.isArray(b.checklist) ? b.checklist.slice(0, 30).map(c => ({ item: s(c.item, 160), done: !!c.done })) : [],
+    status: ['done', 'signedoff'].includes(b.status) ? b.status : 'done', signedOffBy: s(b.signedOffBy, 120), signedOffAt: s(b.signedOffAt, 30),
+    link: /^https:\/\//.test(b.link || '') ? s(b.link, 300) : '', title: `${s(b.ref, 30)} ${b.appliance} ${b.type}`, updatedAt: new Date().toISOString() };
+  try { await applyChange('PUT', 'sitejobs', id, doc, 'jobdesk'); await log(jdUser, 'onsite job recorded', 'sitejobs', id, doc.title); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: 'save failed' }); }
 });
 
 // ---------- learner portal ----------

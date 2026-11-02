@@ -337,6 +337,7 @@ function vLearner(l){
     ${[["ULN",l.uln],["Status",l.status||"Active"],["Start",fmt(l.start)],["Planned end",fmt(l.plannedEnd)],["Next progress review",fmt(l.nextReview)],["EPA gateway",fmt(l.gateway)],["Employer",l.employer],["Employer contact",l.employerContact],["Tutor / assessor",l.tutorId?staffName(l.tutorId):""],["Workplace mentor",l.mentor],["Mentor interview",l.mentorInterview?fmt(l.mentorInterview):"Not recorded"],["Evidence pieces",evidenceCount(l)+(l.evidenceTarget?` of ${l.evidenceTarget}`:"")],["NI number",l.niNumber],["Email",l.email],["Phone",l.phone]].map(([k,v])=>`<div><dt>${k}</dt><dd class="${/Start|end|review|gateway|interview|pieces/i.test(k)?"mono":""}">${esc(v||"—")}</dd></div>`).join("")}
   </dl>${l.notes?`<p style="margin:12px 0 0;white-space:pre-wrap">${esc(l.notes)}</p>`:""}</div>
   ${portalPanel(l)}
+  ${siteJobsPanel(l)}
   ${ecFor(l).length?`<div class="panel"><h3>Ecordia feedback</h3><div class="files">${ecFor(l).map(x=>`<span class="file"><a href="/_blob/${esc(x.fileId)}" target="_blank" rel="noopener">${esc(x.title)}</a></span>`).join("")}</div></div>`:""}
   <div class="panel"><h3>Units &amp; portfolio evidence</h3>
   ${S.units.length?`<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Status</th><th>Signed off</th><th>Evidence</th></tr></thead><tbody>
@@ -351,6 +352,18 @@ function vLearner(l){
   ${attendancePanel(l)}
   </div>`
 }
+
+/* onsite portfolio jobs (sent in by the Job Desk when a learner finishes an FC Training job) */
+const SITE_TARGET={install:5,service:5,fault:4,pipework:1},SITE_LBL={install:"Installs",service:"Services",fault:"Fault finds",pipework:"Pipework"};
+function siteJobs(lid){return Object.entries((typeof ON!=="undefined"&&ON.data&&ON.data.collections.sitejobs)||{}).map(([id,d])=>({id,...d})).filter(j=>j.learnerId===lid).sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")))}
+function siteJobsPanel(l){
+  const js=siteJobs(l.id),n=(a,t)=>js.filter(j=>j.appliance===a&&j.type===t).length,total=js.length;
+  const row=a=>`<tr><td style="text-transform:capitalize;font-weight:600">${a}</td>${Object.keys(SITE_TARGET).map(t=>{const c=n(a,t),g=SITE_TARGET[t];return `<td class="mono" style="color:var(--${c>=g?"green":c?"amber":"ink"})">${c} / ${g}</td>`}).join("")}</tr>`;
+  return `<div class="panel"><h3>Onsite portfolio jobs <span class="muted" style="font-weight:400">· ${total} of 30</span></h3>
+  <div class="tbl-wrap"><table><thead><tr><th></th>${Object.values(SITE_LBL).map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${row("boiler")}${row("cooker")}</tbody></table></div>
+  ${js.length?`<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:600">Jobs done (${js.length})</summary><div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>Date</th><th>Job</th><th>Type</th><th>Supervisor</th><th>Status</th></tr></thead><tbody>
+  ${js.map(j=>`<tr><td class="mono" style="white-space:nowrap">${esc(fmt(String(j.date||"").slice(0,10)))}</td><td>${/^https:\/\//.test(j.link||"")?`<a href="${esc(j.link)}" target="_blank" rel="noopener">${esc(j.ref)}</a>`:esc(j.ref)}${j.postcode?` · ${esc(j.postcode)}`:""}<div class="muted" style="font-size:12px">${esc(j.findings||j.description||"")}</div></td><td style="text-transform:capitalize">${esc(j.appliance)} ${esc(SITE_LBL[j.type]||j.type)}</td><td>${esc(j.supervisor||"—")}${j.supervisorGasSafe?` <span class="mono muted">(${esc(j.supervisorGasSafe)})</span>`:""}</td><td>${j.status==="signedoff"?pill("ok","Signed off"):pill("soon","Done – to sign off")}</td></tr>`).join("")}
+  </tbody></table></div></details>`:`<div class="empty" style="margin-top:8px">No onsite jobs yet. They appear here when the learner completes an FC Training job on the Job Desk.</div>`}</div>`}
 
 function attendancePanel(l){const a=sessionPlan(l.id);
   if(!a.rows.length)return `<div class="panel"><h3>Attendance</h3><div class="empty">No attendance marked yet. Use the <b>Register</b> tab on training days.</div></div>`;
