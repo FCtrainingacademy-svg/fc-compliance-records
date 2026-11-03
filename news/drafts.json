@@ -1,0 +1,22 @@
+[
+  {
+    "id": "2026-10-igem-up-1b-edition-4",
+    "date": "2026-10-01",
+    "tag": "New standard",
+    "title": "New tightness test now in force: IGEM/UP/1B Edition 4",
+    "summary": "From 1 October 2026, every domestic tightness test and purge must follow IGEM/UP/1B Edition 4. Edition 3 was withdrawn on 30 September 2026.",
+    "body": "IGEM published Edition 4 in March 2026. Gas Safe Register's Industry Standard Update 133 gave engineers six months to change over, with both editions allowed side by side until 30 September 2026. Edition 4 is now the only version you can work to.\n\nWhat has changed:\n- The permissible pressure drop now depends on the Installation Volume (IV) of the installation, or the part being tested, instead of the meter size. This matches how LPG was already done.\n- Natural Gas limits: IV up to 0.005 m³ allows 8 mbar; over 0.005 to 0.010 m³ allows 4 mbar; over 0.010 to 0.015 m³ allows 2.5 mbar; over 0.015 to 0.035 m³ allows 1 mbar.\n- Any perceptible movement is no longer assumed to be from the pipework. Where reasonably practicable, isolate the appliances and retest the pipework only. The pipework-only test passes only with no perceptible movement.\n- Up to 0.25 mbar on a water gauge or electronic gauge counts as not perceptible (0.2 mbar on a gauge that reads to one decimal place).\n- Purge volume is now 1.5 × IV for every installation.\n- After a good test, reconnect the appliances and check disturbed joints and the pipework between each appliance isolation valve and the appliance with leak detection fluid. There must be no smell of gas.\n\nFor FC learners: learn Edition 4 for your CCN1 / ACS assessment. If any notes you have still show the old meter-size limits, ask your tutor.",
+    "source": "Gas Safe Register – Industry Standard Update 133",
+    "url": "https://registeredgasengineer.co.uk/technical/industry-standard-update-133/"
+  },
+  {
+    "id": "2026-02-tb-163-custom-flues",
+    "date": "2026-02-16",
+    "tag": "Gas Safe Register",
+    "title": "Technical Bulletin 163: commissioning appliances on custom-built or specialist flues",
+    "summary": "Gas Safe Register has issued TB 163, setting out what registered businesses are responsible for when commissioning a gas appliance connected to a custom-built or specialist chimney or flue system.",
+    "body": "TB 163 was issued on 16 February 2026. It explains the checks and responsibilities that fall on the Gas Safe registered business that commissions the appliance, where the chimney or flue has been custom-built or supplied as a specialist system rather than the appliance manufacturer's own flue kit.\n\nRegistered engineers can read the full bulletin, and all other Technical Bulletins, by signing in to their Gas Safe Register online account.\n\nFor FC learners: this links to the chimneys and flues part of the course (weeks 21–30). Ask your tutor if you come across a specialist flue on site.",
+    "source": "Registered Gas Engineer – Technical Bulletin 163",
+    "url": "https://registeredgasengineer.co.uk/?p=15053"
+  }
+]

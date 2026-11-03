@@ -451,6 +451,7 @@ app.put('/api/jobdesk/sitejob/:id', jobdeskAuth, express.json({ limit: '200kb' }
 
 // ---------- learner portal ----------
 const portal = require('./learner-portal')(app, { HTML_CSP, pool, express, bcrypt, jwt, auth, notPending, needRole, pwOk, throttled, attempts, log, getSecret: () => SECRET });
+const newsMod = require('./news')(app, { pool, bumpRev });
 // learners.<domain> is the learners' address: its home page goes straight to the learner portal.
 app.get('/', (req, res, next) => /^learners\./i.test(req.hostname || '') ? res.redirect(302, '/learn/') : next());
 app.get('/learn', (req, res, next) => { const u = req.originalUrl; if (u.split('?')[0] !== '/learn') return next(); res.redirect(301, '/learn/' + (u.includes('?') ? u.slice(u.indexOf('?')) : '')); });
@@ -460,4 +461,4 @@ app.get('/healthz', (req, res) => res.send('ok'));
 app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html', maxAge: '5m' }));
 app.use((req, res) => res.status(404).send('Not found'));
 
-migrate().then(() => portal.migrate()).then(() => app.listen(PORT, () => console.log('CLR listening on', PORT))).catch(e => { console.error(e); process.exit(1); });
+migrate().then(() => portal.migrate()).then(() => newsMod.seed().catch(e => console.error('news drafts', e.message))).then(() => app.listen(PORT, () => console.log('CLR listening on', PORT))).catch(e => { console.error(e); process.exit(1); });

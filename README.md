@@ -25,3 +25,13 @@ Learners who have not set their own password sign in with their email and the de
 - The Job Desk reads active learners (name, phone, email, cohort, mentor) from `GET /api/jobdesk/learners` so it can send them FC Training jobs on WhatsApp.
 - When a learner finishes a training job, the Job Desk writes it back with `PUT /api/jobdesk/sitejob/:id`. It shows on the learner's page under **Onsite portfolio jobs**, counted against the 30-job target (boiler and cooker: 5 installs, 5 services, 4 fault finds, 1 pipework each).
 - Both calls need the header `x-jobdesk-key`. Without `JOBDESK_KEY` set they're switched off.
+
+## News
+
+Industry news (new standards, Gas Safe Register bulletins, LCL/ACS changes) is kept in the LMS: **Learners → News**. Stories are drafts until the Manager presses **Publish** and saves. Published stories appear:
+
+- on the public page **/news/** (e.g. https://learners.fctrainingacademy.com/news/) — link the website's News menu item here;
+- at the top of the learner portal's **This week** tab (latest two);
+- as JSON at **/api/news** (open to any site, for embedding on fctrainingacademy.com).
+
+Drafts prepared outside the LMS go in `news/drafts.json` (fields: `id`, `date` YYYY-MM-DD, `tag`, `title`, `summary`, `body`, `source`, `url`). On start-up any story whose `id` the LMS hasn't seen before is added as a draft. Deleted drafts don't come back.

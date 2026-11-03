@@ -160,6 +160,12 @@ footer{margin-top:32px;font-size:13px;color:var(--muted);display:grid;gap:4px}
 .sow .acts .btn{font-weight:700;background:var(--flue-soft);color:var(--flue);border:2px solid var(--flue);transition:background .15s,color .15s}
 .sow .acts .btn:hover,.sow .acts .btn:focus-visible{background:var(--flue);color:var(--flue-ink)}
 .acct{margin:0;font-size:14px;color:var(--muted)}
+.news{background:var(--paper);border:1px solid var(--line);border-left:5px solid var(--flame);border-radius:var(--r);padding:14px 16px;margin-top:18px;display:grid;gap:10px}
+.news .nh{display:flex;justify-content:space-between;align-items:baseline;gap:10px}.news .nh h3{font-size:16px}.news .nh a{color:var(--flue);font-weight:600;font-size:14px}
+.news .ni{display:grid;gap:3px;text-decoration:none;color:inherit;padding-top:10px;border-top:1px solid var(--line)}
+.news .ni:hover b,.news .ni:focus-visible b{color:var(--flue)}.news .ni:focus-visible{outline:2px solid var(--flame);outline-offset:2px}
+.news .nm{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}.news .ni b{font-size:16px;line-height:1.35}
+.news .ns{font-size:14.5px;color:var(--muted)}.news .nr{font-size:14px;color:var(--flue);font-weight:600}
 .tabs{display:flex;gap:2px;overflow-x:auto;margin-top:18px;border-bottom:1px solid var(--line);scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .tabs::-webkit-scrollbar{display:none}
 .tab{flex:1 0 auto;border:0;background:none;padding:10px 8px;font-weight:700;font-size:15px;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap;cursor:pointer}
@@ -295,7 +301,7 @@ async function home(){
     <p>Revise for your gas safety (CCN1 / ACS) assessment. Your tutor can see your scores, so they can help with the topics you find hardest.</p>
     <p class="acct">Signed in as ${esc(ME.learner.email || "")} · <button class="linkbtn" id="chpw">Change password</button></p></section>
     <nav class="tabs" role="tablist" aria-label="Learner portal">${tabBtn("week","This week")}${tabBtn("practice","Practice")}${tabBtn("resources","Resources")}${tabBtn("results","Results")}</nav>
-    <section class="panel" role="tabpanel" id="panel-week" aria-labelledby="tab-week" hidden><div id="sowbox"></div></section>
+    <section class="panel" role="tabpanel" id="panel-week" aria-labelledby="tab-week" hidden><div id="newsbox"></div><div id="sowbox"></div></section>
     <section class="panel" role="tabpanel" id="panel-practice" aria-labelledby="tab-practice" hidden>
       <h2 class="ph">Mock exams</h2><p class="lead">${ME.mocks[0]?ME.mocks[0].count:60} questions · ${mins} minutes · covers every topic, like the real assessment.</p>
       <div class="rows">${mockRows}</div>
@@ -321,12 +327,21 @@ async function home(){
   showTab(TAB);
   const btnLabel = x => { if (!x.file) return "Open website ↗"; const e = (x.file.name.split(".").pop()||"").toLowerCase(); return e==="html"||e==="htm" ? "Read online →" : e==="pdf" ? "Open PDF →" : "Open file"; };
   loadBoard();
+  loadNews();
   renderSow(null);
   try { const R = await api("GET","/api/learn/resources"); renderSow(R.items); const box = document.getElementById("res"); if (!box) return;
     if (!R.items.length){ box.innerHTML = `<p class="lead" style="margin-top:16px">Your tutor hasn't added any resources yet.</p>`; return; }
     const groups = {}; R.items.forEach(x => (groups[x.group || "General"] = groups[x.group || "General"] || []).push(x));
     box.innerHTML = Object.keys(groups).map(g => `<h3 style="font-size:15px;margin:18px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${esc(g)}</h3><div class="mocks" style="margin-top:0">${groups[g].map(x => `<a class="mock res" href="${esc(x.url)}"${x.file?"":` target="_blank" rel="noopener"`} style="text-decoration:none;color:inherit"><h2 style="font-size:18px">${esc(x.title)}</h2>${x.note?`<div class="meta">${esc(x.note)}</div>`:""}<span class="rbtn">${esc(btnLabel(x))}</span></a>`).join("")}</div>`).join("");
   } catch(x){ const box = document.getElementById("res"); if (box) box.innerHTML = `<p class="lead" style="margin-top:16px">Resources couldn't load. Refresh to try again.</p>`; }
+}
+async function loadNews(){
+  const box = document.getElementById("newsbox"); if (!box) return;
+  try { const r = await fetch("/api/news"); const N = (await r.json()).items || []; if (!N.length) return;
+    const fd = d => d ? new Date(d+"T12:00:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}) : "";
+    box.innerHTML = `<div class="news"><div class="nh"><h3>Industry news</h3><a href="/news/">All news →</a></div>${N.slice(0,2).map(x => `<a class="ni" href="/news/#${encodeURIComponent(x.id)}">
+      <span class="nm">${x.tag?`<span class="pill">${esc(x.tag)}</span>`:""}${esc(fd(x.date))}</span><b>${esc(x.title)}</b>${x.summary?`<span class="ns">${esc(x.summary)}</span>`:""}<span class="nr">Read more →</span></a>`).join("")}</div>`;
+  } catch(e){}
 }
 const TABS = ["week","practice","resources","results"]; let TAB = "week";
 function showTab(id){
