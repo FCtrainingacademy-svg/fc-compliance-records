@@ -125,6 +125,7 @@ module.exports = function learnerPortal(app, d) {
   app.post('/api/learn/invite/:token', express.json(), async (req, res) => {
     const pw = req.body.password;
     if (!lpwOk(pw)) return res.status(400).json({ error: 'Enter a password.' });
+    if (pw === DEFAULT_PW) return res.status(400).json({ error: 'Choose a different password from the starter password.' });
     const r = await pool.query(`UPDATE learner_logins SET pass_hash=$1, invite_hash=NULL, invite_expires=NULL, token_version=token_version+1, last_login=now()
       WHERE invite_hash=$2 AND invite_expires > now() AND active RETURNING *`, [await bcrypt.hash(pw, 12), sha(req.params.token)]);
     if (!r.rows[0]) return res.status(404).json({ error: 'This invite link has expired or was already used.' });
@@ -188,15 +189,12 @@ module.exports = function learnerPortal(app, d) {
     if (!r.rows[0] || !r.rows[0].pass_hash || !await bcrypt.compare(String(req.body.current || ''), r.rows[0].pass_hash)) return res.status(400).json({ error: 'Your current password is not right.' });
     if (!lpwOk(req.body.password)) return res.status(400).json({ error: 'Enter a new password.' });
     if (req.body.password === req.body.current) return res.status(400).json({ error: 'Choose a different password from your current one.' });
+    if (req.body.password === DEFAULT_PW) return res.status(400).json({ error: 'Choose a different password from the starter password.' });
     const u = await pool.query(`UPDATE learner_logins SET pass_hash=$1, token_version=token_version+1 WHERE learner_id=$2 RETURNING *`, [await bcrypt.hash(req.body.password, 12), req.learner.id]);
     issue(res, u.rows[0]); res.json({ ok: true });
   });
-  // After signing in with 1234 the learner can choose to keep it.
-  app.post('/api/learn/keep-password', lauth, async (req, res) => {
-    if (!req.mustChange) return res.json({ ok: true });
-    const r = await pool.query(`SELECT * FROM learner_logins WHERE learner_id=$1`, [req.learner.id]);
-    issue(res, r.rows[0]); res.json({ ok: true });
-  });
+  // Learners can no longer keep the starter password: after signing in with it they must choose their own.
+  app.post('/api/learn/keep-password', lauth, (req, res) => res.status(400).json({ error: 'Choose your own password to carry on.' }));
   app.get('/api/learn/me', lauth, async (req, res) => {
     const a = await pool.query(`SELECT id, mock, score, total, pct, finished_at FROM exam_attempts WHERE learner_id=$1 AND finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT 30`, [req.learner.id]);
     const open = await pool.query(`SELECT id, mock, due_at FROM exam_attempts WHERE learner_id=$1 AND finished_at IS NULL AND due_at > now() ORDER BY started_at DESC LIMIT 1`, [req.learner.id]);

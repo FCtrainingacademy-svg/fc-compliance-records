@@ -18,7 +18,7 @@ Multi-user web app for LCL centre LC 447: staff, centre checks, QMS documents, l
 - `MAIL_FROM` – optional, default `FC Training Academy <SMTP_USER>`
 - `PORTAL_URL` – optional, default `https://learners.fctrainingacademy.com` (used in reset links)
 
-Learners who have not set their own password sign in with their email and the default password `1234`. After that first sign-in they're asked to choose their own password (any password) or keep 1234. "Forgot password?" emails a one-time reset link valid for 1 hour. Without `SMTP_USER`/`SMTP_PASS` the forgot-password form tells learners to contact FC.
+Learners who have not set their own password sign in with their email and the default password `1234`. After that first sign-in they're asked to choose their own password (any password except 1234). Learners who kept 1234 before are asked to choose a new one at their next sign-in. "Forgot password?" emails a one-time reset link valid for 1 hour. Without `SMTP_USER`/`SMTP_PASS` the forgot-password form tells learners to contact FC.
 
 ### Job Desk link (FC Training onsite portfolio jobs)
 - `JOBDESK_KEY` – long random string (24+ characters). Set the **same value** as `LMS_KEY` on the Maintenance Job Desk.
