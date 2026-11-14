@@ -56,6 +56,15 @@ async function migrate() {
     UPDATE users SET role='manager' WHERE role NOT IN ('manager','admin','teacher');
     INSERT INTO meta (k, v) VALUES ('rev', '1') ON CONFLICT (k) DO NOTHING;
   `);
+  // One-off (14 Nov 2026): take the Exams group "MLP Centre CD Pack - February 2024" out (only files shown under that group; backup kept in meta).
+  if (!(await pool.query(`SELECT 1 FROM meta WHERE k='exams_remove_cdpack_group'`)).rowCount) {
+    const all = (await pool.query(`SELECT id, data FROM docs WHERE col='exams'`)).rows;
+    const top = d => { const p = String(d.path || d.title || '').split('/'); return p.length > 2 ? p[1] : (p.length > 1 ? p[0] : 'Other'); };
+    const gone = all.filter(r => /^MLP Centre CD Pack - February 2024$/i.test(top(r.data).trim()));
+    if (gone.length) await pool.query(`DELETE FROM docs WHERE col='exams' AND id = ANY($1)`, [gone.map(r => r.id)]);
+    await pool.query(`INSERT INTO meta (k, v) VALUES ('exams_remove_cdpack_group', $1) ON CONFLICT (k) DO NOTHING`, [JSON.stringify(gone)]);
+    if (gone.length) { await pool.query(`UPDATE meta SET v = (v::bigint + 1)::text WHERE k='rev'`); console.log('removed MLP Centre CD Pack group from Exams:', gone.length); }
+  }
   // One-off (14 Nov 2026): take the EQA Annual Audit, IAR Internal Audit Report 11-20 and STC Caretaker brochure files out of Exams (backup kept in meta; files kept).
   if (!(await pool.query(`SELECT 1 FROM meta WHERE k='exams_remove_audits'`)).rowCount) {
     const del = await pool.query(`DELETE FROM docs WHERE col='exams' AND (data->>'title' ~* 'LC447 - EQA - Annual Audit' OR data->>'title' ~* '^IAR Internal Audit Report 11-20' OR data->>'fileId' = '49d98569d6bf5d137eec462dbdf867a1' OR data->>'title' ~* '^STC_Caretaker_Building_Maintenance_Brochure_2022') RETURNING id, data`);
