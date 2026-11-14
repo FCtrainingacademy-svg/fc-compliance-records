@@ -70,6 +70,7 @@ ol.steps li.done label{color:var(--soft)}
 .seg label:has(input:checked){border-color:var(--brand);background:var(--brand-soft)}
 .meta{font-size:14px;color:var(--soft)}
 .ref{font-family:var(--mono);font-size:12.5px;color:var(--soft)}
+h2.grp{font-size:22px;margin:22px 0 10px}
 .warnbox{background:var(--warn-bg);color:var(--ink);border-radius:10px;padding:12px 14px;font-size:15px}
 footer.small{font-size:13.5px;color:var(--soft);margin-top:22px}
 #record{display:none}
@@ -80,6 +81,7 @@ footer.small{font-size:13.5px;color:var(--soft);margin-top:22px}
   #record{display:block}
   #record h1{font-size:20pt}
   #record table{width:100%;border-collapse:collapse;margin:10px 0}
+  #record th[colspan]{background:#eee}
   #record th,#record td{border:1px solid #888;padding:5px 6px;text-align:left;vertical-align:top;font-size:10pt}
   #record .sig{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:22px}
   #record .sig div{border-top:1px solid #000;padding-top:4px;font-size:10pt}
@@ -90,12 +92,12 @@ footer.small{font-size:13.5px;color:var(--soft);margin-top:22px}
 <header class="tool">
   <p class="kicker">FC Training Academy · Learner tool</p>
   <h1>ACS Practicals</h1>
-  <p class="lede">The practical tasks for your CCN1 / ACS assessment (plus CPA1), in the order of the course method statements. Open a task, work through the steps on a rig, tick them off, then say how confident you are. Print your record for your tutor to sign.</p>
+  <p class="lede">The practical tasks for your ACS assessments: core gas safety (CCN1) and CPA1, plus the boiler (CENWAT), cooker (CKR1) and gas fire (HTR1) appliance practicals. Method statement numbers are shown on each task. Open a task, work through the steps on a rig, tick them off, then say how confident you are. Print your record for your tutor to sign.</p>
 </header>
 
 <section class="card">
   <div class="progress">
-    <div class="ptxt" id="ptxt">Confident in <b>0</b> of 12 tasks</div>
+    <div class="ptxt" id="ptxt">Confident in <b>0</b> of 27 tasks</div>
     <div class="bar" aria-hidden="true"><i id="pbar"></i></div>
   </div>
   <div class="row" style="margin-top:12px">
@@ -123,7 +125,7 @@ footer.small{font-size:13.5px;color:var(--soft);margin-top:22px}
 </section>
 
 <footer class="small">
-  <p>© FC Training Academy. A revision aid written by FC Training Academy. It is not an LCL Awards assessment document and does not replace the standards, the manufacturer's instructions or your assessor's instructions. Learners must only work on gas under the direct supervision of a Gas Safe registered engineer. LCL page numbers are from the LCL printed manual (Domestic, Issue 5.3). Figures follow IGEM/UP/1B Edition 4, BS 6891, BS 5440, BS 7967 and the FC course notes.</p>
+  <p>© FC Training Academy. A revision aid written by FC Training Academy. It is not an LCL Awards assessment document and does not replace the standards, the manufacturer's instructions or your assessor's instructions. Learners must only work on gas under the direct supervision of a Gas Safe registered engineer. LCL page numbers are from the LCL printed manual (Domestic, Issue 5.3). Figures follow IGEM/UP/1B Edition 4, BS 6891, BS 5440, BS 7967, BS 6172, BS 5871 and the FC course notes. Practise appliance tasks on the rig appliances in the centre.</p>
 </footer>
 
 <section id="record"></section>
@@ -133,67 +135,148 @@ footer.small{font-size:13.5px;color:var(--soft);margin-top:22px}
 (function(){
 "use strict";
 var TASKS=[
-{id:"tight",ms:1,title:"Tightness testing and let-by",ref:"E2–E6",std:"IGEM/UP/1B Ed. 4",
+{id:"tight",g:"core",ms:1,title:"Tightness testing and let-by",ref:"E2–E6",std:"IGEM/UP/1B Ed. 4",
  look:"A full let-by and tightness test in the right order, correct timings, the right permitted drop for the installation volume, and asking about smell of gas.",
  figs:[["Let-by","7–10 mbar, 1 min, no rise"],["Test pressure (NG)","21 mbar"],["Stabilise","1 min"],["Test","2 min"],["Max drop, appliances connected (NG)","≤5 L: 8 · ≤10 L: 4 · ≤15 L: 2.5 · ≤35 L: 1 mbar"],["New installation / pipework only","no perceptible movement"]],
  steps:["Visual inspection of the meter installation and pipework; safe-to-touch check with a voltage indicator.","Work out the installation volume: meter + pipework + 10% for fittings (or use the calculator).","Turn off all appliances (and pilots) and the ECV.","Connect the gauge at the meter outlet test point; zero it and check it.","Let-by test: raise to 7–10 mbar, close the ECV, watch for 1 minute. Any rise = the ECV is letting by: stop and report.","Raise to the test pressure and close the ECV.","Wait 1 minute for the temperature to stabilise.","Record the pressure, watch for 2 minutes, record the final pressure.","Ask if anyone can smell gas.","Compare the drop with the permitted drop. If outside it: isolate appliances and test the pipework on its own to find whether it's pipework or appliances.","Remove the gauge, seal the test point and test it for leaks with leak detection fluid."],
  fails:["Skipping the let-by test or doing it after the tightness test","Not waiting for the temperature to stabilise","Using the wrong permitted drop for the installation volume","Passing a test with a smell of gas – a smell always has to be traced"]},
-{id:"purge",ms:null,title:"Purging and re-establishing the supply",ref:"",std:"IGEM/UP/1B Ed. 4",
+{id:"purge",g:"core",ms:null,title:"Purging and re-establishing the supply",ref:"",std:"IGEM/UP/1B Ed. 4",
  look:"A safe purge: tightness test passed first, the purge volume worked out, the area made safe, gas proved at each point and appliances relit and checked.",
  figs:[["Purge volume (course method)","1.5 × installation volume"],["Order","tightness test → purge → relight"]],
  steps:["Make sure the installation has passed a tightness test – never purge one that hasn't.","Work out the purge volume (1.5 × meter + pipework + fittings volume).","Make the area safe: open windows, put up No smoking / No naked flames notices, no electrical switching, no ignition sources.","Choose the purge point – the appliance or point furthest from the meter first; use a purge hose to outside if the area isn't well ventilated.","Open the ECV and the purge point and watch the meter until the purge volume has passed.","Close the purge point and prove gas is there by lighting an appliance burner – never light gas at an open pipe end.","Purge each other branch in turn.","Leak test any joints you disturbed with leak detection fluid.","Relight every appliance, check burners and pilots are stable and controls work.","Tell the customer the supply is back on."],
  fails:["Purging before a tightness test","Not calculating the purge volume","Igniting gas at an open end or near an ignition source","Forgetting to relight and check every appliance"]},
-{id:"press",ms:4,title:"Operating and working pressure",ref:"B3; L2–L9; C9",std:"BS 6891",
+{id:"press",g:"core",ms:4,title:"Operating and working pressure",ref:"B3; L2–L9; C9",std:"BS 6891",
  look:"Pressure measured at the meter outlet with appliances running, the regulator locking up, and the working pressure at the appliance inlet within 1 mbar.",
  figs:[["Meter operating pressure (NG)","21 mbar nominal"],["Max loss meter → appliance","1 mbar (all appliances at full rate)"]],
  steps:["Connect the gauge at the meter outlet test point and zero it.","Turn on the largest appliance (or all appliances) at full rate.","Read and record the meter operating pressure.","Turn the appliances off: the pressure should rise a little and then hold steady (regulator lock-up). A pressure that keeps creeping up means a faulty regulator: report it to the gas transporter.","Connect the gauge at the appliance inlet test point.","With all appliances running at full rate, read the working pressure.","Work out the loss between meter and appliance: more than 1 mbar points to undersized or restricted pipework.","Remove the gauges, re-seal both test points and leak test them."],
  fails:["Reading the pressure with appliances off","Not checking regulator lock-up","Not re-sealing and testing the test points"]},
-{id:"rate",ms:5,title:"Gas rate and heat input",ref:"C9–C11",std:"MI / data badge",
+{id:"rate",g:"core",ms:5,title:"Gas rate and heat input",ref:"C9–C11",std:"MI / data badge",
  look:"Only the appliance under test running at full rate, an accurate meter reading over the right time, correct calculation and a comparison with the data badge or MI.",
  figs:[["Metric meter","read over 2 min, × 30 = m³/h"],["Imperial meter","ft³/h = 3600 ÷ seconds × dial ft³"],["ft³ → m³","× 0.0283"],["Gross kW","m³/h × CV ÷ 3.6 (CV 38.76 MJ/m³)"],["Net kW","gross ÷ 1.11"]],
  steps:["Turn off every other gas appliance (and pilots).","Run the appliance at full rate (service mode / max) and let it settle.","Metric meter: take a reading, time exactly 2 minutes, take the second reading.","Imperial meter: time one full revolution of the test dial in seconds.","Work out the gas rate in m³/h.","Convert to gross heat input in kW, then to net (÷ 1.11) if the data badge gives net.","Compare with the data badge or MI. If it's outside the manufacturer's tolerance, check the working pressure and the gas valve setting.","Record the readings, the working and the result."],
  fails:["Other appliances left on","Testing before the appliance is at full rate","Mixing up gross and net kW","Not comparing with the data badge or MI"]},
-{id:"flueflow",ms:2,title:"Flue flow test",ref:"F14–F15",std:"BS 5440-1",
+{id:"flueflow",g:"core",ms:2,title:"Flue flow test",ref:"F14–F15",std:"BS 5440-1",
  look:"The flue visually checked, then a smoke test showing all the smoke leaves from the terminal with none leaking along the route or into the room.",
  figs:[["When","before connecting an open-flued appliance, and on a new or altered flue"],["Pass","smoke only from the terminal"]],
  steps:["Visually check the flue: route, joints, supports, terminal, no blockage or damage.","Close windows and doors in the room.","Warm the flue if needed (follow the MI and course notes for warm-up time).","Place a lit smoke pellet at the base of the flue / appliance flue position and close off the opening (e.g. fireplace opening).","Watch the terminal: smoke should leave from the terminal only.","Check along the flue route and in other rooms for smoke leakage.","Any smoke into the room or out of joints = fail: the appliance must not be connected or used. Classify under GIUSP.","Record the result."],
  fails:["Not checking the terminal","Not checking the flue route in other rooms","Treating a partial spill as a pass"]},
-{id:"spill",ms:3,title:"Spillage test",ref:"F14–F15",std:"BS 5440-1",
+{id:"spill",g:"core",ms:3,title:"Spillage test",ref:"F14–F15",std:"BS 5440-1",
  look:"An open-flued appliance run for the right time, the smoke match held correctly at the draught diverter, and a second test under worst-case conditions with fans on.",
  figs:[["Run first","5 minutes"],["If it spills","run 5 more minutes (10 total) and retest"],["Worst case","extract fans on, connecting doors open"],["Spillage after 10 min","Immediately Dangerous"]],
  steps:["Close windows and doors in the room; turn off fans.","Light the appliance at full rate and run it for 5 minutes.","Hold a lit smoke match just inside the draught diverter rim (where the MI say), all the way round.","Smoke drawn into the diverter = pass. Smoke pushed out = spillage.","If it spills, run another 5 minutes and test again.","Repeat with any extract fans in the room or nearby rooms running and connecting doors open.","Spillage that won't clear: Immediately Dangerous – turn off, disconnect with permission, label and issue a warning notice.","Record both results."],
  fails:["Testing too soon after lighting","Not repeating with extract fans on","Missing part of the draught diverter rim"]},
-{id:"cpa",ms:8,title:"Combustion performance analysis (CPA1)",ref:"C12–C14",std:"BS 7967",
+{id:"cpa",g:"core",ms:8,title:"Combustion performance analysis (CPA1)",ref:"C12–C14",std:"BS 7967",
  look:"An analyser zeroed in fresh air, a flue integrity check first, readings taken at maximum rate once stable, and the results compared with the MI.",
  figs:[["Flue integrity (air intake)","O₂ ≥ 20.6% and CO₂ ≤ 0.2%"],["Ratio","CO ppm ÷ (CO₂ % × 10,000)"],["No MI figure (boiler)","use the BS 7967 action level in your notes"]],
  steps:["Check the analyser is in date and calibrated; zero it in fresh air outside.","Run the boiler at maximum rate (service / chimney sweep mode).","Flue integrity: probe in the air intake test point. O₂ below 20.6% or CO₂ above 0.2% = products leaking into the air supply: investigate.","Move the probe to the flue products sampling point.","Wait for the readings to settle, then record CO (ppm), CO₂ (%) and the CO/CO₂ ratio.","Compare with the MI. If outside the limits, check and service before retesting.","If still outside after servicing, classify under GIUSP and act.","Print or record the analyser results with the job details."],
  fails:["Skipping the flue integrity check","Not zeroing the analyser in fresh air","Taking readings before they are stable or at low rate"]},
-{id:"vent",ms:null,title:"Ventilation",ref:"G2–G12",std:"BS 5440-2",
+{id:"vent",g:"core",ms:null,title:"Ventilation",ref:"G2–G12",std:"BS 5440-2",
  look:"The right ventilation worked out from the appliance type, location and net heat input, and an existing installation checked against it.",
  figs:[["Open-flued in a room","5 cm² per kW over 7 kW net"],["Open-flued compartment to room","high 10, low 20 cm²/kW"],["Open-flued compartment to outside","high 5, low 10 cm²/kW"],["Room-sealed compartment to room","high 10, low 10 cm²/kW"],["Room-sealed compartment to outside","high 5, low 5 cm²/kW"],["Cooker","openable window; < 5 m³: 100 cm² · 5–10 m³: 50 cm² · > 10 m³: none"]],
  steps:["Identify the appliance type (open-flued, room-sealed, flueless) and where it is (room or compartment).","Find the net heat input from the data badge or MI.","Work out the free area needed.","Measure the free area of the vents fitted (not the overall size).","Check the vents are permanent, unobstructed and in the right place (high/low, to outside or to a room).","Check other appliances and extract fans that share the air.","Record the result. Inadequate ventilation: classify under GIUSP."],
  fails:["Using gross instead of net kW","Measuring the vent size instead of its free area","Forgetting compartment high-and-low vents"]},
-{id:"escape",ms:6,title:"Tracing gas escapes",ref:"E2–E6",std:"IGEM/UP/1B Ed. 4",
+{id:"escape",g:"core",ms:6,title:"Tracing gas escapes",ref:"E2–E6",std:"IGEM/UP/1B Ed. 4",
  look:"A calm, safe sequence: make safe, tightness test to confirm, then find the escape section by section and repair or make safe.",
  figs:[["Leak detection","non-corrosive leak detection fluid or gas detector"],["Can't find or repair","make safe, GIUSP, call the gas emergency service if needed"]],
  steps:["Ask where and when the smell was noticed; check appliances and pilots.","Ventilate, no electrical switching or naked flames.","Turn off the ECV and carry out a tightness test.","If there's a drop, isolate appliances and test the pipework on its own to narrow it down.","Check the meter installation, then each section of pipework and each joint with leak detection fluid or a gas detector.","If no drop on the test but a smell: check the appliances, and outside – an escape before the ECV or outside the property is for the gas emergency service.","Repair the escape, then tightness test again and purge if needed.","If you can't repair it: leave the supply off, label it, issue a warning notice and record it."],
  fails:["Turning the gas back on before the escape is found","Using the wrong leak detection fluid","Not retesting after the repair"]},
-{id:"isol",ms:7,title:"Safe isolation",ref:"A13",std:"GS38",
+{id:"isol",g:"core",ms:7,title:"Safe isolation",ref:"A13",std:"GS38",
  look:"The approved voltage indicator proved before and after, the right circuit isolated and locked off, and dead proved at the point of work.",
  figs:[["Voltage indicator","GS38 approved – never a neon screwdriver"],["Prove","on a proving unit before and after"],["Test","L–N, L–E, N–E"]],
  steps:["Identify the circuit and the point of isolation (fused spur / plug).","Prove the voltage indicator on a proving unit.","Isolate: switch off, remove the fuse, lock off and label.","Test for dead at the point of work: L–N, L–E, N–E.","Prove the voltage indicator again on the proving unit.","Carry out the work.","Before restoring: earth continuity, short circuit, resistance to earth and polarity checks as the course teaches.","Remove the lock and label, restore the supply and check the appliance works."],
  fails:["Not proving the tester before and after","Isolating the wrong circuit","Not locking off"]},
-{id:"pipe",ms:9,title:"Pipe sizing",ref:"D2–D6",std:"BS 6891",
+{id:"pipe",g:"core",ms:9,title:"Pipe sizing",ref:"D2–D6",std:"BS 6891",
  look:"A sketch of the pipework, the gas rate for each section, lengths with fitting allowances, and pipe sizes that keep the total loss to 1 mbar or less.",
  figs:[["kW → m³/h (LCL book)","× 0.095"],["Fitting allowance","elbow 0.5 m · tee 0.5 m · bend 0.3 m"],["Max loss meter → appliance","1 mbar"]],
  steps:["Sketch the layout from the meter to each appliance, splitting it into sections.","Find the heat input of each appliance and convert to m³/h.","Work out the gas rate in each section (all appliances fed from it).","Measure each section and add the fitting allowances to get the effective length.","Use the BS 6891 tables to choose a pipe size for each section.","Add up the pressure loss along the route to the furthest appliance: no more than 1 mbar.","Increase any section where the total is over 1 mbar.","Record your working."],
  fails:["Sizing each branch only for its own appliance, not what flows through it","Forgetting fitting allowances","Not checking the total loss to the furthest appliance"]},
-{id:"giusp",ms:null,title:"Unsafe situations and warning notices",ref:"A3–A8",std:"IGEM/G/11 (GIUSP)",
+{id:"giusp",g:"core",ms:null,title:"Unsafe situations and warning notices",ref:"A3–A8",std:"IGEM/G/11 (GIUSP)",
  look:"The situation classified correctly, the right action taken with the responsible person's permission, and the notice and record completed.",
  figs:[["ID","disconnect with permission, label, warning notice, record"],["AR","turn off with permission, label, warning notice, record"],["Refused (ID)","contact the gas emergency service"]],
  steps:["Find and describe the defect.","Classify it under GIUSP: Immediately Dangerous (ID) or At Risk (AR).","Explain the danger to the responsible person and ask permission to act.","ID: disconnect, attach a Danger Do Not Use label, issue a warning notice and record it. If refused, contact the gas emergency service.","AR: turn off, label, issue a warning notice and record it. If refused, record it and advise.","RIDDOR: the registered business reports where it applies.","Keep a copy of the warning notice for your records."],
- fails:["Wrong classification","Acting without telling the responsible person","Not completing the warning notice and record"]}
+ fails:["Wrong classification","Acting without telling the responsible person","Not completing the warning notice and record"]},
+{id:"emerg",g:"core",ms:null,title:"Gas emergency actions",ref:"A3–A8",std:"GIUSP · GSIUR",
+ look:"Calm, correct actions on arrival at a reported escape: people safe first, supply isolated, no ignition sources, and the right call made when you can't make it safe.",
+ figs:[["Gas Emergency Service","0800 111 999"],["Northern Ireland","0800 002 001"],["LPG","the supplier's emergency number"]],
+ steps:["Ask where and when the smell was noticed and whether anyone feels unwell (CO symptoms: headache, dizziness, nausea).","Open doors and windows. No electrical switching, no naked flames, no smoking.","Turn off the supply at the ECV.","Make sure everyone is safe; if the smell is strong or persists with the ECV off, get everyone out and call the Gas Emergency Service from outside.","Anyone with CO symptoms: get them into fresh air and advise medical help.","Carry out a tightness test to confirm whether there's an escape on the installation.","Trace and repair, or make safe: leave the supply off, label, warning notice, record.","Explain to the customer what you found and what happens next."],
+ fails:["Operating electrical switches near the smell","Not isolating at the ECV first","Leaving without making safe or telling the responsible person"]},
+{id:"ecv",g:"core",ms:null,title:"ECVs and isolation valves",ref:"P16; L4",std:"GSIUR · BS 6891",
+ look:"The ECV found, checked as accessible, working and correctly labelled, and appliance isolation valves in place.",
+ figs:[["Lever along the pipe","ON"],["Lever across the pipe","OFF"],["Remote meter","AECV inside, near where the pipe enters"]],
+ steps:["Locate the ECV (and any AECV if the meter is remote or in a box outside).","Check it is accessible and the handle is secure and moves freely.","Check the handle position: in line with the pipe = on, at right angles = off.","Check the emergency label is fitted with the emergency number and the procedure.","Check each appliance has its own means of isolation (isolation valve or bayonet) where required.","Check isolation valves operate and are accessible.","Record any defect and advise the responsible person."],
+ fails:["Not checking the label","Confusing on/off handle positions","Missing an AECV on a remote meter installation"]},
+{id:"controls",g:"core",ms:null,title:"Gas safety controls",ref:"H2–H15",std:"MI",
+ look:"Each safety device identified, tested so it shuts off the gas within the manufacturer's time, and results recorded – never bypassed.",
+ figs:[["FSD types","thermoelectric (thermocouple), flame rectification, ODS"],["Shut-off time","as the MI state"],["Thermocouple / flame current","mV or µA figures from the MI"]],
+ steps:["Identify the controls on the appliance: flame supervision device, ODS (flueless / gas fires), overheat stat, air pressure switch, multifunctional gas valve, thermostats.","Run the appliance and check normal ignition and flame picture.","Simulate flame failure the way the MI say and time how long until the gas shuts off.","Thermocouple: check its output with a multimeter and interrupter against the MI figures.","Flame rectification: check the flame current (µA) against the MI if given.","Check thermostats switch the burner on and off, and the overheat stat (where testable) to the MI.","Never leave a safety device bypassed or disconnected.","Record the results; a safety device that doesn't work: classify under GIUSP."],
+ fails:["Not timing the shut-off","Testing without the manufacturer's figures","Leaving a device bypassed"]},
+{id:"chimney",g:"core",ms:null,title:"Chimney and flue inspection",ref:"F17–F23; F30–F34",std:"BS 5440-1 · MI",
+ look:"The whole flue route and terminal checked against the MI and BS 5440-1, including flues in voids, and defects classified correctly.",
+ figs:[["Terminal guard","needed where the terminal is within 2 m of ground, a balcony or a flat roof people can reach"],["Flues in voids","inspection hatches to see the whole route and joints"],["Terminal positions","BS 5440-1 table and the MI"]],
+ steps:["Identify the flue type: open-flued, room-sealed (natural or fanned), flueless.","Check the flue is the right type and size for the appliance (MI).","Follow the route: joints made and sealed the right way, supported, falls correct for condensing flues, no damage.","Flues in voids: check there are inspection hatches so you can see the joints; no access = you can't confirm it's safe.","Open-flued chimneys: liner where needed, catchment space for debris, approved terminal, chimney clear.","Check the terminal: position and clearances against BS 5440-1 and the MI (openings, corners, boundaries, below eaves).","Check for a terminal guard where it's needed.","Record and classify any defect under GIUSP."],
+ fails:["Not checking the whole route","Accepting a flue in a void without inspection hatches","Using general clearances when the MI give their own"]},
+{id:"pipeinst",g:"core",ms:null,title:"Pipework installation",ref:"D2–D6",std:"BS 6891",
+ look:"Pipework of the right material, jointed with approved methods, supported, protected and routed correctly, then tested and purged.",
+ figs:[["Copper clips 15 mm","1.2 m horizontal · 1.8 m vertical"],["Copper clips 22/28 mm","1.8 m horizontal · 2.4 m vertical"],["Joist notches","max 0.15 × depth, 0.07–0.25 of span from a support"],["Distance from electrics","25 mm from cables · 150 mm from meters/consumer units"]],
+ steps:["Choose the material (copper, steel, CSST) and size from your pipe sizing.","Plan the route: not in cavities, protected where buried or in floors, accessible joints where possible.","Make joints with approved methods: capillary (lead-free solder), gas-approved press fittings, compression only where accessible.","Clip at the right spacing.","Sleeve pipework through walls and seal the sleeve.","Keep clear of electrics and other services.","Fit an isolation valve where the appliance needs one.","Tightness test, purge, and check main protective bonding is in place."],
+ fails:["Compression fittings in inaccessible places","Missing or wrong clip spacing","Unsleeved pipe through a wall","Notching joists in the wrong place"]},
+{id:"bond",g:"core",ms:null,title:"Main protective bonding and CO alarms",ref:"D22; L4; C18–C20",std:"BS 7671 · BS EN 50291",
+ look:"Bonding checked at the meter and the right advice given if missing; CO alarms checked or fitted in the right place.",
+ figs:[["Main bonding","within 600 mm of the meter outlet, before any branch"],["Cable","green/yellow, usually 10 mm²"],["Label","Safety Electrical Connection – Do Not Remove"],["CO alarm","1–3 m from the appliance; on the ceiling ≥ 300 mm from walls, or high on a wall within 150 mm of the ceiling"]],
+ steps:["Check main protective bonding at the meter: position, clamp, cable and label.","If missing or wrong: advise the responsible person to have it checked by an electrician and record the advice.","Before cutting into or removing pipework: fit a temporary continuity bond across the break.","Check for CO alarms where required (new or replaced appliance, rented properties).","Check the alarm's position, that it tests, and its expiry date.","Fit or advise as required and record what you did."],
+ fails:["Breaking pipework without a temporary bond","Not recording advice about missing bonding","CO alarm in the wrong place"]},
+{id:"cw_inst",g:"cenwat",ms:null,title:"Boiler: install and commission",ref:"J2–J13",std:"MI · BS 6798 · BS 7593",
+ look:"A boiler installed and commissioned to the MI, with every commissioning check done and recorded, and the customer handed over properly.",
+ figs:[["Electrical","fused spur, fuse to the MI"],["System water","flush and inhibitor (BS 7593), filter"],["Paperwork","Benchmark, Building Regs notification"]],
+ steps:["Check the location, clearances and access against the MI.","Check the gas supply size, isolation valve, and the flue route and terminal.","Fit the boiler, flue, condensate (to the MI route and size), and connect water and electrics.","Flush the system and add inhibitor; fit the filter.","Tightness test and purge.","Commission: working pressure, gas rate, combustion analysis, safety controls, and that controls work.","Fill in the Benchmark checklist and register / notify the installation.","Hand over: show the customer the controls and explain servicing."],
+ fails:["Skipping combustion analysis at commissioning","Condensate not to the MI","Not flushing the system","No Benchmark or notification"]},
+{id:"cw_svc",g:"cenwat",ms:null,title:"Boiler: service",ref:"J4–J10; C12–C14",std:"MI · BS 7967",
+ look:"A full service to the MI with combustion analysis and safety checks, not just a clean.",
+ figs:[["Order","check → analyse → strip & clean → reassemble → analyse again"],["Tool","Service & CP12 Checklist in the portal"]],
+ steps:["Visual and safe-to-touch checks; check the location, flue and ventilation.","Run the boiler and do an initial combustion analysis (flue integrity first).","Safe isolation; strip down as the MI say.","Clean and inspect burner, heat exchanger, electrodes, condensate trap; replace seals where needed.","Reassemble, tightness test any gas joints you disturbed.","Check working pressure, gas rate if needed, safety controls and system pressure / expansion vessel.","Final combustion analysis; compare with the MI.","Complete the service record and Benchmark service section."],
+ fails:["No combustion analysis","Not replacing seals the MI call for","Not leak testing disturbed gas joints"]},
+{id:"cw_fault",g:"cenwat",ms:null,title:"Boiler: fault finding",ref:"H9–H15; J13",std:"MI",
+ look:"A logical diagnosis that follows the boiler's sequence of operation, with tests to prove the fault before parts are changed.",
+ figs:[["Method","follow the sequence of operation"],["Tool","Boiler Fault Finder (FC free tools)"]],
+ steps:["Ask the customer what happens and note any fault code.","Check the basics: power, gas, water pressure, demand from the controls.","Follow the sequence of operation: demand → pump/fan → air proved → ignition → gas valve → flame proved.","Find where the sequence stops and test that component against the MI (voltage, resistance, pressure).","Safe isolation before working on electrics.","Replace the faulty part to the MI.","Tightness test, check combustion and safety controls after the repair.","Record the fault, the test that proved it and the repair."],
+ fails:["Swapping parts without proving the fault","Not isolating safely","Not checking combustion after a gas valve or burner repair"]},
+{id:"ck_inst",g:"ckr1",ms:null,title:"Cooker: install and commission",ref:"K2; C9",std:"MI · BS 6172 · BS 669-1",
+ look:"A cooker connected safely with the right hose or hard connection, stable, with clearances to the MI and every burner and safety device checked.",
+ figs:[["Flexible hose","BS 669-1, hangs freely in a U, not trapped or kinked"],["Stability","bracket or chain fitted to stop tipping"],["Ventilation","openable window; < 5 m³: 100 cm² · 5–10 m³: 50 cm²"]],
+ steps:["Check the location: clearances to side walls, shelves and extractors above (MI), not under a window where curtains can catch.","Free-standing: fit a bayonet and approved hose of the right length; built-in hob: rigid connection with an accessible isolation valve.","Fit the stability bracket or chain and check it engages.","Level the cooker.","Tightness test and purge.","Check the burner pressure at the test point against the data badge.","Light every burner, grill and oven: ignition, flame picture, FSD shut-off times, oven thermostat, lid shut-off if fitted.","Check ventilation and hand over to the customer."],
+ fails:["No stability bracket","Hose too short, stretched or trapped","Not testing every burner's FSD"]},
+{id:"ck_svc",g:"ckr1",ms:null,title:"Cooker: service",ref:"K2",std:"MI",
+ look:"Every burner cleaned and checked, safety devices working, and the hose, bayonet and stability bracket inspected.",
+ figs:[["Check each","burner, ignition, FSD, flame picture"],["Inspect","hose, bayonet, stability bracket, door seals"]],
+ steps:["Visual check of the cooker, its location and ventilation.","Isolate; remove and clean burners, caps and jets as the MI say.","Check ignition electrodes and leads.","Reassemble and light each burner: flame picture, FSD shut-off, simmer setting.","Check the grill and oven, the thermostat and door seals.","Inspect the hose and bayonet; replace a damaged or perished hose.","Check the stability bracket.","Tightness test if you disturbed gas joints; record the service."],
+ fails:["Skipping the FSD check on one burner","Not checking the hose and stability bracket"]},
+{id:"ck_fault",g:"ckr1",ms:null,title:"Cooker: fault finding",ref:"H9–H11; K2",std:"MI",
+ look:"The fault traced logically – ignition, flame supervision or gas supply – and proved before the repair.",
+ figs:[["No spark","electrode gap, lead, generator, switch"],["Burner won't stay lit","thermocouple / FSD"],["Poor flame","pressure, jets, burner position"]],
+ steps:["Ask what happens and on which burner.","No ignition: check the electrode, lead, spark generator and supply.","Burner lights but goes out when the knob is released: check the thermocouple output and FSD.","Poor or lifting flame: check the burner pressure, jets and burner seating.","Oven not reaching temperature: check the thermostat and its probe.","Repair to the MI.","Light and check every burner after the repair; tightness test if gas joints were disturbed.","Record what you found and did."],
+ fails:["Not proving the fault before replacing parts","Not rechecking all burners after the repair"]},
+{id:"ht_inst",g:"htr1",ms:null,title:"Gas fire / space heater: install and commission",ref:"F14–F15; G2–G12",std:"MI · BS 5871 · BS 5440",
+ look:"The flue and fireplace checked before fitting, the fire installed exactly to the MI, and a full commissioning including a spillage test.",
+ figs:[["Before fitting","flue flow test on the chimney / flue"],["After fitting","spillage test (open-flued)"],["Ventilation","to the MI (some DFE and ILFE fires need a vent at any rating)"]],
+ steps:["Check the chimney or flue is the right class and suitable for the fire (MI); catchment space clear and the right size.","Sweep / inspect the chimney if needed and do a flue flow test.","Check the hearth, surround, clearances to combustibles and any shelf above against the MI.","Fit the fire: sealing plate or closure plate as the MI say, secured / restrained, gas connection with means of isolation.","Lay the fuel bed or fit the radiants exactly as the MI show.","Tightness test and purge.","Check the burner pressure, ignition, flame picture, FSD / ODS shut-off.","Run the fire and do a spillage test; check ventilation and CO alarm; hand over to the customer."],
+ fails:["Skipping the flue flow test before fitting","Coals or radiants laid differently from the MI","No spillage test after commissioning"]},
+{id:"ht_svc",g:"htr1",ms:null,title:"Gas fire / space heater: service",ref:"F14–F15",std:"MI",
+ look:"The fire stripped and cleaned to the MI, the flue and catchment space checked, and the fire tested for spillage before you leave.",
+ figs:[["Check","catchment space clear of debris"],["Replace","cracked radiants, damaged coals"],["Finish","spillage test"]],
+ steps:["Visual check of the fire, its location, flue and ventilation; run it and note the flame picture.","Isolate and remove the fire / fuel bed as the MI say.","Clear the catchment space and check the flue / chimney opening.","Clean the burner, pilot / ODS and injectors; check the thermocouple and electrode.","Replace cracked radiants or damaged coals; lay them as the MI show.","Refit, tightness test, check the burner pressure.","Check FSD / ODS shut-off and controls.","Spillage test; record the service."],
+ fails:["Not clearing the catchment space","Re-laying coals from memory instead of the MI","Leaving without a spillage test"]},
+{id:"ht_fault",g:"htr1",ms:null,title:"Gas fire / space heater: fault finding",ref:"H9–H11",std:"MI",
+ look:"Faults traced logically – pilot, flame supervision, burner or flue – and the fire tested for safe operation after the repair.",
+ figs:[["Pilot won't stay lit","thermocouple, dirty ODS pilot, low pressure"],["Sooting / poor flame","fuel bed layout, lint, pressure, ventilation"],["Spillage","blocked flue or full catchment space"]],
+ steps:["Ask what happens and when; check the fire's age and service history.","Pilot won't light: check the gas supply, piezo / electrode and pilot injector.","Pilot lights but won't stay lit: check the thermocouple output, ODS pilot head and the interrupter.","Sooting or poor flame: check the fuel bed layout, lint in the burner, burner pressure and ventilation.","Spillage or fumes: stop, check the flue and catchment space; spillage = Immediately Dangerous.","Repair to the MI.","Tightness test, check FSD / ODS and do a spillage test.","Record the fault and the repair."],
+ fails:["Cleaning an ODS pilot instead of replacing it when the MI say replace","Not doing a spillage test after the repair","Missing a blocked catchment space"]}
+
+
 ];
+// Core tasks shown in a working order; method statement numbers stay on each task.
+var ORDER=["emerg","ecv","tight","purge","press","rate","controls","flueflow","spill","chimney","vent","cpa","escape","isol","pipeinst","pipe","bond","giusp","cw_inst","cw_svc","cw_fault","ck_inst","ck_svc","ck_fault","ht_inst","ht_svc","ht_fault"];
+TASKS.sort(function(a,b){return ORDER.indexOf(a.id)-ORDER.indexOf(b.id)});
+var GROUPS={core:"Core gas safety (CCN1) and CPA1",cenwat:"CENWAT – boilers and water heaters",ckr1:"CKR1 – cookers",htr1:"HTR1 – gas fires and space heaters"};
 var LEVELS=["Not yet","Getting there","Confident"];
 var $=function(i){return document.getElementById(i)};
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -204,9 +287,11 @@ function save(){ try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){ $(
 function st(id){ return S[id]=S[id]||{ticks:[],conf:0,runs:0,last:""}; }
 
 function render(){
+  var lastG="";
   $("tasks").innerHTML=TASKS.map(function(t,i){
-    var s=st(t.id), done=s.ticks.filter(Boolean).length;
-    return '<details class="task" data-id="'+t.id+'" data-conf="'+s.conf+'">'+
+    var s=st(t.id), done=s.ticks.filter(Boolean).length, head="";
+    if(t.g!==lastG){ lastG=t.g; head='<h2 class="grp">'+esc(GROUPS[t.g])+'</h2>'; }
+    return head+'<details class="task" data-id="'+t.id+'" data-conf="'+s.conf+'">'+
       '<summary><span class="num">'+(i+1)+'</span><span class="tt"><b>'+esc(t.title)+'</b><span>'+(t.ms?'Method statement '+t.ms+' · ':'')+esc(t.std)+(t.ref?' · LCL '+esc(t.ref):'')+'</span></span><span class="pill c'+s.conf+'">'+LEVELS[s.conf]+'</span></summary>'+
       '<div class="body">'+
         '<div class="look"><b>What the assessor looks for:</b> '+esc(t.look)+'</div>'+
@@ -226,7 +311,8 @@ function render(){
 function runsText(s){ return s.runs?('Practised '+s.runs+' time'+(s.runs>1?'s':'')+' · last on '+s.last):'Not practised yet.'; }
 function summary(){
   var c=TASKS.filter(function(t){return st(t.id).conf===2}).length;
-  $("ptxt").innerHTML='Confident in <b>'+c+'</b> of '+TASKS.length+' tasks';
+  var per=Object.keys(GROUPS).map(function(g){var ts=TASKS.filter(function(t){return t.g===g});return {core:"Core",cenwat:"CENWAT",ckr1:"CKR1",htr1:"HTR1"}[g]+' '+ts.filter(function(t){return st(t.id).conf===2}).length+'/'+ts.length}).join(" · ");
+  $("ptxt").innerHTML='Confident in <b>'+c+'</b> of '+TASKS.length+' tasks <span class="meta">('+per+')</span>';
   $("pbar").style.width=(c/TASKS.length*100)+"%";
 }
 function today(){ return new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}); }
@@ -248,7 +334,7 @@ $("printBtn").onclick=function(){
   $("record").innerHTML='<p style="margin:0;font-size:9pt">FC Training Academy · LCL Approved Centre LC 447</p><h1>ACS practical record</h1>'+
     '<p>Learner: <b>'+esc(who.name||"________________________")+'</b> &nbsp; Date printed: '+today()+'</p>'+
     '<table><thead><tr><th>#</th><th>Practical task</th><th>Learner confidence</th><th>Times practised</th><th>Last practised</th><th>Tutor: competent? (Y/N, initials, date)</th></tr></thead><tbody>'+
-    TASKS.map(function(t,i){var s=st(t.id);return '<tr><td>'+(i+1)+'</td><td>'+esc(t.title)+(t.ms?' (MS '+t.ms+')':'')+'</td><td>'+LEVELS[s.conf]+'</td><td>'+(s.runs||0)+'</td><td>'+(s.last||"–")+'</td><td></td></tr>'}).join("")+
+    TASKS.map(function(t,i){var s=st(t.id), h=(i===0||TASKS[i-1].g!==t.g)?'<tr><th colspan="6">'+esc(GROUPS[t.g])+'</th></tr>':'';return h+'<tr><td>'+(i+1)+'</td><td>'+esc(t.title)+(t.ms?' (MS '+t.ms+')':'')+'</td><td>'+LEVELS[s.conf]+'</td><td>'+(s.runs||0)+'</td><td>'+(s.last||"–")+'</td><td></td></tr>'}).join("")+
     '</tbody></table><p>Tutor comments:</p><div style="border:1px solid #888;height:70pt"></div>'+
     '<div class="sig"><div>Learner signature and date</div><div>Tutor / assessor signature and date</div></div>';
   window.print();
