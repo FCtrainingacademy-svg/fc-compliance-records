@@ -754,7 +754,7 @@ function calendarSync(){const root=document.getElementById("modal-root");
       try{const r=await api("POST","/api/calendar-link/reset");sure=false;draw(r.url);toast("New link made. Re-subscribe with it.")}catch(err){toast("Couldn't make a new link.")}}}}
 function exportMenu(){const root=document.getElementById("modal-root");
   root.innerHTML=`<div class="scrim" data-scrim><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><header><h2 id="mt">Export CSV</h2><p>Opens in Excel. Useful as an audit pack for LCL visits.</p></header><form>
-  <button type="button" class="btn" data-x="c">Staff compliance register</button><button type="button" class="btn" data-x="l">Learner tracker (progress, attendance, off-the-job)</button><button type="button" class="btn" data-x="o">Off-the-job hours log (every entry)</button>
+  ${typeof ON!=="undefined"&&ON.me&&ON.me.role!=="manager"?"":`<button type="button" class="btn" data-x="c">Staff compliance register</button>`}<button type="button" class="btn" data-x="l">Learner tracker (progress, attendance, off-the-job)</button><button type="button" class="btn" data-x="o">Off-the-job hours log (every entry)</button>
   <div class="actions"><button type="button" class="btn" data-cancel>Close</button></div></form></div></div>`;
   root.querySelector("[data-scrim]").addEventListener("click",e=>{if(e.target.matches("[data-scrim]")||e.target.closest("[data-cancel]")){root.innerHTML="";return}
     const x=e.target.closest("[data-x]");if(!x)return;const t=todayISO();root.innerHTML="";
