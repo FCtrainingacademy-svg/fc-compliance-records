@@ -27,6 +27,10 @@ const COLLECTIONS = new Set(['staff', 'items', 'documents', 'learners', 'otj', '
 const MANAGER_ONLY = new Set(['exams']);
 const canView = u => u && ROLES.includes(u.role);
 const isMgr = u => u && u.role === 'manager';
+// Exams folders a role can't see (matched against any folder in the file's path).
+const EXAMS_HIDDEN = { teacher: [/^centre generic forms jan 2024$/i] };
+const hiddenForRole = (u, d) => { const rs = EXAMS_HIDDEN[u && u.role]; if (!rs) return false;
+  return String((d && (d.path || d.title)) || '').split('/').slice(0, -1).some(seg => rs.some(re => re.test(seg.trim()))); };
 const MAX_FILE = 20 * 1024 * 1024;
 const OFFICE_TYPES = ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
@@ -195,7 +199,7 @@ app.get('/api/rev', auth, async (req, res) => {
 });
 app.get('/api/data', auth, notPending, async (req, res) => {
   const rev = await getRev(); const r = await pool.query(`SELECT col, id, data FROM docs`);
-  const collections = {}; for (const row of r.rows) { if (MANAGER_ONLY.has(row.col) && !canView(req.user)) continue; (collections[row.col] = collections[row.col] || {})[row.id] = row.data; }
+  const collections = {}; for (const row of r.rows) { if (MANAGER_ONLY.has(row.col) && !canView(req.user)) continue; if (row.col === 'exams' && hiddenForRole(req.user, row.data)) continue; (collections[row.col] = collections[row.col] || {})[row.id] = row.data; }
   res.json({ rev, collections });
 });
 function checkPath(req, res) {
@@ -294,6 +298,10 @@ app.delete('/api/files/:id', auth, notPending, needRole('manager'), async (req, 
 app.get('/_blob/:id', auth, async (req, res) => {
   const r = await pool.query(`SELECT name, type, data, restricted FROM files WHERE id=$1`, [req.params.id]);
   if (!r.rows[0] || (r.rows[0].restricted && !canView(req.user))) return res.status(404).send('Not found');
+  if (r.rows[0].restricted && EXAMS_HIDDEN[req.user.role]) {
+    const ex = await pool.query(`SELECT data FROM docs WHERE col='exams' AND data->>'fileId'=$1`, [req.params.id]);
+    if (ex.rows.some(x => hiddenForRole(req.user, x.data))) return res.status(404).send('Not found');
+  }
   const f = r.rows[0]; const inline = !OFFICE_TYPES.includes(f.type);
   // Word / Excel / PowerPoint open as a read-only preview page; ?download=1 gets the original file.
   if (!req.query.download && preview.CAN_PREVIEW.has(f.type)) {
