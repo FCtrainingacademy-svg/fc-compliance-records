@@ -279,7 +279,7 @@ function render(){
   const de=dueEntries();const urgent=de.filter(e=>e.st==="overdue").length;
   document.getElementById("tabs").innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" aria-selected="${S.tab===k}" data-act="tab" data-k="${k}">${l}${k==="approvals"&&ON.approvals?`<span class="n">${ON.approvals}</span>`:""}${k==="audit"&&S.audit.length?`<span class="n">${S.audit.filter(a=>a.status!=="ready").length}</span>`:""}${k==="overview"&&urgent?`<span class="n">${urgent}</span>`:""}</button>`).join("");
   if(!S.db)return;S.writable=roleWritable(S.tab);
-  const r={overview:vOverview,learners:vLearners,register:vRegister,staff:vStaff,ecordia:vEcordia,floor:vFloor,centre:vCentre,documents:vDocuments,audit:vAudit,users:vUsers,activity:vActivity,approvals:vApprovals,exams:vExams}[S.tab];
+  const r={overview:vOverview,learners:vLearners,register:vRegister,staff:vStaff,ecordia:vEcordia,floor:vFloor,centre:vCentre,documents:vDocuments,audit:vAudit,users:vUsers,activity:vActivity,approvals:vApprovals,lessons:vLessons,exams:vExams}[S.tab];
   const focusId=document.activeElement&&document.activeElement.id;
   main.innerHTML=(ON.me&&(ON.me.role==="admin"||ON.me.role==="teacher")&&S.tab!=="approvals"&&S.tab!=="activity"?`<div class="banner">You are signed in as ${ON.me.role==="teacher"?"Teacher":"Admin"} – any change you make is sent to the Manager for approval before it appears in the records.</div>`:"")+r(de);
   if(focusId){const el=document.getElementById(focusId);if(el&&el.tagName==="INPUT"){el.focus();const v=el.value;try{el.setSelectionRange(v.length,v.length)}catch(e){}}}
@@ -880,7 +880,7 @@ function userBox(){const ub=document.getElementById("userbox");if(!ub||!ON.me)re
   document.getElementById("b-out").onclick=async()=>{try{await api("POST","/api/logout")}catch(e){}showLogin("You have signed out.")};
   const ex=document.getElementById("b-export");if(ex)ex.onclick=()=>{toast("Preparing the offline copy – this can take a minute…");window.location.href="/api/export.zip"}}
 async function afterSignIn(u){ON.me=u;if(u.must_change){showChangePw(true);return}
-  TABS.length=0;BASE_TABS.forEach(t=>TABS.push(t));TABS.push(["exams","Exams"]);TABS.push(["approvals","Approvals"]);TABS.push(["activity","Activity"]);if(u.role==="manager"){TABS.push(["users","Users"])}
+  TABS.length=0;BASE_TABS.forEach(t=>TABS.push(t));TABS.push(["lessons","Lesson plans"]);TABS.push(["exams","Exams"]);TABS.push(["approvals","Approvals"]);TABS.push(["activity","Activity"]);if(u.role==="manager"){TABS.push(["users","Users"])}
   /* tabs taken out for specific accounts */
   const HIDE_TABS=u.role==="teacher"?["staff","ecordia","floor","approvals","activity"]:{"info@fctrainingacademy.com":["staff","ecordia","floor","approvals","activity"]}[String(u.email||"").toLowerCase()];
   if(HIDE_TABS)for(let i=TABS.length-1;i>=0;i--)if(HIDE_TABS.includes(TABS[i][0]))TABS.splice(i,1);
@@ -1090,10 +1090,16 @@ const EX_TYPES={pdf:"application/pdf",doc:"application/msword",docx:"application
 const EX_OPEN=new Set();
 function exList(){return Object.entries((ON.data&&ON.data.collections.exams)||{}).map(([id,d])=>({id,...d}))}
 function exSize(n){return n>=1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB"}
-function vExams(){
+const exTop=x=>{const p=(x.path||x.title).split("/");return p.length>2?p[1]:(p.length>1?p[0]:"Other")};
+const isLesson=x=>/lesson\s*plan/i.test(exTop(x));
+let EX_MODE="exams";
+function vExams(){EX_MODE="exams";return exView("exams")}
+function vLessons(){EX_MODE="lessons";return exView("lessons")}
+function exView(mode){const LES=mode==="lessons";
   if(!ON.me||!["manager","admin","teacher"].includes(ON.me.role))return `<div class="panel"><div class="empty"><strong>Not available</strong>This tab is only for staff accounts.</div></div>`;const exMgr=ON.me.role==="manager";
-  const L=exList();const tree={};
-  for(const x of L){const parts=(x.path||x.title).split("/");const top=parts.length>2?parts[1]:(parts.length>1?parts[0]:"Other");const sub=parts.length>3?parts.slice(2,-1).join(" › "):"";
+  const L=exList().filter(x=>LES?isLesson(x):!isLesson(x));const tree={};
+  for(const x of L){const parts=(x.path||x.title).split("/");let top=parts.length>2?parts[1]:(parts.length>1?parts[0]:"Other");let sub=parts.length>3?parts.slice(2,-1).join(" › "):"";
+    if(LES){top=sub||"Scheme of work";sub=""}
     ((tree[top]=tree[top]||{})[sub]=tree[top][sub]||[]).push(x)}
   const tops=Object.keys(tree).sort();
   const row=x=>{const ext=(x.title.split(".").pop()||"").toUpperCase();return `<tr data-exrow="${esc((x.title+" "+(x.path||"")).toLowerCase())}"><td><a href="/_blob/${esc(x.fileId)}" target="_blank" rel="noopener">${esc(x.title.replace(/\.[^.]+$/,""))}</a></td><td><span class="pill p-ok" style="font-size:11px">${esc(ext)}</span></td><td class="mono">${exSize(x.size||0)}</td><td style="text-align:right">${exMgr?`<button class="btn sm danger" data-exdel="${esc(x.id)}" aria-label="Remove ${esc(x.title)}">Remove</button>`:""}</td></tr>`};
@@ -1102,23 +1108,23 @@ function vExams(){
       <div class="tbl-wrap" style="padding:0 8px 10px"><table><thead><tr><th>Paper</th><th>Type</th><th>Size</th><th></th></tr></thead><tbody>
       ${subs.map(k=>(k?`<tr data-exhead><td colspan="4" style="background:var(--sunk);font-size:13px;font-weight:600">${esc(k)}</td></tr>`:"")+tree[t][k].sort((a,b)=>a.title.localeCompare(b.title)).map(row).join("")).join("")}
       </tbody></table></div></details>`}).join("");
-  return `<div class="section-head"><div><h2>Exams</h2><p>MLP Centre CD Pack – assessments, model answers, overlays and centre documents. <strong>Staff accounts only</strong>${exMgr?"":" (view only – the Manager adds or removes papers)"}. These files aren't included in offline copies.</p></div>
+  return `<div class="section-head"><div><h2>${LES?"Lesson plans":"Exams"}</h2><p>${LES?"Scheme of work and content capture sheets, week by week.":"Written papers, practical assessments, model answers, overlays and centre documents."} <strong>Staff accounts only</strong>${exMgr?"":" (view only – the Manager adds or removes papers)"}. These files aren't included in offline copies.</p></div>
     ${exMgr?`<div class="bar"><button class="btn" id="ex-add">Add files</button><button class="btn primary" id="ex-folder">Import a folder</button></div>`:""}</div>
     <input type="file" id="ex-in-folder" webkitdirectory multiple hidden><input type="file" id="ex-in-files" multiple hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt,.csv">
     <div id="ex-prog" class="banner" hidden></div>
-    ${L.length?`<div style="margin:0 0 12px"><input id="ex-q" type="search" placeholder="Search ${L.length} papers…" aria-label="Search exam papers" style="width:100%;max-width:420px;border:1px solid var(--line);border-radius:6px;padding:9px 10px;background:var(--surface);color:var(--ink)"></div>${body}`
-      :`<div class="panel"><div class="empty"><strong>No exam papers yet</strong>Click <em>Import a folder</em> and choose the <em>MLP Centre CD Pack - February 2024</em> folder. Every PDF, Word, Excel and PowerPoint file in it is uploaded and kept in its folder groups.</div></div>`}`}
+    ${L.length?`<div style="margin:0 0 12px"><input id="ex-q" type="search" placeholder="Search ${L.length} ${LES?"files":"papers"}…" aria-label="Search ${LES?"lesson plans":"exam papers"}" style="width:100%;max-width:420px;border:1px solid var(--line);border-radius:6px;padding:9px 10px;background:var(--surface);color:var(--ink)"></div>${body}`
+      :`<div class="panel"><div class="empty"><strong>${LES?"No lesson plans yet":"No exam papers yet"}</strong>Click <em>Import a folder</em> to upload a folder. Every PDF, Word, Excel and PowerPoint file in it is uploaded and kept in its folder groups.</div></div>`}`}
 async function exHash(s){const b=await crypto.subtle.digest("SHA-1",new TextEncoder().encode(s));return "ex-"+[...new Uint8Array(b)].slice(0,12).map(x=>x.toString(16).padStart(2,"0")).join("")}
 async function exUpload(files){
   const have=new Set(exList().map(x=>x.path));
   const list=[...files].filter(f=>{const ext=(f.name.split(".").pop()||"").toLowerCase();return EX_TYPES[ext]&&!/^(thumbs\.db|\.ds_store)$/i.test(f.name)&&!f.name.startsWith("~$")});
-  const todo=list.filter(f=>!have.has(f.webkitRelativePath||f.name));
+  const lp=f=>{const p=f.webkitRelativePath||f.name;return EX_MODE==="lessons"&&!/(^|\/)lesson\s*plan\//i.test(p)?"LCL/Lesson Plan/"+p:p};const todo=list.filter(f=>!have.has(lp(f)));
   const skipped=[...files].length-list.length, dup=list.length-todo.length;
   if(!todo.length){toast(dup?"Those files are already in Exams.":"No PDF, Word, Excel or PowerPoint files in that selection.");return}
   const prog=document.getElementById("ex-prog");let done=0,failed=[];
   const show=()=>{const p=document.getElementById("ex-prog");if(p){p.hidden=false;p.textContent=`Uploading ${done+failed.length} of ${todo.length}… keep this page open.`}};show();
   const q=[...todo];
-  async function worker(){while(q.length){const f=q.shift();const ext=f.name.split(".").pop().toLowerCase();const path=f.webkitRelativePath||f.name;
+  async function worker(){while(q.length){const f=q.shift();const ext=f.name.split(".").pop().toLowerCase();const path=lp(f);
       try{if(f.size>20*1024*1024)throw {code:"too_large"};
         const r=await api("POST","/api/files",f,{"X-File-Type":EX_TYPES[ext],"X-File-Name":encodeURIComponent(f.name),"X-Restricted":"1","Content-Type":"application/octet-stream"});
         const id=await exHash(path);const doc={title:f.name,path,fileId:r.id,type:EX_TYPES[ext],size:f.size,addedAt:new Date().toISOString(),addedBy:ON.me.name};
