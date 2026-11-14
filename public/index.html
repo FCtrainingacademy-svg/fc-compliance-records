@@ -882,7 +882,7 @@ function userBox(){const ub=document.getElementById("userbox");if(!ub||!ON.me)re
 async function afterSignIn(u){ON.me=u;if(u.must_change){showChangePw(true);return}
   TABS.length=0;BASE_TABS.forEach(t=>TABS.push(t));TABS.push(["lessons","Lesson plans"]);TABS.push(["exams","Exams"]);TABS.push(["approvals","Approvals"]);TABS.push(["activity","Activity"]);if(u.role==="manager"){TABS.push(["users","Users"])}
   /* tabs taken out for specific accounts */
-  const HIDE_TABS=u.role==="teacher"?["staff","ecordia","floor","approvals","activity"]:{"info@fctrainingacademy.com":["staff","ecordia","floor","approvals","activity"]}[String(u.email||"").toLowerCase()];
+  const HIDE_TABS=u.role==="teacher"?["staff","ecordia","floor","approvals","activity"]:({"info@fctrainingacademy.com":["staff","ecordia","floor","approvals","activity"]}[String(u.email||"").toLowerCase()]||(u.role==="admin"?["staff"]:null));
   if(HIDE_TABS)for(let i=TABS.length-1;i>=0;i--)if(HIDE_TABS.includes(TABS[i][0]))TABS.splice(i,1);
   if(!TABS.find(t=>t[0]===S.tab))S.tab="overview";
   main.innerHTML=`<div class="empty"><strong>Loading records…</strong></div>`;
