@@ -3,11 +3,13 @@
 const mammoth = require('mammoth');
 const XLSX = require('xlsx');
 const JSZip = require('jszip');
+const WordExtractor = require('word-extractor');
 
 const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const XLSX_T = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
 const PPTX = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-const CAN_PREVIEW = new Set([DOCX, PPTX, ...XLSX_T]);
+const DOC = 'application/msword';
+const CAN_PREVIEW = new Set([DOCX, DOC, PPTX, ...XLSX_T]);
 const CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'";
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -25,6 +27,14 @@ table{border-collapse:collapse;font-size:13px}td,th{border:1px solid #d1d5db;pad
 </style></head><body><div class="top"><b>${esc(name)}</b><a href="${esc(dl)}">Download original</a></div><div class="wrap">${note ? `<p class="note">${esc(note)}</p>` : ''}${body}</div></body></html>`;
 }
 
+// Older Word (.doc) files: text and paragraphs (some are really .docx inside, which get the full layout).
+async function doc(buf) {
+  if (buf[0] === 0x50 && buf[1] === 0x4b) return docx(buf);
+  const d = await new WordExtractor().extract(buf);
+  const paras = String(d.getBody() || '').split(/\r?\n/).map(t => t.replace(/\s+$/, ''));
+  const html = paras.map(t => t.trim() ? `<p>${esc(t)}</p>` : '').join('');
+  return `<div class="sheet">${html || '<p>(This document has no text.)</p>'}</div>`;
+}
 async function docx(buf) {
   const r = await mammoth.convertToHtml({ buffer: buf });
   return `<div class="sheet">${r.value || '<p>(This document has no text.)</p>'}</div>`;
@@ -64,6 +74,7 @@ async function pptx(buf) {
 async function render(f, dl) {
   let body, note = '';
   if (f.type === DOCX) body = await docx(f.data);
+  else if (f.type === DOC) body = await doc(f.data);
   else if (XLSX_T.includes(f.type)) body = sheets(f.data);
   else if (f.type === PPTX) { body = await pptx(f.data); note = 'Preview shows each slide\'s text and pictures. Download the original to see the full slide layout.'; }
   return page(f.name || 'File', body, dl, note);
@@ -72,6 +83,7 @@ async function render(f, dl) {
 // body only (used by the view-only viewer)
 async function bodyOf(f) {
   if (f.type === DOCX) return { body: await docx(f.data) };
+  if (f.type === DOC) return { body: await doc(f.data) };
   if (XLSX_T.includes(f.type)) return { body: sheets(f.data) };
   if (f.type === PPTX) return { body: await pptx(f.data), note: 'Preview shows each slide\'s text and pictures.' };
   return null;
