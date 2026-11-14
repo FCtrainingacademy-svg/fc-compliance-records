@@ -267,7 +267,7 @@ function dueEntries(){
     if(l.nextReview||true)out.push({kind:"lreview",id:l.id,title:"Progress review",who:l.name,due:l.nextReview||null,st:status(l.nextReview,14),days:daysUntil(l.nextReview),area:"learners"});
     if(!l.mentorInterview)out.push({kind:"lmentor",id:l.id,title:"Learner, mentor & employer interview not recorded",who:l.name,due:null,st:"missing",days:null,area:"learners"});
     if(l.plannedEnd)out.push({kind:"lend",id:l.id,title:"Planned end date",who:l.name,due:l.plannedEnd,st:status(l.plannedEnd,60),days:daysUntil(l.plannedEnd),area:"learners"});
-    const exp=otjExpected(l);if(!HIDE.otj&&exp&&otjLogged(l.id)<exp*0.9)out.push({kind:"lotj",id:l.id,title:`Off-the-job hours behind (${otjLogged(l.id)} of ${exp} expected)`,who:l.name,due:null,st:"soon",days:null,area:"learners",flag:true});
+    const exp=otjExpected(l);if(!hid(l)&&exp&&otjLogged(l.id)<exp*0.9)out.push({kind:"lotj",id:l.id,title:`Off-the-job hours behind (${otjLogged(l.id)} of ${exp} expected)`,who:l.name,due:null,st:"soon",days:null,area:"learners",flag:true});
   }
   const rank={overdue:0,soon:1,missing:2,ok:3};
   return out.sort((a,b)=>rank[a.st]-rank[b.st]||((a.days??9e9)-(b.days??9e9)));
@@ -317,9 +317,12 @@ function vLearners(){
   <select id="lstat" data-change="lstat" aria-label="Status filter"><option value="all">All statuses</option>${LSTATUS.map(s=>`<option ${S.lstat===s?"selected":""}>${s}</option>`).join("")}</select></div>
   ${ls.length?`<div class="grid2">${ls.map(learnerCard).join("")}</div>`:`<div class="panel"><div class="empty"><strong>${S.learners.length?"No learners match":"No learners yet"}</strong>${S.learners.length?"Change the search or status filter.":"Add your first apprentice to start tracking units, portfolio evidence, attendance and off-the-job hours."}</div></div>`}`
 }
-/* hidden until the next cohort starts (Nov 2026) — data is kept; set to false to show again */
-const HIDE={siteJobs:true,units:true,otj:true};
-function learnerCard(l){
+/* Onsite portfolio jobs, Units & portfolio evidence and Off-the-job are hidden for every learner who was
+   already on the course on 14 Nov 2026 (start date on/before then, or no start date). Learners in the next
+   cohort (start date after 14 Nov 2026) see them. Data is kept. */
+const HIDE_UPTO="2026-11-14";
+const hid=l=>!l||!l.start||String(l.start).slice(0,10)<=HIDE_UPTO;
+function learnerCard(l){const HIDE={otj:hid(l)};
   const p=unitProgress(l),a=attendance(l.id),exp=otjExpected(l),log=otjLogged(l.id);
   const rs=status(l.nextReview,14);
   return `<button class="card" data-act="open-learner" data-id="${l.id}"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><h3>${esc(l.name)}</h3>${(l.status||"Active")!=="Active"?`<span class="pill p-missing">${esc(l.status)}</span>`:pill(rs,rs==="missing"?"Review not set":rs==="ok"?"Review booked":rs==="soon"?"Review due":"Review overdue")}</div>
@@ -327,7 +330,7 @@ function learnerCard(l){
   <div><div style="display:flex;justify-content:space-between;font-size:13px"><span>Units ${signedOff(l)}/${S.units.length} signed off</span><span class="mono">${p}%</span></div><div class="meter"><i style="width:${p}%"></i></div></div>
   <div style="display:flex;gap:14px;font-size:13px;flex-wrap:wrap" class="muted"><span>Attendance <b class="mono" style="color:var(--ink)">${a.pct==null?"—":a.pct+"%"}</b></span>${HIDE.otj?"":`<span>OTJ <b class="mono" style="color:var(--ink)">${log}${exp!=null?" / "+exp:""} h</b></span>`}</div></button>`
 }
-function vLearner(l){
+function vLearner(l){const H=hid(l),HIDE={siteJobs:H,units:H,otj:H};
   const a=attendance(l.id),exp=otjExpected(l),log=otjLogged(l.id),p=unitProgress(l);
   const ents=otjEntries(l.id).map((e,i)=>({...e,i})).sort((x,y)=>(y.d||"").localeCompare(x.d||""));
   return `<div class="detail"><div><button class="btn sm back" data-act="back">← All learners</button></div>
