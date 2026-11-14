@@ -880,7 +880,7 @@ function userBox(){const ub=document.getElementById("userbox");if(!ub||!ON.me)re
   document.getElementById("b-out").onclick=async()=>{try{await api("POST","/api/logout")}catch(e){}showLogin("You have signed out.")};
   const ex=document.getElementById("b-export");if(ex)ex.onclick=()=>{toast("Preparing the offline copy – this can take a minute…");window.location.href="/api/export.zip"}}
 async function afterSignIn(u){ON.me=u;if(u.must_change){showChangePw(true);return}
-  TABS.length=0;BASE_TABS.forEach(t=>TABS.push(t));TABS.push(["approvals","Approvals"]);TABS.push(["activity","Activity"]);if(u.role==="manager"){TABS.push(["users","Users"])}
+  TABS.length=0;BASE_TABS.forEach(t=>TABS.push(t));TABS.push(["exams","Exams"]);TABS.push(["approvals","Approvals"]);TABS.push(["activity","Activity"]);if(u.role==="manager"){TABS.push(["users","Users"])}
   if(!TABS.find(t=>t[0]===S.tab))S.tab="overview";
   main.innerHTML=`<div class="empty"><strong>Loading records…</strong></div>`;
   await loadData();start();userBox();clearInterval(ON.pollT);ON.pollT=setInterval(poll,15000)}
@@ -1080,7 +1080,7 @@ document.addEventListener("click",async e=>{const t=e.target;if(!t.closest)retur
 },true);
 document.addEventListener("change",e=>{const t=e.target;if(t.id==="ec-in-folder"||t.id==="ec-in-files"){const f=t.files;if(f&&f.length)ecUpload(f);t.value=""}});
 
-/* ---------- Exams tab (Manager only): MLP Centre CD Pack and other exam papers ---------- */
+/* ---------- Exams tab (Manager and Admin can view; only the Manager adds or removes): MLP Centre CD Pack and other exam papers ---------- */
 const EX_TYPES={pdf:"application/pdf",doc:"application/msword",docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",xls:"application/vnd.ms-excel",
   xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",ppt:"application/vnd.ms-powerpoint",pptx:"application/vnd.openxmlformats-officedocument.presentationml.presentation",
   png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",txt:"text/plain",csv:"text/csv"};
@@ -1088,19 +1088,19 @@ const EX_OPEN=new Set();
 function exList(){return Object.entries((ON.data&&ON.data.collections.exams)||{}).map(([id,d])=>({id,...d}))}
 function exSize(n){return n>=1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB"}
 function vExams(){
-  if(!ON.me||ON.me.role!=="manager")return `<div class="panel"><div class="empty"><strong>Manager only</strong>This tab is only available to the Manager.</div></div>`;
+  if(!ON.me||!["manager","admin"].includes(ON.me.role))return `<div class="panel"><div class="empty"><strong>Not available</strong>This tab is only for the Manager and Admin.</div></div>`;const exMgr=ON.me.role==="manager";
   const L=exList();const tree={};
   for(const x of L){const parts=(x.path||x.title).split("/");const top=parts.length>2?parts[1]:(parts.length>1?parts[0]:"Other");const sub=parts.length>3?parts.slice(2,-1).join(" › "):"";
     ((tree[top]=tree[top]||{})[sub]=tree[top][sub]||[]).push(x)}
   const tops=Object.keys(tree).sort();
-  const row=x=>{const ext=(x.title.split(".").pop()||"").toUpperCase();return `<tr data-exrow="${esc((x.title+" "+(x.path||"")).toLowerCase())}"><td><a href="/_blob/${esc(x.fileId)}" target="_blank" rel="noopener">${esc(x.title.replace(/\.[^.]+$/,""))}</a></td><td><span class="pill p-ok" style="font-size:11px">${esc(ext)}</span></td><td class="mono">${exSize(x.size||0)}</td><td style="text-align:right"><button class="btn sm danger" data-exdel="${esc(x.id)}" aria-label="Remove ${esc(x.title)}">Remove</button></td></tr>`};
+  const row=x=>{const ext=(x.title.split(".").pop()||"").toUpperCase();return `<tr data-exrow="${esc((x.title+" "+(x.path||"")).toLowerCase())}"><td><a href="/_blob/${esc(x.fileId)}" target="_blank" rel="noopener">${esc(x.title.replace(/\.[^.]+$/,""))}</a></td><td><span class="pill p-ok" style="font-size:11px">${esc(ext)}</span></td><td class="mono">${exSize(x.size||0)}</td><td style="text-align:right">${exMgr?`<button class="btn sm danger" data-exdel="${esc(x.id)}" aria-label="Remove ${esc(x.title)}">Remove</button>`:""}</td></tr>`};
   const body=tops.map(t=>{const subs=Object.keys(tree[t]).sort();const n=subs.reduce((a,k)=>a+tree[t][k].length,0);
     return `<details class="panel" style="margin-bottom:10px;padding:0" data-extop="${esc(t)}" ${EX_OPEN.has(t)?"open":""}><summary style="padding:12px 16px;cursor:pointer;font-weight:600">${esc(t)} <span class="muted" style="font-weight:400">· ${n} file${n===1?"":"s"}</span></summary>
       <div class="tbl-wrap" style="padding:0 8px 10px"><table><thead><tr><th>Paper</th><th>Type</th><th>Size</th><th></th></tr></thead><tbody>
       ${subs.map(k=>(k?`<tr data-exhead><td colspan="4" style="background:var(--sunk);font-size:13px;font-weight:600">${esc(k)}</td></tr>`:"")+tree[t][k].sort((a,b)=>a.title.localeCompare(b.title)).map(row).join("")).join("")}
       </tbody></table></div></details>`}).join("");
-  return `<div class="section-head"><div><h2>Exams</h2><p>MLP Centre CD Pack – assessments, model answers, overlays and centre documents. <strong>Manager only</strong>: the Admin can't see this tab or open these files, and they aren't included in offline copies.</p></div>
-    <div class="bar"><button class="btn" id="ex-add">Add files</button><button class="btn primary" id="ex-folder">Import a folder</button></div></div>
+  return `<div class="section-head"><div><h2>Exams</h2><p>MLP Centre CD Pack – assessments, model answers, overlays and centre documents. <strong>Manager and Admin only</strong>${exMgr?"":" (view only – the Manager adds or removes papers)"}. These files aren't included in offline copies.</p></div>
+    ${exMgr?`<div class="bar"><button class="btn" id="ex-add">Add files</button><button class="btn primary" id="ex-folder">Import a folder</button></div>`:""}</div>
     <input type="file" id="ex-in-folder" webkitdirectory multiple hidden><input type="file" id="ex-in-files" multiple hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt,.csv">
     <div id="ex-prog" class="banner" hidden></div>
     ${L.length?`<div style="margin:0 0 12px"><input id="ex-q" type="search" placeholder="Search ${L.length} papers…" aria-label="Search exam papers" style="width:100%;max-width:420px;border:1px solid var(--line);border-radius:6px;padding:9px 10px;background:var(--surface);color:var(--ink)"></div>${body}`

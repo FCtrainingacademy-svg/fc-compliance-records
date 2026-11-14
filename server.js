@@ -21,8 +21,9 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process
 // Admin: views everything; every change is sent to the Manager for approval.
 const ROLES = ['manager', 'admin'];
 const COLLECTIONS = new Set(['staff', 'items', 'documents', 'learners', 'otj', 'attendance', 'audit', 'config', 'exams', 'ecordia', 'sitejobs']);
-// Collections only the Manager can see or change (exam papers, model answers).
+// Collections only the Manager can change (exam papers, model answers). Manager and Admin can both view them.
 const MANAGER_ONLY = new Set(['exams']);
+const canView = u => u && ROLES.includes(u.role);
 const isMgr = u => u && u.role === 'manager';
 const MAX_FILE = 20 * 1024 * 1024;
 const OFFICE_TYPES = ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel',
@@ -185,7 +186,7 @@ app.get('/api/rev', auth, async (req, res) => {
 });
 app.get('/api/data', auth, notPending, async (req, res) => {
   const rev = await getRev(); const r = await pool.query(`SELECT col, id, data FROM docs`);
-  const collections = {}; for (const row of r.rows) { if (MANAGER_ONLY.has(row.col) && !isMgr(req.user)) continue; (collections[row.col] = collections[row.col] || {})[row.id] = row.data; }
+  const collections = {}; for (const row of r.rows) { if (MANAGER_ONLY.has(row.col) && !canView(req.user)) continue; (collections[row.col] = collections[row.col] || {})[row.id] = row.data; }
   res.json({ rev, collections });
 });
 function checkPath(req, res) {
@@ -283,7 +284,7 @@ app.delete('/api/files/:id', auth, notPending, needRole('manager'), async (req, 
 });
 app.get('/_blob/:id', auth, async (req, res) => {
   const r = await pool.query(`SELECT name, type, data, restricted FROM files WHERE id=$1`, [req.params.id]);
-  if (!r.rows[0] || (r.rows[0].restricted && !isMgr(req.user))) return res.status(404).send('Not found');
+  if (!r.rows[0] || (r.rows[0].restricted && !canView(req.user))) return res.status(404).send('Not found');
   const f = r.rows[0]; const inline = !OFFICE_TYPES.includes(f.type);
   if (f.type === 'text/html') res.set({ 'Content-Security-Policy': HTML_CSP, 'X-Content-Type-Options': 'nosniff' });
   res.set({ 'Content-Type': f.type, 'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(f.name || req.params.id)}`, 'Cache-Control': 'private, max-age=3600' });
@@ -292,7 +293,7 @@ app.get('/_blob/:id', auth, async (req, res) => {
 
 // ---------- activity ----------
 app.get('/api/activity', auth, notPending, needRole('manager', 'admin'), async (req, res) => {
-  const r = await pool.query(`SELECT at, user_name, user_email, action, col, doc_id, detail FROM activity ${isMgr(req.user) ? '' : "WHERE col IS DISTINCT FROM 'exams'"} ORDER BY id DESC LIMIT 300`); res.json({ activity: r.rows });
+  const r = await pool.query(`SELECT at, user_name, user_email, action, col, doc_id, detail FROM activity ${canView(req.user) ? '' : "WHERE col IS DISTINCT FROM 'exams'"} ORDER BY id DESC LIMIT 300`); res.json({ activity: r.rows });
 });
 
 // ---------- export (offline copy) and import ----------
