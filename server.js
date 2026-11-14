@@ -28,7 +28,7 @@ const MANAGER_ONLY = new Set(['exams']);
 const canView = u => u && ROLES.includes(u.role);
 const isMgr = u => u && u.role === 'manager';
 // Exams folders a role can't see (matched against any folder in the file's path).
-const EXAMS_HIDDEN = { teacher: [/^centre generic forms jan 2024$/i] };
+const EXAMS_HIDDEN = { teacher: [/^centre generic forms jan 2024$/i, /^domestic documentation - jan 2025( 2)?$/i] };
 const hiddenForRole = (u, d) => { const rs = EXAMS_HIDDEN[u && u.role]; if (!rs) return false;
   return String((d && (d.path || d.title)) || '').split('/').slice(0, -1).some(seg => rs.some(re => re.test(seg.trim()))); };
 const MAX_FILE = 20 * 1024 * 1024;
