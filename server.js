@@ -3,6 +3,7 @@
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
+const preview = require('./preview');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const compression = require('compression');
@@ -51,6 +52,13 @@ async function migrate() {
     UPDATE users SET role='manager' WHERE role NOT IN ('manager','admin','teacher');
     INSERT INTO meta (k, v) VALUES ('rev', '1') ON CONFLICT (k) DO NOTHING;
   `);
+  // One-off (14 Nov 2026): rename Exams group "CJI Tasks 1-8" to "CCN1 TASKS".
+  if (!(await pool.query(`SELECT 1 FROM meta WHERE k='exams_rename_ccn1_tasks'`)).rowCount) {
+    const u = await pool.query(`UPDATE docs SET data = jsonb_set(data, '{path}', to_jsonb(replace(data->>'path', '/CJI Tasks 1-8/', '/CCN1 TASKS/'))), updated_at = now()
+      WHERE col='exams' AND data->>'path' LIKE '%/CJI Tasks 1-8/%'`);
+    await pool.query(`INSERT INTO meta (k, v) VALUES ('exams_rename_ccn1_tasks', $1) ON CONFLICT (k) DO NOTHING`, [String(u.rowCount)]);
+    if (u.rowCount) { await pool.query(`UPDATE meta SET v = (v::bigint + 1)::text WHERE k='rev'`); console.log('renamed CJI Tasks 1-8 -> CCN1 TASKS:', u.rowCount); }
+  }
   // Secrets: use env vars if given, otherwise generate once and keep them in the database.
   if (!SECRET || SECRET.length < 32) {
     await pool.query(`INSERT INTO meta (k, v) VALUES ('session_secret', $1) ON CONFLICT (k) DO NOTHING`, [crypto.randomBytes(48).toString('hex')]);
@@ -287,6 +295,14 @@ app.get('/_blob/:id', auth, async (req, res) => {
   const r = await pool.query(`SELECT name, type, data, restricted FROM files WHERE id=$1`, [req.params.id]);
   if (!r.rows[0] || (r.rows[0].restricted && !canView(req.user))) return res.status(404).send('Not found');
   const f = r.rows[0]; const inline = !OFFICE_TYPES.includes(f.type);
+  // Word / Excel / PowerPoint open as a read-only preview page; ?download=1 gets the original file.
+  if (!req.query.download && preview.CAN_PREVIEW.has(f.type)) {
+    try {
+      const html = await preview.render(f, '/_blob/' + encodeURIComponent(req.params.id) + '?download=1');
+      res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': preview.CSP, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=3600' });
+      return res.send(html);
+    } catch (e) { console.warn('preview', f.name, e.message); }
+  }
   if (f.type === 'text/html') res.set({ 'Content-Security-Policy': HTML_CSP, 'X-Content-Type-Options': 'nosniff' });
   res.set({ 'Content-Type': f.type, 'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(f.name || req.params.id)}`, 'Cache-Control': 'private, max-age=3600' });
   res.send(f.data);
