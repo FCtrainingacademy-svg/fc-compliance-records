@@ -56,6 +56,12 @@ async function migrate() {
     UPDATE users SET role='manager' WHERE role NOT IN ('manager','admin','teacher');
     INSERT INTO meta (k, v) VALUES ('rev', '1') ON CONFLICT (k) DO NOTHING;
   `);
+  // One-off (14 Nov 2026): take the EQA Annual Audit, IAR Internal Audit Report 11-20 and STC Caretaker brochure files out of Exams (backup kept in meta; files kept).
+  if (!(await pool.query(`SELECT 1 FROM meta WHERE k='exams_remove_audits'`)).rowCount) {
+    const del = await pool.query(`DELETE FROM docs WHERE col='exams' AND (data->>'title' ~* 'LC447 - EQA - Annual Audit' OR data->>'title' ~* '^IAR Internal Audit Report 11-20' OR data->>'fileId' = '49d98569d6bf5d137eec462dbdf867a1' OR data->>'title' ~* '^STC_Caretaker_Building_Maintenance_Brochure_2022') RETURNING id, data`);
+    await pool.query(`INSERT INTO meta (k, v) VALUES ('exams_remove_audits', $1) ON CONFLICT (k) DO NOTHING`, [JSON.stringify(del.rows)]);
+    if (del.rowCount) { await pool.query(`UPDATE meta SET v = (v::bigint + 1)::text WHERE k='rev'`); console.log('removed audit files from Exams:', del.rows.map(r => r.data.title).join(' | ')); }
+  }
   // One-off (14 Nov 2026): rename Exams group "CJI Tasks 1-8" to "CCN1 TASKS".
   if (!(await pool.query(`SELECT 1 FROM meta WHERE k='exams_rename_ccn1_tasks'`)).rowCount) {
     const u = await pool.query(`UPDATE docs SET data = jsonb_set(data, '{path}', to_jsonb(replace(data->>'path', '/CJI Tasks 1-8/', '/CCN1 TASKS/'))), updated_at = now()
