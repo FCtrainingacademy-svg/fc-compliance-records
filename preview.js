@@ -69,4 +69,12 @@ async function render(f, dl) {
   return page(f.name || 'File', body, dl, note);
 }
 
-module.exports = { CAN_PREVIEW, CSP, render };
+// body only (used by the view-only viewer)
+async function bodyOf(f) {
+  if (f.type === DOCX) return { body: await docx(f.data) };
+  if (XLSX_T.includes(f.type)) return { body: sheets(f.data) };
+  if (f.type === PPTX) return { body: await pptx(f.data), note: 'Preview shows each slide\'s text and pictures.' };
+  return null;
+}
+
+module.exports = { CAN_PREVIEW, CSP, render, bodyOf, esc };

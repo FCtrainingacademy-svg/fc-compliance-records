@@ -4,6 +4,7 @@ const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const preview = require('./preview');
+const viewer = require('./viewer');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const compression = require('compression');
@@ -319,6 +320,7 @@ app.delete('/api/files/:id', auth, notPending, needRole('manager'), async (req, 
   if (r.rowCount) await log(req.user, 'deleted file', 'files', req.params.id, r.rows[0].name);
   res.json({ deleted: !!r.rowCount });
 });
+viewer.mountPdfjs(app, auth);
 app.get('/_blob/:id', auth, async (req, res) => {
   const r = await pool.query(`SELECT name, type, data, restricted FROM files WHERE id=$1`, [req.params.id]);
   if (!r.rows[0] || (r.rows[0].restricted && !canView(req.user))) return res.status(404).send('Not found');
@@ -327,6 +329,19 @@ app.get('/_blob/:id', auth, async (req, res) => {
     if (ex.rows.some(x => hiddenForRole(req.user, x.data))) return res.status(404).send('Not found');
   }
   const f = r.rows[0]; const inline = !OFFICE_TYPES.includes(f.type);
+  // Exam files for Admin / Teacher: view-only page (no download, print or save; watermarked). The Manager can still download.
+  if (f.restricted && !isMgr(req.user)) {
+    if (req.query.viewdata && req.get('X-FC-View') === '1' && (f.type === 'application/pdf' || /^image\//.test(f.type))) {
+      res.set({ 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+      return res.send(f.data);
+    }
+    try {
+      const v = await viewer.page(f, req.params.id, req.user);
+      res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': v.csp, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store', 'X-Frame-Options': 'SAMEORIGIN' });
+      await log(req.user, 'viewed exam file', 'exams', req.params.id, f.name);
+      return res.send(v.html);
+    } catch (e) { console.warn('viewer', f.name, e.message); return res.status(500).send("Couldn't open this file."); }
+  }
   // Word / Excel / PowerPoint open as a read-only preview page; ?download=1 gets the original file.
   if (!req.query.download && preview.CAN_PREVIEW.has(f.type)) {
     try {
