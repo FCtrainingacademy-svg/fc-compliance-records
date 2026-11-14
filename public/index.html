@@ -281,7 +281,7 @@ function render(){
   if(!S.db)return;S.writable=roleWritable(S.tab);
   const r={overview:vOverview,learners:vLearners,register:vRegister,staff:vStaff,ecordia:vEcordia,floor:vFloor,centre:vCentre,documents:vDocuments,audit:vAudit,users:vUsers,activity:vActivity,approvals:vApprovals,exams:vExams}[S.tab];
   const focusId=document.activeElement&&document.activeElement.id;
-  main.innerHTML=(ON.me&&ON.me.role==="admin"&&S.tab!=="approvals"&&S.tab!=="activity"?`<div class="banner">You are signed in as Admin – any change you make is sent to the Manager for approval before it appears in the records.</div>`:"")+r(de);
+  main.innerHTML=(ON.me&&(ON.me.role==="admin"||ON.me.role==="teacher")&&S.tab!=="approvals"&&S.tab!=="activity"?`<div class="banner">You are signed in as ${ON.me.role==="teacher"?"Teacher":"Admin"} – any change you make is sent to the Manager for approval before it appears in the records.</div>`:"")+r(de);
   if(focusId){const el=document.getElementById(focusId);if(el&&el.tagName==="INPUT"){el.focus();const v=el.value;try{el.setSelectionRange(v.length,v.length)}catch(e){}}}
 }
 
@@ -811,7 +811,7 @@ document.addEventListener("submit",e=>{const f=e.target;if(f.dataset.submit!=="o
 
 /* ---------- online storage with logins (server API) ---------- */
 const ON={data:null,rev:0,listeners:[],pending:0,me:null,pollT:null,approvals:0};
-const ROLE_LABEL={manager:"Manager",admin:"Admin"};
+const ROLE_LABEL={manager:"Manager",admin:"Admin",teacher:"Teacher"};
 function clone(v){return v===undefined?undefined:JSON.parse(JSON.stringify(v))}
 async function api(method,url,body,extra){
   const opt={method,credentials:"same-origin",headers:{}};
@@ -882,7 +882,7 @@ function userBox(){const ub=document.getElementById("userbox");if(!ub||!ON.me)re
 async function afterSignIn(u){ON.me=u;if(u.must_change){showChangePw(true);return}
   TABS.length=0;BASE_TABS.forEach(t=>TABS.push(t));TABS.push(["exams","Exams"]);TABS.push(["approvals","Approvals"]);TABS.push(["activity","Activity"]);if(u.role==="manager"){TABS.push(["users","Users"])}
   /* tabs taken out for specific accounts */
-  const HIDE_TABS={"info@fctrainingacademy.com":["staff","ecordia","floor","approvals","activity"]}[String(u.email||"").toLowerCase()];
+  const HIDE_TABS=u.role==="teacher"?["staff","ecordia","floor","approvals","activity"]:{"info@fctrainingacademy.com":["staff","ecordia","floor","approvals","activity"]}[String(u.email||"").toLowerCase()];
   if(HIDE_TABS)for(let i=TABS.length-1;i>=0;i--)if(HIDE_TABS.includes(TABS[i][0]))TABS.splice(i,1);
   if(!TABS.find(t=>t[0]===S.tab))S.tab="overview";
   main.innerHTML=`<div class="empty"><strong>Loading records…</strong></div>`;
@@ -915,7 +915,7 @@ function roleWritable(tab){return !!ON.me}
 /* ---------- Users tab (admin) ---------- */
 let USERS=null;
 function vUsers(){if(USERS===null){api("GET","/api/users").then(r=>{USERS=r.users;render()}).catch(()=>{USERS=[];render()});return `<div class="empty">Loading users…</div>`}
-  return `<div class="section-head"><div><h2>Users</h2><p>Who can sign in. <strong>Manager</strong>: changes everything straight away, manages users and approves requests. <strong>Admin</strong>: sees everything; every change they make is sent to the Manager for approval.</p></div><div class="bar"><button class="btn" id="u-import">Import from offline folder</button><button class="btn primary" id="u-add">Add user</button></div></div>
+  return `<div class="section-head"><div><h2>Users</h2><p>Who can sign in. <strong>Manager</strong>: changes everything straight away, manages users and approves requests. <strong>Admin</strong>: sees everything; every change they make is sent to the Manager for approval. <strong>Teacher</strong>: like Admin, but no Staff, Ecordia, Floor plan, Approvals or Activity tabs.</p></div><div class="bar"><button class="btn" id="u-import">Import from offline folder</button><button class="btn primary" id="u-add">Add user</button></div></div>
   <div class="panel"><div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead><tbody>
   ${USERS.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td><select class="st" data-urole="${u.id}" aria-label="Role for ${esc(u.name)}">${Object.entries(ROLE_LABEL).map(([k,v])=>`<option value="${k}" ${u.role===k?"selected":""}>${v}</option>`).join("")}</select></td>
   <td class="mono">${u.last_login?fmt(u.last_login.slice(0,10)):"Never"}</td><td>${u.active?(u.must_change?pill("soon","Temporary password"):pill("ok","Active")):pill("missing","Disabled")}</td>
@@ -926,7 +926,7 @@ function pwNotice(name,pw){const root=document.getElementById("modal-root");root
   <p>Give this to ${esc(name)} in person or by phone – not by email. They'll be asked to choose their own password when they first sign in.</p><p class="mono" style="font-size:20px;padding:10px;background:var(--sunk);border-radius:6px;user-select:all">${esc(pw)}</p>
   <div class="bar"><button class="btn primary" id="pn-ok">Done</button></div></div></div>`;document.getElementById("pn-ok").onclick=()=>root.innerHTML=""}
 document.addEventListener("click",async e=>{const t=e.target;if(!t.closest)return;
-  if(t.closest("#u-add")){openForm({title:"Add user",data:{role:"admin"},fields:[{k:"name",label:"Full name",req:true},{k:"email",label:"Email",type:"email",req:true},{k:"role",label:"Role",type:"select",options:[["admin","Admin"],["manager","Manager"]]}],
+  if(t.closest("#u-add")){openForm({title:"Add user",data:{role:"admin"},fields:[{k:"name",label:"Full name",req:true},{k:"email",label:"Email",type:"email",req:true},{k:"role",label:"Role",type:"select",options:[["admin","Admin"],["teacher","Teacher"],["manager","Manager"]]}],
     onSave:async o=>{const pw=tempPw();await api("POST","/api/users",{...o,password:pw});USERS=null;render();setTimeout(()=>pwNotice(o.name,pw),50)}});return}
   const r=t.closest("[data-ureset]");if(r){const u=USERS.find(x=>String(x.id)===r.dataset.ureset);const pw=tempPw();try{await api("PATCH","/api/users/"+u.id,{password:pw});USERS=null;render();pwNotice(u.name,pw)}catch(err){toast(err.code||"Couldn't reset.")}return}
   const a=t.closest("[data-uact]");if(a){try{await api("PATCH","/api/users/"+a.dataset.uact,{active:a.dataset.on==="1"});USERS=null;render()}catch(err){toast(err.code||"Couldn't change that user.")}return}
@@ -1091,7 +1091,7 @@ const EX_OPEN=new Set();
 function exList(){return Object.entries((ON.data&&ON.data.collections.exams)||{}).map(([id,d])=>({id,...d}))}
 function exSize(n){return n>=1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB"}
 function vExams(){
-  if(!ON.me||!["manager","admin"].includes(ON.me.role))return `<div class="panel"><div class="empty"><strong>Not available</strong>This tab is only for the Manager and Admin.</div></div>`;const exMgr=ON.me.role==="manager";
+  if(!ON.me||!["manager","admin","teacher"].includes(ON.me.role))return `<div class="panel"><div class="empty"><strong>Not available</strong>This tab is only for staff accounts.</div></div>`;const exMgr=ON.me.role==="manager";
   const L=exList();const tree={};
   for(const x of L){const parts=(x.path||x.title).split("/");const top=parts.length>2?parts[1]:(parts.length>1?parts[0]:"Other");const sub=parts.length>3?parts.slice(2,-1).join(" › "):"";
     ((tree[top]=tree[top]||{})[sub]=tree[top][sub]||[]).push(x)}
@@ -1102,7 +1102,7 @@ function vExams(){
       <div class="tbl-wrap" style="padding:0 8px 10px"><table><thead><tr><th>Paper</th><th>Type</th><th>Size</th><th></th></tr></thead><tbody>
       ${subs.map(k=>(k?`<tr data-exhead><td colspan="4" style="background:var(--sunk);font-size:13px;font-weight:600">${esc(k)}</td></tr>`:"")+tree[t][k].sort((a,b)=>a.title.localeCompare(b.title)).map(row).join("")).join("")}
       </tbody></table></div></details>`}).join("");
-  return `<div class="section-head"><div><h2>Exams</h2><p>MLP Centre CD Pack – assessments, model answers, overlays and centre documents. <strong>Manager and Admin only</strong>${exMgr?"":" (view only – the Manager adds or removes papers)"}. These files aren't included in offline copies.</p></div>
+  return `<div class="section-head"><div><h2>Exams</h2><p>MLP Centre CD Pack – assessments, model answers, overlays and centre documents. <strong>Staff accounts only</strong>${exMgr?"":" (view only – the Manager adds or removes papers)"}. These files aren't included in offline copies.</p></div>
     ${exMgr?`<div class="bar"><button class="btn" id="ex-add">Add files</button><button class="btn primary" id="ex-folder">Import a folder</button></div>`:""}</div>
     <input type="file" id="ex-in-folder" webkitdirectory multiple hidden><input type="file" id="ex-in-files" multiple hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt,.csv">
     <div id="ex-prog" class="banner" hidden></div>

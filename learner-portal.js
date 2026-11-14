@@ -68,7 +68,7 @@ module.exports = function learnerPortal(app, d) {
     try {
       const p = jwt.verify(req.cookies.clr_session, getSecret()); if (!p.uid) return null;
       const r = await pool.query(`SELECT id, name, email, role, active, token_version, must_change FROM users WHERE id=$1`, [p.uid]); const u = r.rows[0];
-      if (!u || !u.active || u.must_change || u.token_version !== p.tv || !['manager', 'admin'].includes(u.role)) return null;
+      if (!u || !u.active || u.must_change || u.token_version !== p.tv || !['manager', 'admin', 'teacher'].includes(u.role)) return null;
       return { id: 'preview-' + u.id, email: u.email, name: u.name, cohort: 'Preview mode', programme: '', preview: true };
     } catch (e) { return null; }
   }
@@ -89,7 +89,7 @@ module.exports = function learnerPortal(app, d) {
   const issue = (res, u, mc) => res.cookie(LCOOKIE, jwt.sign({ typ: 'learner', lid: u.learner_id, tv: u.token_version, ...(mc ? { mc: 1 } : {}) }, getSecret(), { expiresIn: '12h' }), cookieOpts());
 
   // ---------- staff side ----------
-  app.get('/api/portal/:lid', auth, notPending, needRole('manager', 'admin'), async (req, res) => {
+  app.get('/api/portal/:lid', auth, notPending, needRole('manager', 'admin', 'teacher'), async (req, res) => {
     const r = await pool.query(`SELECT email, active, pass_hash IS NOT NULL AS has_password, invite_expires, last_login FROM learner_logins WHERE learner_id=$1`, [req.params.lid]);
     const a = await pool.query(`SELECT id, mock, score, total, pct, by_section, started_at, finished_at FROM exam_attempts WHERE learner_id=$1 AND finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT 50`, [req.params.lid]);
     res.json({ access: r.rows[0] || null, attempts: a.rows, sections: BANK.sections });
@@ -111,7 +111,7 @@ module.exports = function learnerPortal(app, d) {
     await pool.query(`UPDATE learner_logins SET active=false, invite_hash=NULL, token_version=token_version+1 WHERE learner_id=$1`, [req.params.lid]);
     await log(req.user, 'turned off learner portal access', 'learners', req.params.lid); res.json({ ok: true });
   });
-  app.get('/api/portal-attempt/:id', auth, notPending, needRole('manager', 'admin'), async (req, res) => {
+  app.get('/api/portal-attempt/:id', auth, notPending, needRole('manager', 'admin', 'teacher'), async (req, res) => {
     const r = await pool.query(`SELECT * FROM exam_attempts WHERE id=$1 AND finished_at IS NOT NULL`, [req.params.id]); const a = r.rows[0];
     if (!a) return res.status(404).json({ error: 'not found' }); res.json({ review: review(a) });
   });

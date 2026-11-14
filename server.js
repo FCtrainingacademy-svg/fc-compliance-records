@@ -19,7 +19,8 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process
 
 // Manager: changes everything directly, manages users, approves Admin requests.
 // Admin: views everything; every change is sent to the Manager for approval.
-const ROLES = ['manager', 'admin'];
+// Teacher: like Admin (changes go to the Manager for approval) but without Staff, Ecordia, Floor plan, Approvals and Activity.
+const ROLES = ['manager', 'admin', 'teacher'];
 const COLLECTIONS = new Set(['staff', 'items', 'documents', 'learners', 'otj', 'attendance', 'audit', 'config', 'exams', 'ecordia', 'sitejobs']);
 // Collections only the Manager can change (exam papers, model answers). Manager and Admin can both view them.
 const MANAGER_ONLY = new Set(['exams']);
@@ -47,7 +48,7 @@ async function migrate() {
       decided_by TEXT, decided_at TIMESTAMPTZ, note TEXT);
     ALTER TABLE files ADD COLUMN IF NOT EXISTS restricted BOOLEAN NOT NULL DEFAULT FALSE;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS cal_token TEXT;
-    UPDATE users SET role='manager' WHERE role NOT IN ('manager','admin');
+    UPDATE users SET role='manager' WHERE role NOT IN ('manager','admin','teacher');
     INSERT INTO meta (k, v) VALUES ('rev', '1') ON CONFLICT (k) DO NOTHING;
   `);
   // Secrets: use env vars if given, otherwise generate once and keep them in the database.
@@ -219,7 +220,7 @@ async function handleWrite(req, res, method) {
   const prev = await pool.query(`SELECT data FROM docs WHERE col=$1 AND id=$2`, [col, id]);
   const before = prev.rows[0] ? prev.rows[0].data : null;
   const title = titleOf(body) || titleOf(before);
-  if (req.user.role === 'admin') {
+  if (req.user.role !== 'manager') {
     const r = await pool.query(`INSERT INTO changes (by_email, by_name, method, col, doc_id, body, before) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
       [req.user.email, req.user.name, method, col, id, body, before]);
     const rev = await bumpRev(); await log(req.user, 'sent for approval: ' + (method === 'DELETE' ? 'delete' : before ? 'update' : 'add'), col, id, title);
