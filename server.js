@@ -463,4 +463,4 @@ app.get('/healthz', (req, res) => res.send('ok'));
 app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html', maxAge: '5m' }));
 app.use((req, res) => res.status(404).send('Not found'));
 
-migrate().then(() => portal.migrate()).then(() => newsMod.seed().catch(e => console.error('news drafts', e.message))).then(() => app.listen(PORT, () => console.log('CLR listening on', PORT))).catch(e => { console.error(e); process.exit(1); });
+migrate().then(() => require('./exams-cleanup')(pool, bumpRev, log).catch(e => console.error('exams cleanup', e.message))).then(() => portal.migrate()).then(() => newsMod.seed().catch(e => console.error('news drafts', e.message))).then(() => app.listen(PORT, () => console.log('CLR listening on', PORT))).catch(e => { console.error(e); process.exit(1); });
