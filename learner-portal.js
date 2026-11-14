@@ -231,7 +231,7 @@ module.exports = function learnerPortal(app, d) {
     res.send(f.type === 'text/html' ? withBackBar(Buffer.from(f.data).toString('utf8')) : f.data);
   });
   // Learner tools: open only to signed-in learners (and staff signed in to the LMS). Not signed in → portal sign-in page.
-  const TOOLS = { 'service-cp12-checklist': 'service-cp12-checklist.html' };
+  const TOOLS = { 'service-cp12-checklist': 'service-cp12-checklist.html', 'acs-practicals': 'acs-practicals.html' };
   // Old public address (/tools/...) now goes to the portal copy. Express matches with or without the trailing slash.
   app.get('/tools/:t', (req, res, next) => TOOLS[req.params.t] ? res.redirect(302, '/learn/tools/' + req.params.t + '/') : next());
   app.get('/learn/tools/:t', (req, res, next) => {

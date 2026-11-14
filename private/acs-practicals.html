@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ACS Practicals | FC Training Academy</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+:root{ --brand:#0E5A86; --brand-2:#D9951A; }
+:root{
+  --bg:#f2f5f8; --surface:#ffffff; --sunk:#e8edf2; --ink:#16202b; --soft:#56616f; --line:#d3dbe4;
+  --brand-soft:#e1ecf5;
+  --ok:#17784a; --ok-bg:#e2f3ea; --bad:#b3261e; --bad-bg:#fbe8e6; --warn:#8a5a00; --warn-bg:#fcf0d6;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{--brand:#5BA8DA;--brand-2:#F0B44A;--bg:#0E151B;--surface:#16212A;--sunk:#111A21;--ink:#E5ECF1;--soft:#93A3B0;--line:#26343F;--brand-soft:#12293A;--ok:#6FD3A0;--ok-bg:#12301F;--bad:#FF8A7E;--bad-bg:#3A1A18;--warn:#F3BC5C;--warn-bg:#3A2A10;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:'Source Sans 3',system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.5;padding:0 16px calc(48px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:860px;margin:0 auto}
+header.tool{padding-block:28px 14px}
+.kicker{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin:0 0 6px}
+h1{font-family:'Barlow Semi Condensed',system-ui,sans-serif;font-weight:700;font-size:clamp(28px,5vw,38px);line-height:1.1;margin:0 0 8px}
+h2,h3{font-family:'Barlow Semi Condensed',system-ui,sans-serif}
+.lede{color:var(--soft);margin:0;max-width:64ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px}
+.card h2{font-size:21px;margin:0 0 6px}
+.progress{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.bar{flex:1;min-width:180px;height:10px;background:var(--sunk);border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+.ptxt{font-weight:600}
+.ptxt b{font-family:var(--mono)}
+.btn{font:700 15px 'Source Sans 3',sans-serif;border-radius:9px;padding:10px 16px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.small{padding:7px 12px;font-size:14px}
+.btn.link{border:none;background:none;color:var(--brand);padding:6px 0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+ul.plain{margin:6px 0 0;padding-left:20px}
+ul.plain li{margin:3px 0}
+/* tasks */
+details.task{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:12px;margin-bottom:10px}
+details.task[data-conf="2"]{border-left-color:var(--ok)}
+details.task[data-conf="1"]{border-left-color:var(--brand-2)}
+details.task>summary{list-style:none;cursor:pointer;padding:14px 16px;display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center}
+details.task>summary::-webkit-details-marker{display:none}
+.num{font-family:var(--mono);font-weight:600;font-size:15px;width:40px;height:40px;border-radius:10px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center}
+.tt b{display:block;font-size:17.5px;line-height:1.25}
+.tt span{font-size:13.5px;color:var(--soft)}
+.pill{font-size:12.5px;font-weight:700;border-radius:999px;padding:4px 10px;white-space:nowrap;background:var(--sunk);color:var(--soft)}
+.pill.c1{background:var(--warn-bg);color:var(--warn)}
+.pill.c2{background:var(--ok-bg);color:var(--ok)}
+.body{padding:0 16px 16px;border-top:1px solid var(--line)}
+.body h3{font-size:17px;margin:16px 0 6px}
+.look{background:var(--brand-soft);border-radius:8px;padding:10px 12px;margin-top:14px;font-size:15px}
+.figs{display:flex;flex-wrap:wrap;gap:6px}
+.fig{font-size:14px;background:var(--sunk);border-radius:7px;padding:6px 9px}
+.fig b{font-family:var(--mono);font-weight:600}
+ol.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:28px 1fr;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line)}
+ol.steps li:last-child{border-bottom:none}
+ol.steps input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--ok)}
+ol.steps label{cursor:pointer}
+ol.steps label::before{content:counter(s) ". ";font-family:var(--mono);font-size:13px;color:var(--soft)}
+ol.steps li.done label{color:var(--soft)}
+.fails{background:var(--bad-bg);border-radius:8px;padding:10px 12px;margin-top:14px;font-size:15px}
+.fails b{color:var(--bad)}
+.self{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.seg label{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:600;font-size:15px;background:var(--surface)}
+.seg input{accent-color:var(--brand)}
+.seg label:has(input:checked){border-color:var(--brand);background:var(--brand-soft)}
+.meta{font-size:14px;color:var(--soft)}
+.ref{font-family:var(--mono);font-size:12.5px;color:var(--soft)}
+.warnbox{background:var(--warn-bg);color:var(--ink);border-radius:10px;padding:12px 14px;font-size:15px}
+footer.small{font-size:13.5px;color:var(--soft);margin-top:22px}
+#record{display:none}
+@media print{
+  body{background:#fff;color:#000;padding:0;font-size:11pt}
+  .wrap>*:not(#record){display:none!important}
+  a[href="/learn/#resources"]{display:none!important}
+  #record{display:block}
+  #record h1{font-size:20pt}
+  #record table{width:100%;border-collapse:collapse;margin:10px 0}
+  #record th,#record td{border:1px solid #888;padding:5px 6px;text-align:left;vertical-align:top;font-size:10pt}
+  #record .sig{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:22px}
+  #record .sig div{border-top:1px solid #000;padding-top:4px;font-size:10pt}
+}
+</style></head>
+<body><div class="wrap">
+
+<header class="tool">
+  <p class="kicker">FC Training Academy · Learner tool</p>
+  <h1>ACS Practicals</h1>
+  <p class="lede">The practical tasks for your CCN1 / ACS assessment (plus CPA1), in the order of the course method statements. Open a task, work through the steps on a rig, tick them off, then say how confident you are. Print your record for your tutor to sign.</p>
+</header>
+
+<section class="card">
+  <div class="progress">
+    <div class="ptxt" id="ptxt">Confident in <b>0</b> of 12 tasks</div>
+    <div class="bar" aria-hidden="true"><i id="pbar"></i></div>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn primary small" id="printBtn">Print my practical record</button>
+    <button class="btn small" id="expandBtn">Open all tasks</button>
+  </div>
+  <p class="meta" id="saveNote" style="margin:10px 0 0">Your ticks and confidence are saved on this device.</p>
+</section>
+
+<section class="card">
+  <h2>Before every practical</h2>
+  <ul class="plain">
+    <li>Say what you are doing and why as you go. The assessor marks what they see <b>and</b> what you explain.</li>
+    <li>Check your instruments first: gauge zeroed and checked, analyser in date and zeroed in fresh air, voltage indicator proved on a proving unit.</li>
+    <li>Visual check and safe-to-touch check of the installation before you touch pipework or the meter.</li>
+    <li>Have the manufacturer's instructions (MI) to hand and use their figures over general ones.</li>
+    <li>Record every reading. A test you did but didn't write down is a test you can't show.</li>
+  </ul>
+</section>
+
+<div id="tasks"></div>
+
+<section class="warnbox">
+  <b>Smell of gas or CO alarm?</b> Turn off at the ECV, ventilate, no electrical switching or naked flames, get everyone out and call the Gas Emergency Service on 0800 111 999.
+</section>
+
+<footer class="small">
+  <p>© FC Training Academy. A revision aid written by FC Training Academy. It is not an LCL Awards assessment document and does not replace the standards, the manufacturer's instructions or your assessor's instructions. Learners must only work on gas under the direct supervision of a Gas Safe registered engineer. LCL page numbers are from the LCL printed manual (Domestic, Issue 5.3). Figures follow IGEM/UP/1B Edition 4, BS 6891, BS 5440, BS 7967 and the FC course notes.</p>
+</footer>
+
+<section id="record"></section>
+
+</div>
+<script>
+(function(){
+"use strict";
+var TASKS=[
+{id:"tight",ms:1,title:"Tightness testing and let-by",ref:"E2–E6",std:"IGEM/UP/1B Ed. 4",
+ look:"A full let-by and tightness test in the right order, correct timings, the right permitted drop for the installation volume, and asking about smell of gas.",
+ figs:[["Let-by","7–10 mbar, 1 min, no rise"],["Test pressure (NG)","21 mbar"],["Stabilise","1 min"],["Test","2 min"],["Max drop, appliances connected (NG)","≤5 L: 8 · ≤10 L: 4 · ≤15 L: 2.5 · ≤35 L: 1 mbar"],["New installation / pipework only","no perceptible movement"]],
+ steps:["Visual inspection of the meter installation and pipework; safe-to-touch check with a voltage indicator.","Work out the installation volume: meter + pipework + 10% for fittings (or use the calculator).","Turn off all appliances (and pilots) and the ECV.","Connect the gauge at the meter outlet test point; zero it and check it.","Let-by test: raise to 7–10 mbar, close the ECV, watch for 1 minute. Any rise = the ECV is letting by: stop and report.","Raise to the test pressure and close the ECV.","Wait 1 minute for the temperature to stabilise.","Record the pressure, watch for 2 minutes, record the final pressure.","Ask if anyone can smell gas.","Compare the drop with the permitted drop. If outside it: isolate appliances and test the pipework on its own to find whether it's pipework or appliances.","Remove the gauge, seal the test point and test it for leaks with leak detection fluid."],
+ fails:["Skipping the let-by test or doing it after the tightness test","Not waiting for the temperature to stabilise","Using the wrong permitted drop for the installation volume","Passing a test with a smell of gas – a smell always has to be traced"]},
+{id:"purge",ms:null,title:"Purging and re-establishing the supply",ref:"",std:"IGEM/UP/1B Ed. 4",
+ look:"A safe purge: tightness test passed first, the purge volume worked out, the area made safe, gas proved at each point and appliances relit and checked.",
+ figs:[["Purge volume (course method)","1.5 × installation volume"],["Order","tightness test → purge → relight"]],
+ steps:["Make sure the installation has passed a tightness test – never purge one that hasn't.","Work out the purge volume (1.5 × meter + pipework + fittings volume).","Make the area safe: open windows, put up No smoking / No naked flames notices, no electrical switching, no ignition sources.","Choose the purge point – the appliance or point furthest from the meter first; use a purge hose to outside if the area isn't well ventilated.","Open the ECV and the purge point and watch the meter until the purge volume has passed.","Close the purge point and prove gas is there by lighting an appliance burner – never light gas at an open pipe end.","Purge each other branch in turn.","Leak test any joints you disturbed with leak detection fluid.","Relight every appliance, check burners and pilots are stable and controls work.","Tell the customer the supply is back on."],
+ fails:["Purging before a tightness test","Not calculating the purge volume","Igniting gas at an open end or near an ignition source","Forgetting to relight and check every appliance"]},
+{id:"press",ms:4,title:"Operating and working pressure",ref:"B3; L2–L9; C9",std:"BS 6891",
+ look:"Pressure measured at the meter outlet with appliances running, the regulator locking up, and the working pressure at the appliance inlet within 1 mbar.",
+ figs:[["Meter operating pressure (NG)","21 mbar nominal"],["Max loss meter → appliance","1 mbar (all appliances at full rate)"]],
+ steps:["Connect the gauge at the meter outlet test point and zero it.","Turn on the largest appliance (or all appliances) at full rate.","Read and record the meter operating pressure.","Turn the appliances off: the pressure should rise a little and then hold steady (regulator lock-up). A pressure that keeps creeping up means a faulty regulator: report it to the gas transporter.","Connect the gauge at the appliance inlet test point.","With all appliances running at full rate, read the working pressure.","Work out the loss between meter and appliance: more than 1 mbar points to undersized or restricted pipework.","Remove the gauges, re-seal both test points and leak test them."],
+ fails:["Reading the pressure with appliances off","Not checking regulator lock-up","Not re-sealing and testing the test points"]},
+{id:"rate",ms:5,title:"Gas rate and heat input",ref:"C9–C11",std:"MI / data badge",
+ look:"Only the appliance under test running at full rate, an accurate meter reading over the right time, correct calculation and a comparison with the data badge or MI.",
+ figs:[["Metric meter","read over 2 min, × 30 = m³/h"],["Imperial meter","ft³/h = 3600 ÷ seconds × dial ft³"],["ft³ → m³","× 0.0283"],["Gross kW","m³/h × CV ÷ 3.6 (CV 38.76 MJ/m³)"],["Net kW","gross ÷ 1.11"]],
+ steps:["Turn off every other gas appliance (and pilots).","Run the appliance at full rate (service mode / max) and let it settle.","Metric meter: take a reading, time exactly 2 minutes, take the second reading.","Imperial meter: time one full revolution of the test dial in seconds.","Work out the gas rate in m³/h.","Convert to gross heat input in kW, then to net (÷ 1.11) if the data badge gives net.","Compare with the data badge or MI. If it's outside the manufacturer's tolerance, check the working pressure and the gas valve setting.","Record the readings, the working and the result."],
+ fails:["Other appliances left on","Testing before the appliance is at full rate","Mixing up gross and net kW","Not comparing with the data badge or MI"]},
+{id:"flueflow",ms:2,title:"Flue flow test",ref:"F14–F15",std:"BS 5440-1",
+ look:"The flue visually checked, then a smoke test showing all the smoke leaves from the terminal with none leaking along the route or into the room.",
+ figs:[["When","before connecting an open-flued appliance, and on a new or altered flue"],["Pass","smoke only from the terminal"]],
+ steps:["Visually check the flue: route, joints, supports, terminal, no blockage or damage.","Close windows and doors in the room.","Warm the flue if needed (follow the MI and course notes for warm-up time).","Place a lit smoke pellet at the base of the flue / appliance flue position and close off the opening (e.g. fireplace opening).","Watch the terminal: smoke should leave from the terminal only.","Check along the flue route and in other rooms for smoke leakage.","Any smoke into the room or out of joints = fail: the appliance must not be connected or used. Classify under GIUSP.","Record the result."],
+ fails:["Not checking the terminal","Not checking the flue route in other rooms","Treating a partial spill as a pass"]},
+{id:"spill",ms:3,title:"Spillage test",ref:"F14–F15",std:"BS 5440-1",
+ look:"An open-flued appliance run for the right time, the smoke match held correctly at the draught diverter, and a second test under worst-case conditions with fans on.",
+ figs:[["Run first","5 minutes"],["If it spills","run 5 more minutes (10 total) and retest"],["Worst case","extract fans on, connecting doors open"],["Spillage after 10 min","Immediately Dangerous"]],
+ steps:["Close windows and doors in the room; turn off fans.","Light the appliance at full rate and run it for 5 minutes.","Hold a lit smoke match just inside the draught diverter rim (where the MI say), all the way round.","Smoke drawn into the diverter = pass. Smoke pushed out = spillage.","If it spills, run another 5 minutes and test again.","Repeat with any extract fans in the room or nearby rooms running and connecting doors open.","Spillage that won't clear: Immediately Dangerous – turn off, disconnect with permission, label and issue a warning notice.","Record both results."],
+ fails:["Testing too soon after lighting","Not repeating with extract fans on","Missing part of the draught diverter rim"]},
+{id:"cpa",ms:8,title:"Combustion performance analysis (CPA1)",ref:"C12–C14",std:"BS 7967",
+ look:"An analyser zeroed in fresh air, a flue integrity check first, readings taken at maximum rate once stable, and the results compared with the MI.",
+ figs:[["Flue integrity (air intake)","O₂ ≥ 20.6% and CO₂ ≤ 0.2%"],["Ratio","CO ppm ÷ (CO₂ % × 10,000)"],["No MI figure (boiler)","use the BS 7967 action level in your notes"]],
+ steps:["Check the analyser is in date and calibrated; zero it in fresh air outside.","Run the boiler at maximum rate (service / chimney sweep mode).","Flue integrity: probe in the air intake test point. O₂ below 20.6% or CO₂ above 0.2% = products leaking into the air supply: investigate.","Move the probe to the flue products sampling point.","Wait for the readings to settle, then record CO (ppm), CO₂ (%) and the CO/CO₂ ratio.","Compare with the MI. If outside the limits, check and service before retesting.","If still outside after servicing, classify under GIUSP and act.","Print or record the analyser results with the job details."],
+ fails:["Skipping the flue integrity check","Not zeroing the analyser in fresh air","Taking readings before they are stable or at low rate"]},
+{id:"vent",ms:null,title:"Ventilation",ref:"G2–G12",std:"BS 5440-2",
+ look:"The right ventilation worked out from the appliance type, location and net heat input, and an existing installation checked against it.",
+ figs:[["Open-flued in a room","5 cm² per kW over 7 kW net"],["Open-flued compartment to room","high 10, low 20 cm²/kW"],["Open-flued compartment to outside","high 5, low 10 cm²/kW"],["Room-sealed compartment to room","high 10, low 10 cm²/kW"],["Room-sealed compartment to outside","high 5, low 5 cm²/kW"],["Cooker","openable window; < 5 m³: 100 cm² · 5–10 m³: 50 cm² · > 10 m³: none"]],
+ steps:["Identify the appliance type (open-flued, room-sealed, flueless) and where it is (room or compartment).","Find the net heat input from the data badge or MI.","Work out the free area needed.","Measure the free area of the vents fitted (not the overall size).","Check the vents are permanent, unobstructed and in the right place (high/low, to outside or to a room).","Check other appliances and extract fans that share the air.","Record the result. Inadequate ventilation: classify under GIUSP."],
+ fails:["Using gross instead of net kW","Measuring the vent size instead of its free area","Forgetting compartment high-and-low vents"]},
+{id:"escape",ms:6,title:"Tracing gas escapes",ref:"E2–E6",std:"IGEM/UP/1B Ed. 4",
+ look:"A calm, safe sequence: make safe, tightness test to confirm, then find the escape section by section and repair or make safe.",
+ figs:[["Leak detection","non-corrosive leak detection fluid or gas detector"],["Can't find or repair","make safe, GIUSP, call the gas emergency service if needed"]],
+ steps:["Ask where and when the smell was noticed; check appliances and pilots.","Ventilate, no electrical switching or naked flames.","Turn off the ECV and carry out a tightness test.","If there's a drop, isolate appliances and test the pipework on its own to narrow it down.","Check the meter installation, then each section of pipework and each joint with leak detection fluid or a gas detector.","If no drop on the test but a smell: check the appliances, and outside – an escape before the ECV or outside the property is for the gas emergency service.","Repair the escape, then tightness test again and purge if needed.","If you can't repair it: leave the supply off, label it, issue a warning notice and record it."],
+ fails:["Turning the gas back on before the escape is found","Using the wrong leak detection fluid","Not retesting after the repair"]},
+{id:"isol",ms:7,title:"Safe isolation",ref:"A13",std:"GS38",
+ look:"The approved voltage indicator proved before and after, the right circuit isolated and locked off, and dead proved at the point of work.",
+ figs:[["Voltage indicator","GS38 approved – never a neon screwdriver"],["Prove","on a proving unit before and after"],["Test","L–N, L–E, N–E"]],
+ steps:["Identify the circuit and the point of isolation (fused spur / plug).","Prove the voltage indicator on a proving unit.","Isolate: switch off, remove the fuse, lock off and label.","Test for dead at the point of work: L–N, L–E, N–E.","Prove the voltage indicator again on the proving unit.","Carry out the work.","Before restoring: earth continuity, short circuit, resistance to earth and polarity checks as the course teaches.","Remove the lock and label, restore the supply and check the appliance works."],
+ fails:["Not proving the tester before and after","Isolating the wrong circuit","Not locking off"]},
+{id:"pipe",ms:9,title:"Pipe sizing",ref:"D2–D6",std:"BS 6891",
+ look:"A sketch of the pipework, the gas rate for each section, lengths with fitting allowances, and pipe sizes that keep the total loss to 1 mbar or less.",
+ figs:[["kW → m³/h (LCL book)","× 0.095"],["Fitting allowance","elbow 0.5 m · tee 0.5 m · bend 0.3 m"],["Max loss meter → appliance","1 mbar"]],
+ steps:["Sketch the layout from the meter to each appliance, splitting it into sections.","Find the heat input of each appliance and convert to m³/h.","Work out the gas rate in each section (all appliances fed from it).","Measure each section and add the fitting allowances to get the effective length.","Use the BS 6891 tables to choose a pipe size for each section.","Add up the pressure loss along the route to the furthest appliance: no more than 1 mbar.","Increase any section where the total is over 1 mbar.","Record your working."],
+ fails:["Sizing each branch only for its own appliance, not what flows through it","Forgetting fitting allowances","Not checking the total loss to the furthest appliance"]},
+{id:"giusp",ms:null,title:"Unsafe situations and warning notices",ref:"A3–A8",std:"IGEM/G/11 (GIUSP)",
+ look:"The situation classified correctly, the right action taken with the responsible person's permission, and the notice and record completed.",
+ figs:[["ID","disconnect with permission, label, warning notice, record"],["AR","turn off with permission, label, warning notice, record"],["Refused (ID)","contact the gas emergency service"]],
+ steps:["Find and describe the defect.","Classify it under GIUSP: Immediately Dangerous (ID) or At Risk (AR).","Explain the danger to the responsible person and ask permission to act.","ID: disconnect, attach a Danger Do Not Use label, issue a warning notice and record it. If refused, contact the gas emergency service.","AR: turn off, label, issue a warning notice and record it. If refused, record it and advise.","RIDDOR: the registered business reports where it applies.","Keep a copy of the warning notice for your records."],
+ fails:["Wrong classification","Acting without telling the responsible person","Not completing the warning notice and record"]}
+];
+var LEVELS=["Not yet","Getting there","Confident"];
+var $=function(i){return document.getElementById(i)};
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+var who={name:"",email:""}, KEY="fc-acs-practicals:device", S={};
+function load(){ try{ S=JSON.parse(localStorage.getItem(KEY)||"{}")||{}; }catch(e){ S={}; } }
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){ $("saveNote").textContent="Your browser isn't saving progress on this page – print your record when you finish."; } }
+function st(id){ return S[id]=S[id]||{ticks:[],conf:0,runs:0,last:""}; }
+
+function render(){
+  $("tasks").innerHTML=TASKS.map(function(t,i){
+    var s=st(t.id), done=s.ticks.filter(Boolean).length;
+    return '<details class="task" data-id="'+t.id+'" data-conf="'+s.conf+'">'+
+      '<summary><span class="num">'+(i+1)+'</span><span class="tt"><b>'+esc(t.title)+'</b><span>'+(t.ms?'Method statement '+t.ms+' · ':'')+esc(t.std)+(t.ref?' · LCL '+esc(t.ref):'')+'</span></span><span class="pill c'+s.conf+'">'+LEVELS[s.conf]+'</span></summary>'+
+      '<div class="body">'+
+        '<div class="look"><b>What the assessor looks for:</b> '+esc(t.look)+'</div>'+
+        '<h3>Key figures</h3><div class="figs">'+t.figs.map(function(f){return '<span class="fig">'+esc(f[0])+': <b>'+esc(f[1])+'</b></span>'}).join("")+'</div>'+
+        '<h3>Steps <span class="meta" data-count>· '+done+' of '+t.steps.length+' ticked</span></h3>'+
+        '<ol class="steps">'+t.steps.map(function(x,k){var on=!!s.ticks[k];return '<li class="'+(on?"done":"")+'"><input type="checkbox" id="'+t.id+'_'+k+'" data-k="'+k+'"'+(on?" checked":"")+'><label for="'+t.id+'_'+k+'">'+esc(x)+'</label></li>'}).join("")+'</ol>'+
+        '<div class="fails"><b>Common fails:</b><ul class="plain">'+t.fails.map(function(f){return '<li>'+esc(f)+'</li>'}).join("")+'</ul></div>'+
+        '<div class="self"><b>How confident are you?</b>'+
+          '<div class="seg">'+LEVELS.map(function(l,v){return '<label><input type="radio" name="c_'+t.id+'" value="'+v+'"'+(s.conf===v?" checked":"")+'>'+l+'</label>'}).join("")+'</div>'+
+          '<div class="row"><button class="btn small" data-run>I practised this today</button><button class="btn link" data-reset>Clear ticks</button></div>'+
+          '<p class="meta" data-runs style="margin:8px 0 0">'+runsText(s)+'</p>'+
+        '</div>'+
+      '</div></details>';
+  }).join("");
+  summary();
+}
+function runsText(s){ return s.runs?('Practised '+s.runs+' time'+(s.runs>1?'s':'')+' · last on '+s.last):'Not practised yet.'; }
+function summary(){
+  var c=TASKS.filter(function(t){return st(t.id).conf===2}).length;
+  $("ptxt").innerHTML='Confident in <b>'+c+'</b> of '+TASKS.length+' tasks';
+  $("pbar").style.width=(c/TASKS.length*100)+"%";
+}
+function today(){ return new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}); }
+
+$("tasks").addEventListener("change",function(e){
+  var d=e.target.closest("details.task"); if(!d) return; var t=d.dataset.id, s=st(t);
+  if(e.target.type==="checkbox"){ s.ticks[+e.target.dataset.k]=e.target.checked; e.target.parentNode.className=e.target.checked?"done":"";
+    var task=TASKS.filter(function(x){return x.id===t})[0]; d.querySelector("[data-count]").textContent="· "+s.ticks.filter(Boolean).length+" of "+task.steps.length+" ticked"; }
+  if(e.target.type==="radio"){ s.conf=+e.target.value; d.dataset.conf=s.conf; var p=d.querySelector(".pill"); p.className="pill c"+s.conf; p.textContent=LEVELS[s.conf]; summary(); }
+  save();
+});
+$("tasks").addEventListener("click",function(e){
+  var d=e.target.closest("details.task"); if(!d) return; var s=st(d.dataset.id);
+  if(e.target.hasAttribute("data-run")){ s.runs++; s.last=today(); d.querySelector("[data-runs]").textContent=runsText(s); e.target.textContent="Logged ✓"; setTimeout(function(){e.target.textContent="I practised this today"},1500); save(); }
+  if(e.target.hasAttribute("data-reset")){ s.ticks=[]; [].forEach.call(d.querySelectorAll("ol.steps input"),function(i){i.checked=false;i.parentNode.className=""}); d.querySelector("[data-count]").textContent="· 0 of "+d.querySelectorAll("ol.steps li").length+" ticked"; save(); }
+});
+$("expandBtn").onclick=function(){ var all=document.querySelectorAll("details.task"), open=[].some.call(all,function(d){return !d.open}); [].forEach.call(all,function(d){d.open=open}); this.textContent=open?"Close all tasks":"Open all tasks"; };
+$("printBtn").onclick=function(){
+  $("record").innerHTML='<p style="margin:0;font-size:9pt">FC Training Academy · LCL Approved Centre LC 447</p><h1>ACS practical record</h1>'+
+    '<p>Learner: <b>'+esc(who.name||"________________________")+'</b> &nbsp; Date printed: '+today()+'</p>'+
+    '<table><thead><tr><th>#</th><th>Practical task</th><th>Learner confidence</th><th>Times practised</th><th>Last practised</th><th>Tutor: competent? (Y/N, initials, date)</th></tr></thead><tbody>'+
+    TASKS.map(function(t,i){var s=st(t.id);return '<tr><td>'+(i+1)+'</td><td>'+esc(t.title)+(t.ms?' (MS '+t.ms+')':'')+'</td><td>'+LEVELS[s.conf]+'</td><td>'+(s.runs||0)+'</td><td>'+(s.last||"–")+'</td><td></td></tr>'}).join("")+
+    '</tbody></table><p>Tutor comments:</p><div style="border:1px solid #888;height:70pt"></div>'+
+    '<div class="sig"><div>Learner signature and date</div><div>Tutor / assessor signature and date</div></div>';
+  window.print();
+};
+
+load(); render();
+// Keep each learner's progress separate on shared devices.
+fetch("/api/learn/me",{credentials:"same-origin",headers:{"x-preview":"1"}}).then(function(r){return r.ok?r.json():null}).then(function(j){
+  if(!j||!j.learner) return; who=j.learner;
+  KEY="fc-acs-practicals:"+String(who.email||who.name||"device").toLowerCase();
+  load(); render();
+}).catch(function(){});
+})();
+</script>
+</body></html>
