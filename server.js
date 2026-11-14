@@ -224,7 +224,10 @@ app.get('/api/rev', auth, async (req, res) => {
 });
 app.get('/api/data', auth, notPending, async (req, res) => {
   const rev = await getRev(); const r = await pool.query(`SELECT col, id, data FROM docs`);
-  const collections = {}; for (const row of r.rows) { if (MANAGER_ONLY.has(row.col) && !canView(req.user)) continue; if (row.col === 'exams' && hiddenForRole(req.user, row.data)) continue; (collections[row.col] = collections[row.col] || {})[row.id] = row.data; }
+  // An exam PDF is hidden once a Word (.docx) copy with the same name sits in the same folder.
+  const wordPaths = new Set(r.rows.filter(x => x.col === 'exams' && /\.docx$/i.test(String(x.data && x.data.path || ''))).map(x => String(x.data.path).toLowerCase().replace(/\.docx$/, '')));
+  const supersededPdf = d => /\.pdf$/i.test(String(d && d.path || '')) && wordPaths.has(String(d.path).toLowerCase().replace(/\.pdf$/, ''));
+  const collections = {}; for (const row of r.rows) { if (MANAGER_ONLY.has(row.col) && !canView(req.user)) continue; if (row.col === 'exams' && hiddenForRole(req.user, row.data)) continue; if (row.col === 'exams' && supersededPdf(row.data)) continue; (collections[row.col] = collections[row.col] || {})[row.id] = row.data; }
   res.json({ rev, collections });
 });
 function checkPath(req, res) {
