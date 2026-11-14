@@ -881,6 +881,9 @@ function userBox(){const ub=document.getElementById("userbox");if(!ub||!ON.me)re
   const ex=document.getElementById("b-export");if(ex)ex.onclick=()=>{toast("Preparing the offline copy – this can take a minute…");window.location.href="/api/export.zip"}}
 async function afterSignIn(u){ON.me=u;if(u.must_change){showChangePw(true);return}
   TABS.length=0;BASE_TABS.forEach(t=>TABS.push(t));TABS.push(["exams","Exams"]);TABS.push(["approvals","Approvals"]);TABS.push(["activity","Activity"]);if(u.role==="manager"){TABS.push(["users","Users"])}
+  /* tabs taken out for specific accounts */
+  const HIDE_TABS={"info@fctrainingacademy.com":["staff","ecordia","floor","approvals","activity"]}[String(u.email||"").toLowerCase()];
+  if(HIDE_TABS)for(let i=TABS.length-1;i>=0;i--)if(HIDE_TABS.includes(TABS[i][0]))TABS.splice(i,1);
   if(!TABS.find(t=>t[0]===S.tab))S.tab="overview";
   main.innerHTML=`<div class="empty"><strong>Loading records…</strong></div>`;
   await loadData();start();userBox();clearInterval(ON.pollT);ON.pollT=setInterval(poll,15000)}
