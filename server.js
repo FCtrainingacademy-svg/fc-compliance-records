@@ -56,6 +56,15 @@ async function migrate() {
     UPDATE users SET role='manager' WHERE role NOT IN ('manager','admin','teacher');
     INSERT INTO meta (k, v) VALUES ('rev', '1') ON CONFLICT (k) DO NOTHING;
   `);
+  // One-off (14 Nov 2026): take the Exams group "Centre Generic FORMS Jan 2024" out for everyone (backup kept in meta).
+  if (!(await pool.query(`SELECT 1 FROM meta WHERE k='exams_remove_generic_forms'`)).rowCount) {
+    const all = (await pool.query(`SELECT id, data FROM docs WHERE col='exams'`)).rows;
+    const top = d => { const p = String(d.path || d.title || '').split('/'); return p.length > 2 ? p[1] : (p.length > 1 ? p[0] : 'Other'); };
+    const gone = all.filter(r => /^Centre Generic FORMS Jan 2024$/i.test(top(r.data).trim()));
+    if (gone.length) await pool.query(`DELETE FROM docs WHERE col='exams' AND id = ANY($1)`, [gone.map(r => r.id)]);
+    await pool.query(`INSERT INTO meta (k, v) VALUES ('exams_remove_generic_forms', $1) ON CONFLICT (k) DO NOTHING`, [JSON.stringify(gone)]);
+    if (gone.length) { await pool.query(`UPDATE meta SET v = (v::bigint + 1)::text WHERE k='rev'`); console.log('removed Centre Generic FORMS group from Exams:', gone.length); }
+  }
   // One-off (14 Nov 2026): take the Exams group "MLP Centre CD Pack - February 2024" out (only files shown under that group; backup kept in meta).
   if (!(await pool.query(`SELECT 1 FROM meta WHERE k='exams_remove_cdpack_group'`)).rowCount) {
     const all = (await pool.query(`SELECT id, data FROM docs WHERE col='exams'`)).rows;
