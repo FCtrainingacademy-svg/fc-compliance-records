@@ -267,7 +267,7 @@ function dueEntries(){
     if(l.nextReview||true)out.push({kind:"lreview",id:l.id,title:"Progress review",who:l.name,due:l.nextReview||null,st:status(l.nextReview,14),days:daysUntil(l.nextReview),area:"learners"});
     if(!l.mentorInterview)out.push({kind:"lmentor",id:l.id,title:"Learner, mentor & employer interview not recorded",who:l.name,due:null,st:"missing",days:null,area:"learners"});
     if(l.plannedEnd)out.push({kind:"lend",id:l.id,title:"Planned end date",who:l.name,due:l.plannedEnd,st:status(l.plannedEnd,60),days:daysUntil(l.plannedEnd),area:"learners"});
-    const exp=otjExpected(l);if(exp&&otjLogged(l.id)<exp*0.9)out.push({kind:"lotj",id:l.id,title:`Off-the-job hours behind (${otjLogged(l.id)} of ${exp} expected)`,who:l.name,due:null,st:"soon",days:null,area:"learners",flag:true});
+    const exp=otjExpected(l);if(!HIDE.otj&&exp&&otjLogged(l.id)<exp*0.9)out.push({kind:"lotj",id:l.id,title:`Off-the-job hours behind (${otjLogged(l.id)} of ${exp} expected)`,who:l.name,due:null,st:"soon",days:null,area:"learners",flag:true});
   }
   const rank={overdue:0,soon:1,missing:2,ok:3};
   return out.sort((a,b)=>rank[a.st]-rank[b.st]||((a.days??9e9)-(b.days??9e9)));
@@ -317,13 +317,15 @@ function vLearners(){
   <select id="lstat" data-change="lstat" aria-label="Status filter"><option value="all">All statuses</option>${LSTATUS.map(s=>`<option ${S.lstat===s?"selected":""}>${s}</option>`).join("")}</select></div>
   ${ls.length?`<div class="grid2">${ls.map(learnerCard).join("")}</div>`:`<div class="panel"><div class="empty"><strong>${S.learners.length?"No learners match":"No learners yet"}</strong>${S.learners.length?"Change the search or status filter.":"Add your first apprentice to start tracking units, portfolio evidence, attendance and off-the-job hours."}</div></div>`}`
 }
+/* hidden until the next cohort starts (Nov 2026) — data is kept; set to false to show again */
+const HIDE={siteJobs:true,units:true,otj:true};
 function learnerCard(l){
   const p=unitProgress(l),a=attendance(l.id),exp=otjExpected(l),log=otjLogged(l.id);
   const rs=status(l.nextReview,14);
   return `<button class="card" data-act="open-learner" data-id="${l.id}"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><h3>${esc(l.name)}</h3>${(l.status||"Active")!=="Active"?`<span class="pill p-missing">${esc(l.status)}</span>`:pill(rs,rs==="missing"?"Review not set":rs==="ok"?"Review booked":rs==="soon"?"Review due":"Review overdue")}</div>
   <div class="s muted" style="font-size:13px">${esc(l.programme||"")}${l.employer?" · "+esc(l.employer):""}</div>
   <div><div style="display:flex;justify-content:space-between;font-size:13px"><span>Units ${signedOff(l)}/${S.units.length} signed off</span><span class="mono">${p}%</span></div><div class="meter"><i style="width:${p}%"></i></div></div>
-  <div style="display:flex;gap:14px;font-size:13px;flex-wrap:wrap" class="muted"><span>Attendance <b class="mono" style="color:var(--ink)">${a.pct==null?"—":a.pct+"%"}</b></span><span>OTJ <b class="mono" style="color:var(--ink)">${log}${exp!=null?" / "+exp:""} h</b></span></div></button>`
+  <div style="display:flex;gap:14px;font-size:13px;flex-wrap:wrap" class="muted"><span>Attendance <b class="mono" style="color:var(--ink)">${a.pct==null?"—":a.pct+"%"}</b></span>${HIDE.otj?"":`<span>OTJ <b class="mono" style="color:var(--ink)">${log}${exp!=null?" / "+exp:""} h</b></span>`}</div></button>`
 }
 function vLearner(l){
   const a=attendance(l.id),exp=otjExpected(l),log=otjLogged(l.id),p=unitProgress(l);
@@ -332,23 +334,23 @@ function vLearner(l){
   <div class="section-head"><div><h2>${esc(l.name)}</h2><p>${esc(l.programme||"")}${l.cohort?" · Cohort "+esc(l.cohort):""}</p></div>${S.writable?`<div class="bar">${/^https:\/\//.test(l.ecordia||"")?`<a class="btn primary" href="${esc(l.ecordia)}" target="_blank" rel="noopener">Open in Ecordia ↗</a>`:""}<button class="btn" data-act="edit-learner" data-id="${l.id}">Edit details</button></div>`:(/^https:\/\//.test(l.ecordia||"")?`<a class="btn primary" href="${esc(l.ecordia)}" target="_blank" rel="noopener">Open in Ecordia ↗</a>`:"")}</div>
   <div class="stat3"><div class="stat"><div class="big">${p}%</div><div class="lbl">Course progress · ${signedOff(l)} of ${S.units.length} units signed off</div></div>
   <div class="stat"><div class="big">${a.pct==null?"—":a.pct+"%"}</div><div class="lbl">Attendance · ${a.pres}/${a.tot} sessions${a.late?`, ${a.late} late`:""}</div></div>
-  <div class="stat"><div class="big">${log} h</div><div class="lbl">Off-the-job logged${exp!=null?` · ${exp} h expected by today of ${esc(l.otjPlanned)} h`:l.otjPlanned?` of ${esc(l.otjPlanned)} h planned`:" · set planned hours in details"}</div></div></div>
+  ${HIDE.otj?"":`<div class="stat"><div class="big">${log} h</div><div class="lbl">Off-the-job logged${exp!=null?` · ${exp} h expected by today of ${esc(l.otjPlanned)} h`:l.otjPlanned?` of ${esc(l.otjPlanned)} h planned`:" · set planned hours in details"}</div></div>`}</div>
   <div class="panel"><dl class="kv">
     ${[["ULN",l.uln],["Status",l.status||"Active"],["Start",fmt(l.start)],["Planned end",fmt(l.plannedEnd)],["Next progress review",fmt(l.nextReview)],["EPA gateway",fmt(l.gateway)],["Employer",l.employer],["Employer contact",l.employerContact],["Tutor / assessor",l.tutorId?staffName(l.tutorId):""],["Workplace mentor",l.mentor],["Mentor interview",l.mentorInterview?fmt(l.mentorInterview):"Not recorded"],["Evidence pieces",evidenceCount(l)+(l.evidenceTarget?` of ${l.evidenceTarget}`:"")],["NI number",l.niNumber],["Email",l.email],["Phone",l.phone]].map(([k,v])=>`<div><dt>${k}</dt><dd class="${/Start|end|review|gateway|interview|pieces/i.test(k)?"mono":""}">${esc(v||"—")}</dd></div>`).join("")}
   </dl>${l.notes?`<p style="margin:12px 0 0;white-space:pre-wrap">${esc(l.notes)}</p>`:""}</div>
   ${portalPanel(l)}
-  ${siteJobsPanel(l)}
+  ${HIDE.siteJobs?"":siteJobsPanel(l)}
   ${ecFor(l).length?`<div class="panel"><h3>Ecordia feedback</h3><div class="files">${ecFor(l).map(x=>`<span class="file"><a href="/_blob/${esc(x.fileId)}" target="_blank" rel="noopener">${esc(x.title)}</a></span>`).join("")}</div></div>`:""}
-  <div class="panel"><h3>Units &amp; portfolio evidence</h3>
+  ${HIDE.units?"":`<div class="panel"><h3>Units &amp; portfolio evidence</h3>
   ${S.units.length?`<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Status</th><th>Signed off</th><th>Evidence</th></tr></thead><tbody>
   ${S.units.map(u=>{const x=(l.units&&l.units[u.key])||{};const s=x.s||"ns";return `<tr><td style="min-width:200px">${esc(u.title)}</td>
   <td>${S.writable?`<select class="st" id="us-${u.key}" data-change="ustat" data-k="${u.key}" aria-label="Status for ${esc(u.title)}">${Object.entries(USTAT).map(([k,v])=>`<option value="${k}" ${s===k?"selected":""}>${v}</option>`).join("")}</select>`:esc(USTAT[s])}</td>
   <td class="mono" style="white-space:nowrap">${x.date?fmt(x.date):"—"}</td>
   <td style="min-width:180px">${fileLinks(x.files,true,"unit:"+l.id+":"+u.key)}${S.writable&&S.assets?`<label class="btn sm" style="margin-top:4px"><input type="file" hidden multiple data-change="ufile" data-k="${u.key}">Upload</label>`:""}</td></tr>`}).join("")}
-  </tbody></table></div>`:`<div class="empty">No course units set up. Use <b>Course units</b> on the Learners page.</div>`}</div>
-  <div class="panel"><h3>Off-the-job training log</h3>
+  </tbody></table></div>`:`<div class="empty">No course units set up. Use <b>Course units</b> on the Learners page.</div>`}</div>`}
+  ${HIDE.otj?"":`<div class="panel"><h3>Off-the-job training log</h3>
   ${S.writable?`<form class="bar" data-submit="otj" style="margin-bottom:10px"><input type="date" id="otj-d" value="${todayISO()}" required aria-label="Date" style="border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--surface)"><input type="number" id="otj-h" min="0.25" step="0.25" placeholder="Hours" required aria-label="Hours" style="width:90px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--surface)"><input type="text" id="otj-a" placeholder="Activity, e.g. pipework practical in centre" required aria-label="Activity" style="flex:1 1 220px;min-width:0;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--surface)"><button class="btn primary sm">Log hours</button></form>`:""}
-  ${ents.length?`<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Hours</th><th>Activity</th><th></th></tr></thead><tbody>${ents.slice(0,60).map(e=>`<tr><td class="mono">${fmt(e.d)}</td><td class="mono">${esc(e.h)}</td><td>${esc(e.a)}</td><td>${S.writable?`<button class="btn sm danger" data-act="rm-otj" data-i="${e.i}" aria-label="Remove entry">Remove</button>`:""}</td></tr>`).join("")}</tbody></table></div>${ents.length>60?`<p class="muted" style="font-size:13px">Showing latest 60 of ${ents.length}. Export CSV for the full log.</p>`:""}`:`<div class="empty">No off-the-job hours logged yet.</div>`}</div>
+  ${ents.length?`<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Hours</th><th>Activity</th><th></th></tr></thead><tbody>${ents.slice(0,60).map(e=>`<tr><td class="mono">${fmt(e.d)}</td><td class="mono">${esc(e.h)}</td><td>${esc(e.a)}</td><td>${S.writable?`<button class="btn sm danger" data-act="rm-otj" data-i="${e.i}" aria-label="Remove entry">Remove</button>`:""}</td></tr>`).join("")}</tbody></table></div>${ents.length>60?`<p class="muted" style="font-size:13px">Showing latest 60 of ${ents.length}. Export CSV for the full log.</p>`:""}`:`<div class="empty">No off-the-job hours logged yet.</div>`}</div>`}
   ${attendancePanel(l)}
   </div>`
 }
