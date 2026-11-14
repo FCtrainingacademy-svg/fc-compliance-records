@@ -57,6 +57,12 @@ async function migrate() {
     UPDATE users SET role='manager' WHERE role NOT IN ('manager','admin','teacher');
     INSERT INTO meta (k, v) VALUES ('rev', '1') ON CONFLICT (k) DO NOTHING;
   `);
+  // One-off (14 Nov 2026): the account named "Teacher" was created as Admin before the Teacher role existed.
+  if (!(await pool.query(`SELECT 1 FROM meta WHERE k='user_teacher_role'`)).rowCount) {
+    const u = await pool.query(`UPDATE users SET role='teacher' WHERE role='admin' AND (name ILIKE 'teacher' OR name ILIKE 'teacher %' OR email ILIKE 'teacher@%') RETURNING name, email`);
+    await pool.query(`INSERT INTO meta (k, v) VALUES ('user_teacher_role', $1) ON CONFLICT (k) DO NOTHING`, [JSON.stringify(u.rows)]);
+    if (u.rowCount) console.log('set role=teacher for:', u.rows.map(r => r.name + ' <' + r.email + '>').join(', '));
+  }
   // One-off (14 Nov 2026): take the Exams group "Centre Generic FORMS Jan 2024" out for everyone (backup kept in meta).
   if (!(await pool.query(`SELECT 1 FROM meta WHERE k='exams_remove_generic_forms'`)).rowCount) {
     const all = (await pool.query(`SELECT id, data FROM docs WHERE col='exams'`)).rows;
