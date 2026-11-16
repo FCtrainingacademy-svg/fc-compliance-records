@@ -247,6 +247,8 @@ async function applyChange(method, col, id, body, byEmail) {
     await c.query('BEGIN');
     if (method === 'DELETE') {
       await c.query(`DELETE FROM docs WHERE col=$1 AND id=$2`, [col, id]);
+      // Deleting a learner also removes their portal login, so the email can be given to another record later.
+      if (col === 'learners') await c.query(`DELETE FROM learner_logins WHERE learner_id=$1`, [id]);
     } else {
       let data = body;
       if (method === 'PATCH') {

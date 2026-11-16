@@ -99,8 +99,17 @@ module.exports = function learnerPortal(app, d) {
     const email = String(l.email || '').trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) return res.status(400).json({ error: "Add a valid email address to this learner's details first. It becomes their username." });
     if ((l.status || 'Active') !== 'Active') return res.status(400).json({ error: 'Only active learners can have portal access.' });
-    const clash = await pool.query(`SELECT learner_id FROM learner_logins WHERE email=$1 AND learner_id<>$2`, [email, req.params.lid]);
+    const clash = await pool.query(`SELECT ll.learner_id FROM learner_logins ll WHERE ll.email=$1 AND ll.learner_id<>$2
+      AND EXISTS (SELECT 1 FROM docs WHERE col='learners' AND id=ll.learner_id)`, [email, req.params.lid]);
     if (clash.rows.length) return res.status(400).json({ error: 'Another learner already uses this email for the portal. Give each learner their own email.' });
+    // A login left over from a deleted learner record (e.g. a merged duplicate) frees its email for this learner,
+    // and its mock exam history moves across with it.
+    const stale = await pool.query(`DELETE FROM learner_logins ll WHERE ll.email=$1 AND ll.learner_id<>$2
+      AND NOT EXISTS (SELECT 1 FROM docs WHERE col='learners' AND id=ll.learner_id) RETURNING learner_id`, [email, req.params.lid]);
+    for (const s of stale.rows) {
+      await pool.query(`UPDATE exam_attempts SET learner_id=$1 WHERE learner_id=$2`, [req.params.lid, s.learner_id]);
+      await pool.query(`UPDATE game_runs SET learner_id=$1 WHERE learner_id=$2`, [req.params.lid, s.learner_id]);
+    }
     const token = crypto.randomBytes(24).toString('hex');
     await pool.query(`INSERT INTO learner_logins (learner_id, email, invite_hash, invite_expires) VALUES ($1,$2,$3, now() + interval '14 days')
       ON CONFLICT (learner_id) DO UPDATE SET email=$2, invite_hash=$3, invite_expires=now() + interval '14 days', active=true`, [req.params.lid, email, sha(token)]);
